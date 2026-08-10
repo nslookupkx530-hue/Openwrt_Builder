@@ -196,18 +196,36 @@ jobs:
       run: |
         cd openwrt
     
-        # 1. 自动从 ImmortalWrt 官方软件源抓取最新编译的核心依赖哈希
-        # 如果你编译的是稳定分支（如 24.10 / 23.05），请将路径中的 snapshots 替换为对应的版本号（例如 releases/24.10.0）
-        OFFICIAL_VERMAGIC=$(curl -s https://immortalwrt.org | grep -m 1 "Depends: kernel (= " | sed -E 's/.*-([^.-]+)\).*/\1/')
+        # 尝试从两个可能的官方路径抓取（快照源最新的位置）
+        URL1="https://immortalwrt.org"
+        URL2="https://immortalwrt.org"
     
-        # 2. 如果抓取成功，将其写入并强制注入内核规则
+        echo "正在从官方源尝试抓取 Vermagic..."
+    
+        # 优先从主包列表抓取
+        RAW_DATA=$(curl -sL --connect-timeout 10 --retry 3 "$URL1")
+        OFFICIAL_VERMAGIC=$(echo "$RAW_DATA" | grep -m 1 "Depends: kernel (= " | sed -E 's/.*-([^.-]+)\).*/\1/')
+    
+        # 如果没抓到，尝试备用路径
+        if [ -z "$OFFICIAL_VERMAGIC" ]; then
+        echo "路径1抓取失败，尝试路径2..."
+        RAW_DATA=$(curl -sL --connect-timeout 10 --retry 3 "$URL2")
+        OFFICIAL_VERMAGIC=$(echo "$RAW_DATA" | grep -m 1 "Depends: kernel (= " | sed -E 's/.*-([^.-]+)\).*/\1/')
+        fi
+    
+        # 如果抓取成功，将其写入并强制注入内核规则
         if [ -n "$OFFICIAL_VERMAGIC" ]; then
-        echo "成功获取官方 Vermagic: $OFFICIAL_VERMAGIC"
-        echo "$OFFICIAL_VERMAGIC" > vermagic
-        sed -i "s/grep '=\[ym\]'.*/cp \$(TOPDIR)\/vermagic \$(LINUX_DIR)\/.vermagic/" include/kernel-defaults.mk
+          echo "=========================================="
+          echo "成功获取官方 Vermagic: $OFFICIAL_VERMAGIC"
+          echo "=========================================="
+          echo "$OFFICIAL_VERMAGIC" > vermagic
+          sed -i "s/grep '=\[ym\]'.*/cp \$(TOPDIR)\/vermagic \$(LINUX_DIR)\/.vermagic/" include/kernel-defaults.mk
         else
-        echo "错误：未能获取到官方 Vermagic，请检查官方源地址是否正确！"
-        exit 1
+          echo "=========================================="
+          echo "错误：未能在线获取到官方 Vermagic！"
+          echo "如果你急着编译，可以暂时在此处硬编码一个固定的 32 位值替代变量。"
+          echo "=========================================="
+          exit 1
         fi
     
     - name: 下载软件包
