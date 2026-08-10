@@ -1,6 +1,5 @@
 name: OpenWrt release firmware
 description: Organize one firmware target directory, upload it, create a release, and clean old artifacts.
-
 inputs:
   upload-firmware:
     description: Whether to upload the firmware artifact.
@@ -26,13 +25,12 @@ inputs:
   keep-latest:
     description: Number of releases to keep.
     default: "10"
-
 runs:
   using: composite
   steps:
     - name: Organize firmware files
       id: organize
-      if: (inputs.upload-firmware == 'true' || inputs.upload-release == 'true') && !cancelled()
+      if: (inputs.upload-firmware == 'true' || inputs.upload-release == 'true') && not(cancelled())
       shell: bash
       run: |
         shopt -s nullglob
@@ -56,14 +54,14 @@ runs:
 
     - name: Upload firmware artifact
       uses: actions/upload-artifact@main
-      if: inputs.upload-firmware == 'true' && steps.organize.outputs.firmware-path != '' && !cancelled()
+      if: inputs.upload-firmware == 'true' && steps.organize.outputs.firmware-path != '' && not(cancelled())
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ steps.organize.outputs.firmware-path }}
 
     - name: Generate release tag
       id: release-meta
-      if: inputs.upload-release == 'true' && !cancelled()
+      if: inputs.upload-release == 'true' && not(cancelled())
       shell: bash
       run: |
         CLEANED_WORKFLOW_NAME=$(echo "${{ inputs.workflow-name }}" | tr -c '[:alnum:]_' '-')
@@ -85,7 +83,7 @@ runs:
 
     - name: Release firmware
       uses: softprops/action-gh-release@v2
-      if: steps.release-meta.outputs.release-tag != '' && !cancelled()
+      if: steps.release-meta.outputs.release-tag != '' && not(cancelled())
       with:
         tag_name: ${{ inputs.release-tag-prefix }}-${{ steps.release-meta.outputs.release-tag }}
         files: ${{ steps.organize.outputs.firmware-path }}/*
@@ -94,14 +92,14 @@ runs:
 
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
-      if: !cancelled()
+      if: not(cancelled())
       with:
         retain_days: 5
         keep_minimum_runs: 5
 
     - name: Remove old releases
       uses: dev-drprasad/delete-older-releases@v0.1.0
-      if: inputs.upload-release == 'true' && !cancelled()
+      if: inputs.upload-release == 'true' && not(cancelled())
       with:
         keep_latest: ${{ inputs.keep-latest }}
         delete_tags: true
