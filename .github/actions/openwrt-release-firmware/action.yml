@@ -1,32 +1,32 @@
 name: OpenWrt release firmware
 
-description: Organize one firmware target directory, upload it, create a release, and clean old artifacts.
+description: Organize firmware files, upload artifact, create release, and clean old releases.
 
 
 inputs:
 
   upload-firmware:
-    description: Whether to upload the firmware artifact.
+    description: Whether to upload firmware artifact.
     default: "true"
 
   upload-release:
-    description: Whether to create a GitHub release.
+    description: Whether to create GitHub release.
     default: "true"
 
   workflow-name:
-    description: Logical workflow name used in the generated release tag.
+    description: Logical workflow name.
     required: true
 
   source-tag:
-    description: Source tag or branch used in the generated release tag.
+    description: Source tag or branch.
     required: true
 
   release-tag-prefix:
-    description: Prefix prepended to the generated release tag.
+    description: Prefix of release tag.
     required: true
 
   source-url:
-    description: Source repository URL included in the release body.
+    description: Source repository URL.
     required: true
 
   artifact-name:
@@ -47,15 +47,11 @@ runs:
   steps:
 
 
-    ##################################################
-    # 整理固件文件
-    ##################################################
-
     - name: Organize firmware files
 
       id: organize
 
-      if: (inputs.upload-firmware == 'true' || inputs.upload-release == 'true') && !cancelled()
+      if: "(inputs.upload-firmware == 'true' || inputs.upload-release == 'true') && !cancelled()"
 
       shell: bash
 
@@ -69,20 +65,18 @@ runs:
 
         if [ "${#target_dirs[@]}" -eq 0 ]; then
 
-          echo "No firmware target directory found under openwrt/bin/targets/*/*."
+          echo "No firmware target directory found."
 
           exit 1
 
         fi
 
 
-
         if [ "${#target_dirs[@]}" -gt 1 ]; then
 
-          echo "Multiple firmware target directories found:"
+          echo "Multiple target directories found:"
 
           printf '%s\n' "${target_dirs[@]}"
-
 
           echo "Using first directory: ${target_dirs[0]}"
 
@@ -121,16 +115,13 @@ runs:
 
 
 
-    ##################################################
-    # 上传固件 Artifact
-    ##################################################
 
     - name: Upload firmware artifact
 
       uses: actions/upload-artifact@v4
 
 
-      if: inputs.upload-firmware == 'true' && steps.organize.outputs.firmware-path != '' && !cancelled()
+      if: "inputs.upload-firmware == 'true' && steps.organize.outputs.firmware-path != '' && !cancelled()"
 
 
       with:
@@ -144,16 +135,13 @@ runs:
 
 
 
-    ##################################################
-    # 生成 Release 标签
-    ##################################################
 
     - name: Generate release tag
 
       id: release-meta
 
 
-      if: inputs.upload-release == 'true' && !cancelled()
+      if: "inputs.upload-release == 'true' && !cancelled()"
 
 
       shell: bash
@@ -172,22 +160,10 @@ runs:
         BASE_TAG="${CLEANED_WORKFLOW_NAME}-${CLEANED_SOURCE_TAG}"
 
 
-
         DATE_SUFFIX=$(date +"%Y%m%d-%H%M")
 
 
-
         RELEASE_TAG="${BASE_TAG}-${DATE_SUFFIX}"
-
-
-
-        if [ -z "$RELEASE_TAG" ]; then
-
-          echo "Generated release tag is empty."
-
-          exit 1
-
-        fi
 
 
 
@@ -197,7 +173,6 @@ runs:
 
         echo "::group::Release metadata"
 
-
         echo "workflow-name=${{ inputs.workflow-name }}"
 
         echo "source-tag=${{ inputs.source-tag }}"
@@ -206,7 +181,6 @@ runs:
 
         echo "source-url=${{ inputs.source-url }}"
 
-
         echo "::endgroup::"
 
 
@@ -214,9 +188,6 @@ runs:
 
 
 
-    ##################################################
-    # 创建 GitHub Release
-    ##################################################
 
     - name: Release firmware
 
@@ -224,7 +195,7 @@ runs:
       uses: softprops/action-gh-release@v2
 
 
-      if: steps.release-meta.outputs.release-tag != '' && !cancelled()
+      if: "steps.release-meta.outputs.release-tag != '' && !cancelled()"
 
 
       with:
@@ -238,8 +209,9 @@ runs:
 
         body: |
 
-          源码：
+          OpenWrt Firmware
 
+          Source:
           ${{ inputs.source-url }}
 
 
@@ -248,17 +220,13 @@ runs:
 
 
 
-    ##################################################
-    # 删除旧 Workflow
-    ##################################################
-
     - name: Delete workflow runs
 
 
       uses: GitRML/delete-workflow-runs@main
 
 
-      if: !cancelled()
+      if: "!cancelled()"
 
 
       with:
@@ -273,9 +241,6 @@ runs:
 
 
 
-    ##################################################
-    # 删除旧 Release
-    ##################################################
 
     - name: Remove old releases
 
@@ -283,7 +248,7 @@ runs:
       uses: dev-drprasad/delete-older-releases@v0.1.0
 
 
-      if: inputs.upload-release == 'true' && !cancelled()
+      if: "inputs.upload-release == 'true' && !cancelled()"
 
 
       with:
