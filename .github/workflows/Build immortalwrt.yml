@@ -1,8 +1,6 @@
 name: Build immortalwrt
 
 on:
-  #schedule:
-    #- cron: '0 16 * * *'
   repository_dispatch:
   workflow_dispatch:
     inputs:
@@ -10,6 +8,7 @@ on:
         description: '是否编译docker'
         required: false
         default: 'false'
+
       tag2:
         description: 'ImmortalWrt版本'
         required: false
@@ -18,269 +17,999 @@ on:
 env:
   REPO_URL_IMM: https://github.com/immortalwrt/immortalwrt.git
   REPO_BRANCH: main
-  FEEDS_CONF: feeds.conf.default
+
   CONFIG_FILE: ./config/immortalwrt.config
   CONFIG_FILE_DOCKER: ./config/docker.config
+
   DIY_P1_SH: ./sh/scripts-part1.sh
   DIY_P2_SH: ./sh/scripts-part2.sh
+
   DEFAULT_SETTING: ./default-settings-m0eak
+
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
+
   TZ: Asia/Shanghai
 
+
 jobs:
+
   build:
+
     runs-on: ubuntu-22.04
+
+
     steps:
+
+
+    ##################################################
+    # Checkout
+    ##################################################
+
     - name: Checkout
       uses: actions/checkout@main
+
+
+
+    ##################################################
+    # 显示调试信息
+    ##################################################
 
     - name: 显示调试上下文
       run: |
         echo "::group::Workflow inputs"
+
         echo "docker=${{ github.event.inputs.docker }}"
         echo "tag2=${{ github.event.inputs.tag2 }}"
+
         echo "repo-url=$REPO_URL_IMM"
         echo "repo-branch=$REPO_BRANCH"
+
         echo "config-file=$CONFIG_FILE"
         echo "docker-config=$CONFIG_FILE_DOCKER"
-        echo "feeds-conf=$FEEDS_CONF"
-        echo "diy-p1-sh=$DIY_P1_SH"
-        echo "diy-p2-sh=$DIY_P2_SH"
+
+        echo "diy-p1=$DIY_P1_SH"
+        echo "diy-p2=$DIY_P2_SH"
+
         echo "default-setting=$DEFAULT_SETTING"
-        for path in "$CONFIG_FILE" "$CONFIG_FILE_DOCKER" "$FEEDS_CONF" "$DIY_P1_SH" "$DIY_P2_SH" "$DEFAULT_SETTING" "files"; do
+
+
+        for path in \
+          "$CONFIG_FILE" \
+          "$CONFIG_FILE_DOCKER" \
+          "$DIY_P1_SH" \
+          "$DIY_P2_SH" \
+          "$DEFAULT_SETTING" \
+          "files"
+        do
+
           if [ -e "$path" ]; then
             echo "exists: $path"
           else
             echo "missing: $path"
           fi
+
         done
+
+
         echo "::endgroup::"
+
+
+
+    ##################################################
+    # 清理空间
+    ##################################################
 
     - name: 释放磁盘空间
       run: |
+
         echo "::group::Disk cleanup"
-        echo "清理前磁盘空间："
+
+
+        echo "清理前:"
         df -hT
-        # 仅删除最占空间的大型预装软件
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-        sudo docker image prune --all --force
-        echo "清理后磁盘空间："
+
+
+        sudo rm -rf \
+          /usr/share/dotnet \
+          /usr/local/lib/android \
+          /opt/ghc \
+          /opt/hostedtoolcache/CodeQL
+
+
+        sudo docker image prune \
+          --all \
+          --force
+
+
+        echo "清理后:"
         df -hT
+
+
         echo "::endgroup::"
 
+
+
+    ##################################################
+    # 初始化环境
+    ##################################################
 
     - name: 初始化环境
+
       env:
         DEBIAN_FRONTEND: noninteractive
-      run: |
-          sudo -E apt-get update
-          sudo -E apt-get -y install dos2unix libfuse-dev
-          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
-          sudo -E systemctl daemon-reload
-          sudo timedatectl set-timezone "$TZ"
-          sudo mkdir -p /workdir
-          sudo chown $USER:$GROUPS /workdir
-          echo "WORKFLOW_NAME=x86_immortalwrt" >> $GITHUB_ENV
-          echo "TAG2=${{ github.event.inputs.tag2 }}" | tr ' ' '_' >> $GITHUB_ENV
 
+
+      run: |
+
+        sudo -E apt-get update
+
+
+        sudo -E apt-get install -y \
+          dos2unix \
+          libfuse-dev
+
+
+        sudo bash -c \
+        'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+
+
+        sudo systemctl daemon-reload
+
+
+        sudo timedatectl set-timezone "$TZ"
+
+
+
+        sudo mkdir -p /workdir
+
+
+        sudo chown \
+          $USER:$GROUPS \
+          /workdir
+
+
+
+        echo "WORKFLOW_NAME=x86_immortalwrt" >> $GITHUB_ENV
+
+
+        echo "TAG2=${{ github.event.inputs.tag2 }}" \
+        | tr ' ' '_' \
+        >> $GITHUB_ENV
+
+
+
+
+    ##################################################
+    # 克隆 ImmortalWrt
+    ##################################################
 
     - name: 克隆源代码
-      working-directory: /workdir
-      run: |
-        df -hT $PWD
-        REPO_URL=$REPO_URL_IMM
-        git clone $REPO_URL --single-branch openwrt
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-        cd openwrt
-        git fetch --tags # 获取最新的标签
-        git checkout "tags/${TAG2}" || git checkout "${TAG2}" # 尝试检出标签，如果失败则尝试检出分支
-        echo "::group::OpenWrt source revision"
-        git log -1 --oneline
-        git remote -v
-        git status --short
-        echo "::endgroup::"
-        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
-        
-    - name: 加载自定义源
-      run: |
-        echo "WORKFLOW_NAME=x86_immortalwrt" >> $GITHUB_ENV
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x $DIY_P1_SH
-        cd openwrt
-        echo "::group::Feeds configuration"
-        pwd
-        ls -l feeds.conf.default || true
-        sed -n '1,80p' feeds.conf.default || true
-        echo "::endgroup::"
-        ./scripts/feeds update -a
-        $GITHUB_WORKSPACE/$DIY_P1_SH
 
-    #- name: 更新源
-    #  run: cd openwrt && ./scripts/feeds update -a
+      working-directory: /workdir
+
+
+      run: |
+
+
+        df -hT $PWD
+
+
+
+        git clone \
+          $REPO_URL_IMM \
+          --single-branch \
+          openwrt
+
+
+
+        ln -sf \
+          /workdir/openwrt \
+          $GITHUB_WORKSPACE/openwrt
+
+
+
+        cd openwrt
+
+
+
+        echo "::group::Git tags"
+
+        git fetch \
+          --tags \
+          --force
+
+
+        echo "::endgroup::"
+
+
+
+
+        ################################################
+        # 固定版本
+        ################################################
+
+
+        echo "Checkout ImmortalWrt ${TAG2}"
+
+
+        git checkout \
+          "tags/${TAG2}" \
+          || \
+        git checkout \
+          "${TAG2}"
+
+
+
+        echo "::group::ImmortalWrt source revision"
+
+
+
+        echo "Commit:"
+        git rev-parse HEAD
+
+
+
+        echo
+
+        echo "Short:"
+        git log \
+          -1 \
+          --oneline
+
+
+
+        echo
+
+        echo "Remote:"
+        git remote -v
+
+
+
+        echo
+
+        echo "Status:"
+        git status --short
+
+
+
+        echo "::endgroup::"
+
+
+
+        ################################################
+        # 保存路径
+        ################################################
+
+
+        echo "OPENWRT_PATH=$PWD" \
+        >> $GITHUB_ENV
+    
+    ##################################################
+    # feeds 更新 + hash锁定
+    ##################################################
+
+    - name: 更新并锁定 feeds
+
+      run: |
+
+        cd openwrt
+
+
+        echo "::group::Feeds configuration"
+
+
+        pwd
+
+
+        ls -l feeds.conf.default || true
+
+
+        sed -n '1,120p' feeds.conf.default || true
+
+
+        echo "::endgroup::"
+
+
+
+        ################################################
+        # 更新 feeds
+        ################################################
+
+
+        ./scripts/feeds update -a
+
+
+
+        ################################################
+        # 记录 feeds commit
+        ################################################
+
+
+        echo "::group::Feeds commit lock"
+
+
+
+        rm -rf feeds.lock
+
+        mkdir -p feeds.lock
+
+
+
+        for feed in feeds/*; do
+
+
+          if [ -d "$feed/.git" ]; then
+
+
+            name=$(basename "$feed")
+
+
+            commit=$(git -C "$feed" rev-parse HEAD)
+
+
+
+            echo "$commit" \
+              > feeds.lock/$name.lock
+
+
+
+            echo "$name=$commit"
+
+
+          fi
+
+
+        done
+
+
+
+        echo "::endgroup::"
+
+
+
+
+
+        ################################################
+        # 保存 feeds 信息
+        ################################################
+
+
+        echo "FEEDS_HASH=$(find feeds.lock -type f -exec sha256sum {} \; | sha256sum | cut -d' ' -f1)" \
+        >> $GITHUB_ENV
+
+
+
+
+    ##################################################
+    # 安装 feeds
+    ##################################################
 
     - name: 安装源
-      run: cd openwrt && ./scripts/feeds install -a
+
+      run: |
+
+        cd openwrt
+
+
+        ./scripts/feeds install -a
+
+
+
+
+    ##################################################
+    # 加载自定义配置
+    ##################################################
 
     - name: 加载自定义配置
+
+
       run: |
-        echo "WORKFLOW_NAME=x86_immortalwrt" >> $GITHUB_ENV
-        [ -e $DEFAULT_SETTING ] && mv $DEFAULT_SETTING openwrt/package/default-settings-m0eak
-        [ -e files ] && mv ./files openwrt/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        if [ "${{ github.event.inputs.docker }}" = "true" ] && [ -e $CONFIG_FILE_DOCKER ]; then
-          cat $CONFIG_FILE_DOCKER >> openwrt/.config
+
+
+        echo "WORKFLOW_NAME=x86_immortalwrt" \
+        >> $GITHUB_ENV
+
+
+
+        ################################################
+        # 默认设置
+        ################################################
+
+
+        if [ -e "$DEFAULT_SETTING" ]; then
+
+          mv \
+            "$DEFAULT_SETTING" \
+            openwrt/package/default-settings-m0eak
+
         fi
-        chmod +x $DIY_P2_SH
+
+
+
+
+        ################################################
+        # files目录
+        ################################################
+
+
+        if [ -e files ]; then
+
+          mv \
+            ./files \
+            openwrt/files
+
+        fi
+
+
+
+
+        ################################################
+        # 主配置
+        ################################################
+
+
+        if [ -e "$CONFIG_FILE" ]; then
+
+          mv \
+            "$CONFIG_FILE" \
+            openwrt/.config
+
+        fi
+
+
+
+
+
+        ################################################
+        # Docker配置
+        ################################################
+
+
+        if [ "${{ github.event.inputs.docker }}" = "true" ] \
+        && [ -e "$CONFIG_FILE_DOCKER" ]; then
+
+
+          cat \
+            "$CONFIG_FILE_DOCKER" \
+            >> openwrt/.config
+
+
+        fi
+
+
+
+
+
+        ################################################
+        # DIY脚本
+        ################################################
+
+
+        chmod +x \
+          "$DIY_P2_SH"
+
+
+
         cd openwrt
-        echo "::group::Pre-defconfig workspace snapshot"
+
+
+
+        echo "::group::Pre defconfig snapshot"
+
+
+
         pwd
-        ls -ld package/default-settings-m0eak files .config 2>/dev/null || true
-        grep -E '^(CONFIG_TARGET|CONFIG_PACKAGE_(docker|dockerd|luci-app-dockerman|containerd|runc))' .config || true
+
+
+        ls -ld \
+          package/default-settings-m0eak \
+          files \
+          .config \
+          2>/dev/null \
+          || true
+
+
+
+        grep -E \
+        '^(CONFIG_TARGET|CONFIG_PACKAGE_(docker|dockerd|luci-app-dockerman|containerd|runc))' \
+        .config \
+        || true
+
+
+
         echo "::endgroup::"
-        $GITHUB_WORKSPACE/$DIY_P2_SH
+
+
+
+
+        "$GITHUB_WORKSPACE/$DIY_P2_SH"
+
+
+
+
         make defconfig
+
+
+
+
         echo "::group::当前 diffconfig"
-        ./scripts/diffconfig.sh        
+
+
+
+        ./scripts/diffconfig.sh
+
+
+
         echo "::endgroup::"
+
+
+
+
+
+
+    ##################################################
+    # 缓存
+    ##################################################
 
     - name: 检查并恢复缓存
+
       id: check-cache
+
+
       uses: actions/cache@v4
+
+
       with:
-        key: ${{ runner.os }}-${{ github.workflow }}-${{ env.TAG2 }}-${{ hashFiles('openwrt/.config', 'openwrt/feeds.conf.default', '**/scripts-part*.sh') }}
+
+
+        key: |
+          ${{ runner.os }}-${{ github.workflow }}-${{ env.TAG2 }}-${{ env.FEEDS_HASH }}-${{ hashFiles('openwrt/.config','**/scripts-part*.sh') }}
+
+
+
         restore-keys: |
-          ${{ runner.os }}-${{ github.workflow }}-${{ env.TAG2 }}-
+
+          ${{ runner.os }}-${{ github.workflow }}-${{ env.TAG2 }}-${{ env.FEEDS_HASH }}-
+
+
         path: |
+
           openwrt/.ccache
+
           openwrt/staging_dir/host*
+
           openwrt/staging_dir/tool*
 
+
+
+
+
+    ##################################################
+    # 缓存处理
+    ##################################################
+
     - name: 更新缓存并处理时间戳
+
+
       env:
+
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
       run: |
+
+
         echo "cache-hit=${{ steps.check-cache.outputs.cache-hit }}"
-        if [ "${{ steps.check-cache.outputs.cache-hit }}" == "true" ]; then
-          echo "缓存命中，更新时间戳..."
+
+
+
+        if [ "${{ steps.check-cache.outputs.cache-hit }}" = "true" ]; then
+
+
+
+          echo "缓存命中，更新时间戳"
+
+
+
           cd openwrt
-          find staging_dir -type d -name "stamp" -not -path "*target*" | while read -r DIR; do
-            find "$DIR" -type f -exec touch {} +
+
+
+
+          find staging_dir \
+            -type d \
+            -name stamp \
+            -not -path "*target*" \
+            | while read -r DIR;
+
+
+          do
+
+            find "$DIR" \
+              -type f \
+              -exec touch {} +
+
+
           done
-          echo "时间戳更新完毕!"
-        else
-          echo "缓存未命中，开始主动清理相关的旧缓存..."
-          
-          # 清理 Go 模块缓存，防止污染
-          rm -rf openwrt/dl/go-mod-cache
 
-          # 构造用于搜索的 key 前缀
+
+
+          echo "完成"
+
+
+
+        else
+
+
+
+          echo "缓存未命中"
+
+
+
+          rm -rf \
+            openwrt/dl/go-mod-cache
+
+
+
           CACHE_PREFIX="${{ runner.os }}-${{ github.workflow }}-${{ env.TAG2 }}-"
-          
-          echo "正在搜索前缀为 '${CACHE_PREFIX}' 的旧缓存..."
-          CACHE_LIST=$(gh cache list --key "$CACHE_PREFIX" | cut -f 1)
-          
-          if [ -n "$CACHE_LIST" ]; then
-            for CACHE_KEY in $CACHE_LIST; do
-              echo "删除旧缓存: $CACHE_KEY"
-              gh cache delete "$CACHE_KEY" 
-            done
-            echo "相关旧缓存清理完毕!"
-          else
-            echo "没有找到相关的旧缓存。"
-          fi
-        fi
-        
-    - name: Auto Fetch and Fix Official vermagic
-      run: |
-        cd openwrt
-    
-        # 尝试从两个可能的官方路径抓取（快照源最新的位置）
-        URL1="https://immortalwrt.org"
-        URL2="https://immortalwrt.org"
-    
-        echo "正在从官方源尝试抓取 Vermagic..."
-    
-        # 优先从主包列表抓取
-        RAW_DATA=$(curl -sL --connect-timeout 10 --retry 3 "$URL1")
-        OFFICIAL_VERMAGIC=$(echo "$RAW_DATA" | grep -m 1 "Depends: kernel (= " | sed -E 's/.*-([^.-]+)\).*/\1/')
-    
-        # 如果没抓到，尝试备用路径
-        if [ -z "$OFFICIAL_VERMAGIC" ]; then
-        echo "路径1抓取失败，尝试路径2..."
-        RAW_DATA=$(curl -sL --connect-timeout 10 --retry 3 "$URL2")
-        OFFICIAL_VERMAGIC=$(echo "$RAW_DATA" | grep -m 1 "Depends: kernel (= " | sed -E 's/.*-([^.-]+)\).*/\1/')
-        fi
-    
-        # 如果抓取成功，将其写入并强制注入内核规则
-        if [ -n "$OFFICIAL_VERMAGIC" ]; then
-          echo "=========================================="
-          echo "成功获取官方 Vermagic: $OFFICIAL_VERMAGIC"
-          echo "=========================================="
-          echo "$OFFICIAL_VERMAGIC" > vermagic
-          sed -i "s/grep '=\[ym\]'.*/cp \$(TOPDIR)\/vermagic \$(LINUX_DIR)\/.vermagic/" include/kernel-defaults.mk
-        else
-          echo "=========================================="
-          echo "错误：未能在线获取到官方 Vermagic！"
-          echo "如果你急着编译，可以暂时在此处硬编码一个固定的 32 位值替代变量。"
-          echo "=========================================="
-          exit 1
-        fi
-    
-    - name: 下载软件包
-      id: package
-      run: |
-         cd openwrt
-         make download -j8
-         echo "::group::Download directory summary"
-         du -sh dl || true
-         find dl -size -1024c -exec ls -l {} \;
-         echo "::endgroup::"
-         find dl -size -1024c -exec rm -f {} \;
 
-    - name: 编译固件
-      id: compile
-      run: |
-        cd openwrt
-        echo -e "$(nproc) 线程编译"
-        make -j$(expr $(nproc) + 1) || make -j1 V=s
-        echo "compile-status=success" >> $GITHUB_ENV
-        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
-        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
-        echo "compile=success" >> $GITHUB_OUTPUT
-        if [ -s DEVICE_NAME ]; then
-          echo "device-name=$(cat DEVICE_NAME)" >> $GITHUB_OUTPUT
+
+
+          echo "查找旧缓存:${CACHE_PREFIX}"
+
+
+
+          CACHE_LIST=$(gh cache list --key "$CACHE_PREFIX" | cut -f1)
+
+
+
+          if [ -n "$CACHE_LIST" ]; then
+
+
+            for CACHE_KEY in $CACHE_LIST;
+
+            do
+
+              echo "删除:"
+              echo "$CACHE_KEY"
+
+
+              gh cache delete \
+                "$CACHE_KEY"
+
+
+            done
+
+
+          fi
+
+
         fi
-        echo "file-date=$(date +"%Y%m%d%H%M")" >> $GITHUB_OUTPUT
-        echo "::group::Compile outputs"
-        echo "device-name=$(cat DEVICE_NAME 2>/dev/null || true)"
-        echo "file-date=$(date +"%Y%m%d%H%M")"
-        find bin/targets -maxdepth 3 -type f -printf '%p %s bytes\n' | sort || true
+
+    ##################################################
+    # 下载软件包
+    ##################################################
+
+    - name: 下载软件包
+
+      id: package
+
+
+      run: |
+
+        cd openwrt
+
+
+
+        make download -j8
+
+
+
+
+        echo "::group::Download directory summary"
+
+
+
+        du -sh dl || true
+
+
+
+        echo
+
+        echo "检查异常小文件"
+
+
+
+        find dl \
+          -size -1024c \
+          -exec ls -lh {} \;
+
+
+
         echo "::endgroup::"
 
+
+
+
+        # 删除损坏的小文件
+
+        find dl \
+          -size -1024c \
+          -delete
+
+
+
+
+
+
+    ##################################################
+    # 编译固件
+    ##################################################
+
+    - name: 编译固件
+
+      id: compile
+
+
+      run: |
+
+
+        cd openwrt
+
+
+
+        echo "$(nproc)线程编译"
+
+
+
+        make \
+          -j$(expr $(nproc) + 1) \
+          || \
+        make \
+          -j1 \
+          V=s
+
+
+
+
+
+        echo "compile-status=success" \
+          >> $GITHUB_ENV
+
+
+
+
+
+        ################################################
+        # 获取设备名称
+        ################################################
+
+
+        grep '^CONFIG_TARGET.*DEVICE.*=y' \
+          .config \
+          | sed -r 's/.*DEVICE_(.*)=y/\1/' \
+          > DEVICE_NAME
+
+
+
+
+
+        if [ -s DEVICE_NAME ]; then
+
+
+          echo "DEVICE_NAME=_$(cat DEVICE_NAME)" \
+          >> $GITHUB_ENV
+
+
+        fi
+
+
+
+
+
+        ################################################
+        # 时间
+        ################################################
+
+
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" \
+        >> $GITHUB_ENV
+
+
+
+
+
+
+        ################################################
+        # 输出状态
+        ################################################
+
+
+        echo "compile=success" \
+        >> $GITHUB_OUTPUT
+
+
+
+        if [ -s DEVICE_NAME ]; then
+
+
+          echo "device-name=$(cat DEVICE_NAME)" \
+          >> $GITHUB_OUTPUT
+
+
+        fi
+
+
+
+
+
+        echo "file-date=$(date +"%Y%m%d%H%M")" \
+        >> $GITHUB_OUTPUT
+
+
+
+
+
+
+        echo "::group::Compile outputs"
+
+
+
+        echo "device-name:"
+
+
+        cat DEVICE_NAME \
+          2>/dev/null \
+          || true
+
+
+
+        echo
+
+
+        echo "date:"
+
+
+        date +"%Y%m%d%H%M"
+
+
+
+
+        echo
+
+
+        find bin/targets \
+          -maxdepth 3 \
+          -type f \
+          -printf '%p %s bytes\n' \
+          | sort \
+          || true
+
+
+
+        echo "::endgroup::"
+
+
+
+
+
+
+
+    ##################################################
+    # 检查空间
+    ##################################################
+
     - name: 检查空间使用情况
+
       if: (!cancelled())
-      run: df -hT
+
+
+      run: |
+
+        df -hT
+
+
+
+
+
+
+
+    ##################################################
+    # 上传 bin
+    ##################################################
 
     - name: 上传 bin 目录
+
+
       uses: actions/upload-artifact@main
-      if: steps.compile.outputs.compile == 'success' && env.UPLOAD_BIN_DIR == 'true'
+
+
+      if: |
+
+        steps.compile.outputs.compile == 'success'
+        &&
+        env.UPLOAD_BIN_DIR == 'true'
+
+
+
       with:
-        name: OpenWrt_bin_${{ steps.compile.outputs.device-name }}_${{ steps.compile.outputs.file-date }}
-        path: openwrt/bin
+
+
+        name: |
+
+          OpenWrt_bin_${{ steps.compile.outputs.device-name }}_${{ steps.compile.outputs.file-date }}
+
+
+
+        path: |
+
+          openwrt/bin
+
+
+
+
+
+
+
+    ##################################################
+    # 发布固件
+    ##################################################
 
     - name: Release firmware
+
+
       uses: ./.github/actions/openwrt-release-firmware
-      if: steps.compile.outputs.compile == 'success' && !cancelled()
+
+
+
+      if: |
+
+        steps.compile.outputs.compile == 'success'
+        &&
+        !cancelled()
+
+
+
       with:
-        upload-firmware: ${{ env.UPLOAD_FIRMWARE }}
-        upload-release: ${{ env.UPLOAD_RELEASE }}
-        workflow-name: ${{ env.WORKFLOW_NAME }}
-        source-tag: ${{ env.TAG2 }}
-        release-tag-prefix: immortalwrt_x86_64
-        source-url: ${{ env.REPO_URL_IMM }}
-        artifact-name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-  
-  
+
+
+        upload-firmware:
+
+          ${{ env.UPLOAD_FIRMWARE }}
+
+
+
+        upload-release:
+
+          ${{ env.UPLOAD_RELEASE }}
+
+
+
+        workflow-name:
+
+          ${{ env.WORKFLOW_NAME }}
+
+
+
+        source-tag:
+
+          ${{ env.TAG2 }}
+
+
+
+        release-tag-prefix:
+
+          immortalwrt_x86_64
+
+
+
+        source-url:
+
+          ${{ env.REPO_URL_IMM }}
+
+
+
+        artifact-name:
+
+          OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}      
