@@ -191,7 +191,25 @@ jobs:
             echo "没有找到相关的旧缓存。"
           fi
         fi
-
+        
+    - name: Auto Fetch and Fix Official vermagic
+      run: |
+        cd openwrt
+    
+        # 1. 自动从 ImmortalWrt 官方软件源抓取最新编译的核心依赖哈希
+        # 如果你编译的是稳定分支（如 24.10 / 23.05），请将路径中的 snapshots 替换为对应的版本号（例如 releases/24.10.0）
+        OFFICIAL_VERMAGIC=$(curl -s https://immortalwrt.org | grep -m 1 "Depends: kernel (= " | sed -E 's/.*-([^.-]+)\).*/\1/')
+    
+        # 2. 如果抓取成功，将其写入并强制注入内核规则
+        if [ -n "$OFFICIAL_VERMAGIC" ]; then
+        echo "成功获取官方 Vermagic: $OFFICIAL_VERMAGIC"
+        echo "$OFFICIAL_VERMAGIC" > vermagic
+        sed -i "s/grep '=\[ym\]'.*/cp \$(TOPDIR)\/vermagic \$(LINUX_DIR)\/.vermagic/" include/kernel-defaults.mk
+        else
+        echo "错误：未能获取到官方 Vermagic，请检查官方源地址是否正确！"
+        exit 1
+        fi
+    
     - name: 下载软件包
       id: package
       run: |
