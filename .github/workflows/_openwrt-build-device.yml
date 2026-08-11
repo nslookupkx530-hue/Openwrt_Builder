@@ -5,6 +5,7 @@ on:
 
   workflow_call:
 
+
     inputs:
 
 
@@ -20,7 +21,7 @@ on:
 
       repo_url:
 
-        description: Source repository
+        description: OpenWrt repository
 
         required: true
 
@@ -30,7 +31,7 @@ on:
 
       repo_branch:
 
-        description: Source branch or tag
+        description: Branch or tag
 
         required: true
 
@@ -53,18 +54,6 @@ on:
         description: Workflow name
 
         required: true
-
-        type: string
-
-
-
-      install_automake_117:
-
-        description: Install automake
-
-        required: false
-
-        default: "false"
 
         type: string
 
@@ -95,7 +84,6 @@ on:
 
 
 
-
 env:
 
 
@@ -110,6 +98,13 @@ env:
 
 
 
+permissions:
+
+
+  contents: write
+
+
+
 
 jobs:
 
@@ -117,9 +112,7 @@ jobs:
   build:
 
 
-
     name: Build ${{ inputs.device }}
-
 
 
     runs-on: ubuntu-22.04
@@ -130,8 +123,8 @@ jobs:
 
 
 
-
     - name: Checkout
+
 
       uses: actions/checkout@v4
 
@@ -140,7 +133,7 @@ jobs:
 
 
 
-    - name: Free disk space
+    - name: Free disk
 
 
       shell: bash
@@ -162,19 +155,18 @@ jobs:
         sudo rm -rf /opt/ghc || true
 
 
-
         sudo docker image prune -af || true
 
 
 
-        df -hT
+        df -h
 
 
 
 
 
 
-    - name: Init build environment
+    - name: Install build dependencies
 
 
       shell: bash
@@ -197,49 +189,32 @@ jobs:
 
           rsync \
 
-          dos2unix \
+          unzip \
 
-          libfuse-dev \
+          file \
 
-          build-essential
+          build-essential \
 
+          libncurses5-dev \
 
+          zlib1g-dev \
 
+          gawk \
 
+          gettext \
 
+          libssl-dev \
 
-        curl -L \
+          xsltproc \
 
-          https://build-scripts.immortalwrt.org/init_build_environment.sh \
-
-          -o /tmp/init.sh
-
-
-
-
-
-        chmod +x /tmp/init.sh
-
-
-
-        sudo bash /tmp/init.sh
-
-
-
-
-
-        sudo timedatectl set-timezone "$TZ"
+          wget
 
 
 
 
 
 
-
-    - name: Install automake
-
-
-      if: inputs.install_automake_117 == 'true'
+    - name: Init ImmortalWrt build environment
 
 
       shell: bash
@@ -248,13 +223,18 @@ jobs:
       run: |
 
 
-        sudo apt-get install -y automake autoconf
+        set -euxo pipefail
 
-    #
-    # Clone OpenWrt source
-    #
 
-    - name: Clone source
+
+        mkdir -p ${WORKDIR}
+
+
+
+        sudo timedatectl set-timezone "$TZ"
+
+
+    - name: Clone OpenWrt source
 
       shell: bash
 
@@ -270,19 +250,15 @@ jobs:
 
 
 
+        echo "===== Clone repository ====="
+
 
 
         git clone \
 
-          --filter=blob:none \
-
-          --no-checkout \
-
           "${{ inputs.repo_url }}" \
 
           openwrt
-
-
 
 
 
@@ -302,6 +278,16 @@ jobs:
 
 
 
+        echo "===== Check requested branch/tag ====="
+
+
+
+        git tag -l "${{ inputs.repo_branch }}"
+
+
+
+
+
         echo "===== Checkout ====="
 
 
@@ -312,7 +298,7 @@ jobs:
 
 
 
-        echo "===== SOURCE ====="
+        echo "===== Source info ====="
 
 
 
@@ -320,7 +306,9 @@ jobs:
 
 
 
-        git status
+        git remote -v
+
+
 
 
 
@@ -331,11 +319,7 @@ jobs:
 
 
 
-    #
-    # Verify source
-    #
-
-    - name: Verify OpenWrt source
+    - name: Verify OpenWrt tree
 
 
       shell: bash
@@ -359,10 +343,6 @@ jobs:
 
 
 
-    #
-    # Apply feeds
-    #
-
     - name: Apply feeds configuration
 
 
@@ -385,9 +365,13 @@ jobs:
 
 
 
+          echo "Using custom feeds.conf.default"
+
+
+
           cp "${GITHUB_WORKSPACE}/feeds.conf.default" \
 
-          feeds.conf.default
+             feeds.conf.default
 
 
 
@@ -397,7 +381,7 @@ jobs:
 
 
 
-        echo "===== feeds.conf ====="
+        echo "===== feeds.conf.default ====="
 
 
 
@@ -407,11 +391,6 @@ jobs:
 
 
 
-
-
-    #
-    # Update feeds
-    #
 
     - name: Update feeds
 
@@ -437,9 +416,7 @@ jobs:
 
 
 
-
         mkdir -p .github-feed-lock
-
 
 
 
@@ -457,17 +434,19 @@ jobs:
 
 
 
-            cd "$feed"
+            (
+
+              cd "$feed"
 
 
 
-            git rev-parse HEAD \
+              git rev-parse HEAD \
 
               > "../../.github-feed-lock/${name}.commit"
 
 
 
-            cd ../..
+            )
 
 
 
@@ -476,7 +455,6 @@ jobs:
 
 
         done
-
 
 
 
@@ -492,10 +470,6 @@ jobs:
 
 
 
-
-    #
-    # Install feeds
-    #
 
     - name: Install feeds
 
@@ -522,11 +496,6 @@ jobs:
 
 
 
-
-    #
-    # Load config
-    #
-
     - name: Load device config
 
 
@@ -545,7 +514,7 @@ jobs:
 
 
 
-        echo "Config:"
+        echo "Config file:"
 
 
         echo "${{ inputs.config_file }}"
@@ -554,7 +523,11 @@ jobs:
 
 
 
-        cp "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" .config
+        cp \
+
+        "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" \
+
+        .config
 
 
 
@@ -568,7 +541,9 @@ jobs:
 
 
 
-            cat "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" \
+            cat \
+
+            "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" \
 
             >> .config
 
@@ -584,7 +559,7 @@ jobs:
 
 
 
-        echo "===== TARGET CONFIG ====="
+        echo "===== TARGET ====="
 
 
 
@@ -594,10 +569,6 @@ jobs:
 
 
 
-
-    #
-    # Fullcone
-    #
 
     - name: Enable fullcone
 
@@ -618,8 +589,9 @@ jobs:
 
 
 
-        echo "CONFIG_PACKAGE_kmod-ipt-fullcone=y" >> .config
 
+
+        echo "CONFIG_PACKAGE_kmod-ipt-fullcone=y" >> .config
 
 
         echo "CONFIG_PACKAGE_iptables-mod-fullconenat=y" >> .config
@@ -629,11 +601,7 @@ jobs:
 
 
 
-    #
-    # Defconfig
-    #
-
-    - name: Defconfig
+    - name: Run defconfig
 
 
       shell: bash
@@ -646,6 +614,8 @@ jobs:
 
 
         set -euxo pipefail
+
+
 
 
 
@@ -665,10 +635,6 @@ jobs:
 
 
 
-
-    #
-    # Generate cache key
-    #
 
     - name: Generate cache key
 
@@ -696,7 +662,9 @@ jobs:
 
         "${OPENWRT_PATH}/feeds.conf.default" \
 
-        "${OPENWRT_PATH}/.github-feed-lock/"* 2>/dev/null \
+        "${OPENWRT_PATH}/.github-feed-lock/"* \
+
+        2>/dev/null \
 
         | sha256sum \
 
@@ -710,19 +678,24 @@ jobs:
 
         >> $GITHUB_OUTPUT
 
-    #
-    # Restore cache
-    #
+
+
+
+
 
     - name: Restore build cache
 
+
       uses: actions/cache@v4
+
 
 
       with:
 
 
+
         key: ${{ steps.cache-key.outputs.key }}
+
 
 
         restore-keys: |
@@ -735,6 +708,7 @@ jobs:
         path: |
 
 
+
           ${{ env.OPENWRT_PATH }}/dl
 
 
@@ -743,26 +717,13 @@ jobs:
 
           ${{ env.OPENWRT_PATH }}/build_dir
 
-
-
-
-
-
-    #
-    # Download packages
-    #
-
     - name: Download packages
-
 
       shell: bash
 
-
       working-directory: ${{ env.OPENWRT_PATH }}
 
-
       run: |
-
 
         set -euxo pipefail
 
@@ -783,10 +744,6 @@ jobs:
 
 
 
-    #
-    # Compile
-    #
-
     - name: Compile firmware
 
 
@@ -806,14 +763,12 @@ jobs:
 
 
 
-        echo "===== Start compile ====="
+        echo "===== Start Compile ====="
 
 
 
 
-
-        make -j$(nproc) V=s
-
+        make -j$(nproc) V=s || make -j1 V=s
 
 
 
@@ -825,31 +780,44 @@ jobs:
 
 
 
-        echo "===== Target result ====="
+        echo "===== Build output ====="
 
 
 
 
-        find bin/targets \
+        if [ -d bin/targets ]; then
 
-          -maxdepth 5 \
+
+
+          find bin/targets \
+
+          -maxdepth 6 \
 
           -type f \
 
           -printf "%p %s bytes\n" \
 
-          | sort || true
+          | sort
+
+
+
+        else
+
+
+
+          echo "No bin/targets generated"
+
+
+
+        fi
 
 
 
 
 
 
-    #
-    # Check build output
-    #
 
-    - name: Check build output
+    - name: Check target packages
 
 
       if: always()
@@ -870,30 +838,11 @@ jobs:
 
 
 
-        echo "===== TARGET DIRECTORY ====="
+        echo "===== Target directories ====="
 
 
 
-
-
-        if [ -d bin/targets ]; then
-
-
-
-          find bin/targets -maxdepth 5 -type d
-
-
-
-        else
-
-
-
-          echo "bin/targets not found"
-
-
-
-        fi
-
+        find bin/targets -maxdepth 5 -type d || true
 
 
 
@@ -902,40 +851,27 @@ jobs:
         echo ""
 
 
-        echo "===== APK FILES ====="
 
-
-
-
-
-        find bin/targets \
-
-          -type f \
-
-          -name "*.apk" \
-
-          -print || true
-
-
-
-
-
-        echo ""
-
-
-        echo "===== packages.adb ====="
-
-
+        echo "===== APK ====="
 
 
 
         find bin/targets \
 
-          -type f \
+        -type f \
 
-          -name "packages.adb" \
+        \( \
 
-          -print || true
+        -name "*.apk" \
+
+        -o \
+
+        -name "packages.adb" \
+
+        \) \
+
+        -print || true
+
 
 
 
@@ -943,7 +879,7 @@ jobs:
 
 
     #
-    # Upload firmware
+    # Firmware artifact
     #
 
     - name: Upload firmware
@@ -991,8 +927,9 @@ jobs:
 
 
 
+
     #
-    # Upload target APK feed
+    # ImmortalWrt APK target feed
     #
 
     - name: Upload target APK feed
@@ -1029,7 +966,7 @@ jobs:
 
 
     #
-    # Upload normal packages
+    # 普通软件包 feed
     #
 
     - name: Upload package feed
@@ -1065,11 +1002,12 @@ jobs:
 
 
 
+
     #
-    # Upload config
+    # 保存配置
     #
 
-    - name: Upload build config
+    - name: Upload config
 
 
       if: always()
@@ -1105,11 +1043,12 @@ jobs:
 
 
 
+
     #
     # GitHub Release
     #
 
-    - name: Release firmware
+    - name: Create Release
 
 
       if: steps.compile.outputs.compile == 'success'
@@ -1123,11 +1062,11 @@ jobs:
 
 
 
-        tag_name: immortalwrt-${{ inputs.device }}-${{ inputs.repo_branch }}
+        tag_name: openwrt-${{ inputs.device }}-${{ github.run_number }}
 
 
 
-        name: ImmortalWrt ${{ inputs.device }} ${{ inputs.repo_branch }}
+        name: OpenWrt ${{ inputs.device }} build ${{ github.run_number }}
 
 
 
@@ -1156,11 +1095,8 @@ jobs:
 
 
 
-    #
-    # Summary
-    #
 
-    - name: Build summary
+    - name: Final summary
 
 
       if: always()
@@ -1172,7 +1108,7 @@ jobs:
       run: |
 
 
-        echo "============================="
+        echo "============================"
 
 
 
@@ -1183,30 +1119,30 @@ jobs:
 
 
 
-
         echo ""
 
 
-        echo "Source:"
+
+        echo "Repository:"
 
 
         echo "${{ inputs.repo_url }}"
 
 
 
-
         echo ""
 
 
-        echo "Branch / Tag:"
+
+        echo "Branch/Tag:"
 
 
         echo "${{ inputs.repo_branch }}"
 
 
 
-
         echo ""
+
 
 
         echo "Commit:"
@@ -1216,9 +1152,7 @@ jobs:
 
 
 
-
-        echo "============================="
-
+        echo "============================"
 
 
 
