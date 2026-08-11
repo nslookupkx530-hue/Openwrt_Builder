@@ -1,265 +1,375 @@
 name: OpenWrt release firmware
 
-description: Organize firmware files, upload artifact, create release, and clean old releases.
+description: |
+  Upload firmware,
+  merge target packages,
+  publish release.
+
 
 
 inputs:
 
+
   upload-firmware:
-    description: Whether to upload firmware artifact.
+
+    description: Upload firmware artifact
+
+    required: false
+
     default: "true"
+
+
 
   upload-release:
-    description: Whether to create GitHub release.
+
+    description: Create github release
+
+    required: false
+
     default: "true"
 
+
+
   workflow-name:
-    description: Logical workflow name.
+
+    description: Workflow name
+
     required: true
+
+
 
   source-tag:
-    description: Source tag or branch.
+
+    description: Source tag
+
     required: true
+
+
 
   release-tag-prefix:
-    description: Prefix of release tag.
+
+    description: Release prefix
+
     required: true
+
+
 
   source-url:
-    description: Source repository URL.
+
+    description: Source url
+
     required: true
+
+
 
   artifact-name:
-    description: Firmware artifact name.
-    required: true
 
-  keep-latest:
-    description: Number of releases to keep.
-    default: "10"
+    description: Artifact name
+
+    required: false
+
+    default: firmware
 
 
 
 runs:
 
+
   using: composite
+
 
 
   steps:
 
 
-    - name: Organize firmware files
 
-      id: organize
+  #
+  # 下载 firmware artifact
+  #
 
-      if: "(inputs.upload-firmware == 'true' || inputs.upload-release == 'true') && !cancelled()"
+  - name: Download firmware artifact
 
-      shell: bash
+    uses: actions/download-artifact@v4
 
-      run: |
+    with:
 
-        shopt -s nullglob
+      path: artifacts
 
 
-        target_dirs=(openwrt/bin/targets/*/*)
 
 
-        if [ "${#target_dirs[@]}" -eq 0 ]; then
+  #
+  # 查看结构
+  #
 
-          echo "No firmware target directory found."
+  - name: Show artifacts
 
-          exit 1
+    shell: bash
 
-        fi
+    run: |
 
 
-        if [ "${#target_dirs[@]}" -gt 1 ]; then
+      find artifacts -maxdepth 4 -type f | sort
 
-          echo "Multiple target directories found:"
 
-          printf '%s\n' "${target_dirs[@]}"
 
-          echo "Using first directory: ${target_dirs[0]}"
 
-        fi
 
+  #
+  # 整理 release 文件
+  #
 
+  - name: Prepare release files
 
-        cd "${target_dirs[0]}"
 
+    shell: bash
 
 
-        rm -rf packages
+    run: |
 
 
+      mkdir -p release
 
-        echo "::group::Firmware files"
 
+      mkdir -p release/packages
 
-        pwd
 
 
-        find . \
-          -maxdepth 1 \
-          -type f \
-          -printf '%f %s bytes\n' \
-          | sort
+      echo "===== firmware ====="
 
 
-        echo "::endgroup::"
 
+      find artifacts \
 
+      -name "*.bin" \
 
-        echo "firmware-path=$PWD" >> "$GITHUB_OUTPUT"
+      -o -name "*.img*" \
 
+      -o -name "*sha256sums" \
 
+      -o -name "*.manifest" \
 
+      -o -name "*.buildinfo" \
 
+      | while read file
 
+      do
 
-    - name: Upload firmware artifact
+        cp "$file" release/
 
-      uses: actions/upload-artifact@v4
+      done
 
 
-      if: "inputs.upload-firmware == 'true' && steps.organize.outputs.firmware-path != '' && !cancelled()"
 
 
-      with:
 
-        name: ${{ inputs.artifact-name }}
+      #
+      # 处理 x86 target packages
+      #
 
-        path: ${{ steps.organize.outputs.firmware-path }}
+      if [ -d artifacts/target-packages-x86 ]; then
 
 
+        echo "Found x86 target packages"
 
 
 
+        mkdir -p \
 
+        release/packages/x86_64/targets/x86/64
 
-    - name: Generate release tag
 
-      id: release-meta
 
+        cp -rv \
 
-      if: "inputs.upload-release == 'true' && !cancelled()"
+        artifacts/target-packages-x86/* \
 
+        release/packages/x86_64/targets/x86/64/
 
-      shell: bash
 
 
-      run: |
+      fi
 
 
-        CLEANED_WORKFLOW_NAME=$(echo "${{ inputs.workflow-name }}" | tr -c '[:alnum:]_' '-')
 
 
-        CLEANED_SOURCE_TAG=$(echo "${{ inputs.source-tag }}" | tr -c '[:alnum:].-' '-')
 
 
+      echo "===== release tree ====="
 
-        BASE_TAG="${CLEANED_WORKFLOW_NAME}-${CLEANED_SOURCE_TAG}"
 
+      find release -type f | sort
 
-        DATE_SUFFIX=$(date +"%Y%m%d-%H%M")
 
 
-        RELEASE_TAG="${BASE_TAG}-${DATE_SUFFIX}"
 
 
+  #
+  # 生成 release tag
+  #
 
-        echo "release-tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+  - name: Generate release metadata
 
 
+    id: meta
 
-        echo "::group::Release metadata"
 
-        echo "workflow-name=${{ inputs.workflow-name }}"
+    shell: bash
 
-        echo "source-tag=${{ inputs.source-tag }}"
 
-        echo "release-tag=${{ inputs.release-tag-prefix }}-$RELEASE_TAG"
+    run: |
 
-        echo "source-url=${{ inputs.source-url }}"
 
-        echo "::endgroup::"
+      DATE=$(date +"%Y%m%d-%H%M")
 
 
+      TAG="${{ inputs.release-tag-prefix }}-${DATE}"
 
 
 
+      echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
 
-    - name: Release firmware
 
+      cat > release-body.md <<EOF
 
-      uses: softprops/action-gh-release@v2
 
+# OpenWrt Firmware
 
-      if: "steps.release-meta.outputs.release-tag != '' && !cancelled()"
 
 
-      with:
+Device:
 
+${{ inputs.workflow-name }}
 
-        tag_name: ${{ inputs.release-tag-prefix }}-${{ steps.release-meta.outputs.release-tag }}
 
 
-        files: ${{ steps.organize.outputs.firmware-path }}/*
+Version:
 
+${{ inputs.source-tag }}
 
-        body: |
 
-          OpenWrt Firmware
 
-          Source:
-          ${{ inputs.source-url }}
+Source:
 
+${{ inputs.source-url }}
 
 
 
+Build:
 
+${DATE}
 
 
-    - name: Delete workflow runs
 
+## APK Feed
 
-      uses: GitRML/delete-workflow-runs@main
 
 
-      if: "!cancelled()"
+After download:
 
 
-      with:
 
+\`\`\`text
 
-        retain_days: 5
+packages/x86_64/targets/x86/64/
 
-        keep_minimum_runs: 5
+\`\`\`
 
 
 
+EOF
 
 
 
 
-    - name: Remove old releases
+  #
+  # 上传 release
+  #
 
+  - name: Create Github Release
 
-      uses: dev-drprasad/delete-older-releases@v0.1.0
 
+    if: inputs.upload-release == 'true'
 
-      if: "inputs.upload-release == 'true' && !cancelled()"
 
+    uses: softprops/action-gh-release@v2
 
-      with:
 
+    with:
 
-        keep_latest: ${{ inputs.keep-latest }}
 
-        delete_tags: true
+      tag_name:
 
+        ${{ steps.meta.outputs.tag }}
 
-      env:
 
 
-        GITHUB_TOKEN: ${{ github.token }}
+      body_path:
+
+        release-body.md
+
+
+
+      files:
+
+        release/**
+
+
+
+
+
+  #
+  # 删除旧 release
+  #
+
+  - name: Delete old releases
+
+
+    if: inputs.upload-release == 'true'
+
+
+    uses: dev-drprasad/delete-older-releases@v0.1.0
+
+
+    with:
+
+
+      keep_latest: 10
+
+
+      delete_tags: true
+
+
+    env:
+
+
+      GITHUB_TOKEN: ${{ github.token }}
+
+
+
+
+
+  #
+  # 删除旧 workflow
+  #
+
+  - name: Delete old workflow runs
+
+
+    uses: GitRML/delete-workflow-runs@main
+
+
+    with:
+
+
+      retain_days: 7
+
+
+      keep_minimum_runs: 5
+
+
+    env:
+
+
+      GITHUB_TOKEN: ${{ github.token }}
