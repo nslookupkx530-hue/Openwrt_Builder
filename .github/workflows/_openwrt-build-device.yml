@@ -30,7 +30,7 @@ on:
 
       repo_branch:
 
-        description: Source branch
+        description: Source branch or tag
 
         required: true
 
@@ -60,7 +60,7 @@ on:
 
       install_automake_117:
 
-        description: Install automake 1.17
+        description: Install automake
 
         required: false
 
@@ -84,7 +84,7 @@ on:
 
       extra_config_file:
 
-        description: Extra config file
+        description: Extra config
 
         required: false
 
@@ -106,6 +106,7 @@ env:
 
 
   OPENWRT_PATH: /workdir/openwrt
+
 
 
 
@@ -138,11 +139,15 @@ jobs:
 
 
 
+
     - name: Free disk space
+
 
       shell: bash
 
+
       run: |
+
 
         set -euxo pipefail
 
@@ -150,7 +155,9 @@ jobs:
 
         sudo rm -rf /usr/share/dotnet || true
 
+
         sudo rm -rf /usr/local/lib/android || true
+
 
         sudo rm -rf /opt/ghc || true
 
@@ -169,9 +176,12 @@ jobs:
 
     - name: Init build environment
 
+
       shell: bash
 
+
       run: |
+
 
         set -euxo pipefail
 
@@ -197,21 +207,22 @@ jobs:
 
 
 
-        sudo curl -L \
+
+        curl -L \
 
           https://build-scripts.immortalwrt.org/init_build_environment.sh \
 
-          -o /tmp/init_build_environment.sh
+          -o /tmp/init.sh
 
 
 
 
 
-        sudo chmod +x /tmp/init_build_environment.sh
+        chmod +x /tmp/init.sh
 
 
 
-        sudo bash /tmp/init_build_environment.sh
+        sudo bash /tmp/init.sh
 
 
 
@@ -223,16 +234,18 @@ jobs:
 
 
 
-    - name: Install automake 1.17
+
+
+    - name: Install automake
+
 
       if: inputs.install_automake_117 == 'true'
 
+
       shell: bash
 
+
       run: |
-
-        set -euxo pipefail
-
 
 
         sudo apt-get install -y automake autoconf
@@ -257,9 +270,13 @@ jobs:
 
 
 
+
+
         git clone \
 
-          --depth=1 \
+          --filter=blob:none \
+
+          --no-checkout \
 
           "${{ inputs.repo_url }}" \
 
@@ -275,9 +292,17 @@ jobs:
 
 
 
-        git fetch --tags
+        echo "===== Fetch tags ====="
 
 
+
+        git fetch --tags --force
+
+
+
+
+
+        echo "===== Checkout ====="
 
 
 
@@ -287,13 +312,15 @@ jobs:
 
 
 
-        echo "===== Source ====="
+        echo "===== SOURCE ====="
+
+
 
         git log -1 --oneline
 
-        git remote -v
 
 
+        git status
 
 
 
@@ -308,11 +335,14 @@ jobs:
     # Verify source
     #
 
-    - name: Verify source
+    - name: Verify OpenWrt source
+
 
       shell: bash
 
+
       run: |
+
 
         set -euxo pipefail
 
@@ -330,7 +360,7 @@ jobs:
 
 
     #
-    # Apply feeds configuration
+    # Apply feeds
     #
 
     - name: Apply feeds configuration
@@ -343,6 +373,7 @@ jobs:
 
 
       run: |
+
 
         set -euxo pipefail
 
@@ -377,8 +408,9 @@ jobs:
 
 
 
+
     #
-    # Update feeds and lock
+    # Update feeds
     #
 
     - name: Update feeds
@@ -392,6 +424,7 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
 
 
@@ -399,6 +432,7 @@ jobs:
 
 
         ./scripts/feeds update -a
+
 
 
 
@@ -423,19 +457,17 @@ jobs:
 
 
 
-            (
-
-              cd "$feed"
+            cd "$feed"
 
 
 
-              git rev-parse HEAD \
+            git rev-parse HEAD \
 
               > "../../.github-feed-lock/${name}.commit"
 
 
 
-            )
+            cd ../..
 
 
 
@@ -444,6 +476,7 @@ jobs:
 
 
         done
+
 
 
 
@@ -475,7 +508,10 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
+
+
 
 
 
@@ -486,11 +522,12 @@ jobs:
 
 
 
+
     #
-    # Load device config
+    # Load config
     #
 
-    - name: Load config
+    - name: Load device config
 
 
       shell: bash
@@ -501,13 +538,14 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
 
 
 
 
 
-        echo "Using config:"
+        echo "Config:"
 
 
         echo "${{ inputs.config_file }}"
@@ -546,8 +584,7 @@ jobs:
 
 
 
-
-        echo "===== Target ====="
+        echo "===== TARGET CONFIG ====="
 
 
 
@@ -559,10 +596,10 @@ jobs:
 
 
     #
-    # Enable fullcone
+    # Fullcone
     #
 
-    - name: Enable sonic fullcone
+    - name: Enable fullcone
 
 
       if: inputs.sonic_fullcone == 'true'
@@ -576,9 +613,8 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
-
-
 
 
 
@@ -608,9 +644,8 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
-
-
 
 
 
@@ -632,7 +667,7 @@ jobs:
 
 
     #
-    # Cache
+    # Generate cache key
     #
 
     - name: Generate cache key
@@ -646,13 +681,16 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
 
 
 
 
 
-        HASH=$(sha256sum \
+        HASH=$( \
+
+        sha256sum \
 
         "${OPENWRT_PATH}/.config" \
 
@@ -660,13 +698,17 @@ jobs:
 
         "${OPENWRT_PATH}/.github-feed-lock/"* 2>/dev/null \
 
-        | sha256sum | cut -d' ' -f1)
+        | sha256sum \
+
+        | cut -d' ' -f1 )
 
 
 
 
 
-        echo "key=${{ runner.os }}-${{ inputs.device }}-${HASH}" >> $GITHUB_OUTPUT
+        echo "key=${{ runner.os }}-${{ inputs.device }}-${HASH}" \
+
+        >> $GITHUB_OUTPUT
 
     #
     # Restore cache
@@ -683,25 +725,23 @@ jobs:
         key: ${{ steps.cache-key.outputs.key }}
 
 
-
         restore-keys: |
 
-          ${{ runner.os }}-${{ inputs.device }}-
 
+          ${{ runner.os }}-${{ inputs.device }}-
 
 
 
         path: |
 
 
-          /workdir/openwrt/dl
+          ${{ env.OPENWRT_PATH }}/dl
 
 
-          /workdir/openwrt/build_dir
+          ${{ env.OPENWRT_PATH }}/staging_dir
 
 
-          /workdir/openwrt/staging_dir
-
+          ${{ env.OPENWRT_PATH }}/build_dir
 
 
 
@@ -723,6 +763,7 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
 
 
@@ -743,7 +784,7 @@ jobs:
 
 
     #
-    # Compile firmware
+    # Compile
     #
 
     - name: Compile firmware
@@ -760,23 +801,18 @@ jobs:
 
       run: |
 
+
         set -euxo pipefail
 
 
 
-        echo "=============================="
-
-
-        echo " Build ${{ inputs.device }}"
-
-
-        echo "=============================="
+        echo "===== Start compile ====="
 
 
 
 
 
-        make -j$(nproc) || make -j1 V=s
+        make -j$(nproc) V=s
 
 
 
@@ -788,7 +824,9 @@ jobs:
 
 
 
-        echo "===== Build output ====="
+
+        echo "===== Target result ====="
+
 
 
 
@@ -800,7 +838,7 @@ jobs:
 
           -printf "%p %s bytes\n" \
 
-          | sort
+          | sort || true
 
 
 
@@ -808,10 +846,10 @@ jobs:
 
 
     #
-    # Check target packages
+    # Check build output
     #
 
-    - name: Check target APK packages
+    - name: Check build output
 
 
       if: always()
@@ -826,8 +864,47 @@ jobs:
       run: |
 
 
+        set -euxo pipefail
 
-        echo "===== Target packages ====="
+
+
+
+
+        echo "===== TARGET DIRECTORY ====="
+
+
+
+
+
+        if [ -d bin/targets ]; then
+
+
+
+          find bin/targets -maxdepth 5 -type d
+
+
+
+        else
+
+
+
+          echo "bin/targets not found"
+
+
+
+        fi
+
+
+
+
+
+
+        echo ""
+
+
+        echo "===== APK FILES ====="
+
+
 
 
 
@@ -835,16 +912,30 @@ jobs:
 
           -type f \
 
-          \( \
-
           -name "*.apk" \
 
-          -o -name "packages.adb" \
+          -print || true
 
-          \) \
 
-          | sort || true
 
+
+
+        echo ""
+
+
+        echo "===== packages.adb ====="
+
+
+
+
+
+        find bin/targets \
+
+          -type f \
+
+          -name "packages.adb" \
+
+          -print || true
 
 
 
@@ -868,6 +959,7 @@ jobs:
       with:
 
 
+
         name: firmware-${{ inputs.device }}
 
 
@@ -875,16 +967,24 @@ jobs:
         path: |
 
 
-          openwrt/bin/targets/**/*
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/*.bin
+
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/*.img*
+
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/*.manifest
+
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/sha256sums
+
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/*.buildinfo
 
 
 
-        if-no-files-found: error
-
-
-
-        retention-days: 30
-
+        retention-days: 14
 
 
 
@@ -893,12 +993,6 @@ jobs:
 
     #
     # Upload target APK feed
-    #
-    # 包含:
-    #
-    # packages.adb
-    # kernel.apk
-    # kmod-*.apk
     #
 
     - name: Upload target APK feed
@@ -914,6 +1008,7 @@ jobs:
       with:
 
 
+
         name: target-packages-${{ inputs.device }}
 
 
@@ -921,16 +1016,12 @@ jobs:
         path: |
 
 
-          openwrt/bin/targets/**/packages/**
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/packages/**
 
 
 
-        if-no-files-found: error
-
-
-
-        retention-days: 90
-
+        retention-days: 30
 
 
 
@@ -938,9 +1029,7 @@ jobs:
 
 
     #
-    # Upload normal APK feed
-    #
-    # base/luci/packages/routing
+    # Upload normal packages
     #
 
     - name: Upload package feed
@@ -956,6 +1045,7 @@ jobs:
       with:
 
 
+
         name: package-feed-${{ inputs.device }}
 
 
@@ -963,16 +1053,12 @@ jobs:
         path: |
 
 
-          openwrt/bin/packages/**/*
+
+          ${{ env.OPENWRT_PATH }}/bin/packages/**
 
 
 
-        if-no-files-found: error
-
-
-
-        retention-days: 90
-
+        retention-days: 30
 
 
 
@@ -996,6 +1082,7 @@ jobs:
       with:
 
 
+
         name: config-${{ inputs.device }}
 
 
@@ -1003,14 +1090,11 @@ jobs:
         path: |
 
 
-          openwrt/.config
+
+          ${{ env.OPENWRT_PATH }}/.config
 
 
-          openwrt/.github-feed-lock/**
-
-
-
-        if-no-files-found: ignore
+          ${{ env.OPENWRT_PATH }}/.github-feed-lock/**
 
 
 
@@ -1021,12 +1105,11 @@ jobs:
 
 
 
-
     #
     # GitHub Release
     #
 
-    - name: Create Release
+    - name: Release firmware
 
 
       if: steps.compile.outputs.compile == 'success'
@@ -1039,27 +1122,34 @@ jobs:
       with:
 
 
-        tag_name: ${{ inputs.device }}-${{ github.run_number }}
+
+        tag_name: immortalwrt-${{ inputs.device }}-${{ inputs.repo_branch }}
 
 
 
-        name: ${{ inputs.workflow_name }} Build ${{ github.run_number }}
+        name: ImmortalWrt ${{ inputs.device }} ${{ inputs.repo_branch }}
 
 
 
         files: |
 
 
-          openwrt/bin/targets/**/*
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/*.bin
+
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/*.img*
+
+
+          ${{ env.OPENWRT_PATH }}/bin/targets/**/**/sha256sums
 
 
 
       env:
 
 
+
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
 
 
 
@@ -1082,13 +1172,15 @@ jobs:
       run: |
 
 
-        echo "================================"
+        echo "============================="
+
 
 
         echo "Device:"
 
 
         echo "${{ inputs.device }}"
+
 
 
 
@@ -1102,13 +1194,15 @@ jobs:
 
 
 
+
         echo ""
 
 
-        echo "Branch:"
+        echo "Branch / Tag:"
 
 
         echo "${{ inputs.repo_branch }}"
+
 
 
 
@@ -1122,7 +1216,10 @@ jobs:
 
 
 
-        echo ""
+
+        echo "============================="
+
+
 
 
         df -hT
