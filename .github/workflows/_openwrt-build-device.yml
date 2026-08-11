@@ -120,6 +120,7 @@ jobs:
 
 
 
+
     - name: Free disk space
 
       run: |
@@ -131,11 +132,12 @@ jobs:
 
         sudo rm -rf /opt/ghc
 
-
         sudo docker image prune -af
 
 
         df -h
+
+
 
 
 
@@ -157,12 +159,16 @@ jobs:
           rsync
 
 
+
         sudo bash -c \
 
         'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
 
 
+
         sudo timedatectl set-timezone "$TZ"
+
+
 
 
 
@@ -193,10 +199,13 @@ jobs:
         echo "===== SOURCE ====="
 
 
+
         git log -1 --oneline
 
 
+
         git remote -v
+
 
 
         echo "================="
@@ -205,23 +214,7 @@ jobs:
 
         echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-
-
-
-    - name: Install automake
-
-      if: inputs.install_automake_117 == 'true'
-
-      run: |
-
-
-        sudo apt-get install -y \
-
-          automake \
-
-          autoconf
-
-         - name: Apply feeds configuration
+    - name: Apply feeds configuration
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
@@ -231,7 +224,7 @@ jobs:
         echo "===== Original feeds ====="
 
 
-        sed -n '1,120p' feeds.conf.default || true
+        cat feeds.conf.default || true
 
 
 
@@ -261,11 +254,8 @@ jobs:
 
 
 
-    #
-    # 更新 feeds 并锁定 commit
-    #
 
-    - name: Update feeds and lock revision
+    - name: Update feeds and lock hash
 
 
       working-directory: ${{ env.OPENWRT_PATH }}
@@ -274,11 +264,14 @@ jobs:
       run: |
 
 
+        echo "===== Update feeds ====="
+
+
+
         ./scripts/feeds update -a
 
 
 
-        echo "===== Feed revisions ====="
 
 
 
@@ -286,37 +279,52 @@ jobs:
 
 
 
-        for dir in feeds/*; do
 
 
-          if [ -d "$dir/.git" ]; then
+
+        echo "===== Feed commit ====="
 
 
-            name=$(basename "$dir")
+
+
+        for feed in feeds/*; do
+
+
+
+          if [ -d "$feed/.git" ]; then
+
+
+
+            NAME=$(basename "$feed")
 
 
 
             (
 
-              cd "$dir"
-
-
-              commit=$(git rev-parse HEAD)
+              cd "$feed"
 
 
 
-              echo "$name : $commit"
+              COMMIT=$(git rev-parse HEAD)
 
 
-              echo "$commit" \
 
-              > "../../.github-feed-lock/${name}.commit"
+              echo "$NAME $COMMIT"
+
+
+
+              echo "$COMMIT" \
+
+              > "../.github-feed-lock/${NAME}.commit"
+
 
 
             )
 
 
+
           fi
+
 
 
         done
@@ -324,10 +332,15 @@ jobs:
 
 
 
+
+
         echo "===== Locked feeds ====="
 
 
+
         cat .github-feed-lock/* || true
+
+
 
 
 
@@ -349,9 +362,7 @@ jobs:
 
 
 
-    #
-    # 导入设备配置
-    #
+
 
     - name: Load device config
 
@@ -362,16 +373,23 @@ jobs:
       run: |
 
 
-        echo "Using config:"
+
+        echo "===== Load config ====="
+
 
 
         echo "${{ inputs.config_file }}"
 
 
 
-        cp "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" \
 
-           .config
+
+        cp \
+
+        "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" \
+
+        .config
+
 
 
 
@@ -380,13 +398,17 @@ jobs:
         if [ -n "${{ inputs.extra_config_file }}" ]; then
 
 
-          echo "Applying extra config"
+
+          echo "Apply extra config"
 
 
 
-          cat "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" \
+          cat \
+
+          "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" \
 
           >> .config
+
 
 
         fi
@@ -395,7 +417,8 @@ jobs:
 
 
 
-        echo "===== Target config ====="
+
+        echo "===== Target ====="
 
 
 
@@ -405,11 +428,9 @@ jobs:
 
 
 
-    #
-    # fullcone
-    #
 
-    - name: Enable sonic fullcone
+
+    - name: Enable fullcone
 
 
       if: inputs.sonic_fullcone == 'true'
@@ -421,7 +442,9 @@ jobs:
       run: |
 
 
+
         echo "CONFIG_PACKAGE_iptables-mod-fullconenat=y" >> .config
+
 
 
         echo "CONFIG_PACKAGE_kmod-ipt-fullcone=y" >> .config
@@ -431,9 +454,7 @@ jobs:
 
 
 
-    #
-    # 生成最终配置
-    #
+
 
     - name: Defconfig
 
@@ -444,12 +465,13 @@ jobs:
       run: |
 
 
+
         make defconfig
 
 
 
 
-        echo "===== Diffconfig ====="
+        echo "===== diffconfig ====="
 
 
 
@@ -460,9 +482,6 @@ jobs:
 
 
 
-    #
-    # Cache key
-    #
 
     - name: Generate cache key
 
@@ -470,18 +489,24 @@ jobs:
       id: cache-key
 
 
+      working-directory: ${{ env.OPENWRT_PATH }}
+
+
       run: |
+
 
 
         HASH=$(sha256sum \
 
-        openwrt/.config \
+        .config \
 
-        openwrt/feeds.conf.default \
+        feeds.conf.default \
 
         .github-feed-lock/* 2>/dev/null \
 
         | sha256sum | cut -d' ' -f1)
+
+
 
 
 
@@ -494,9 +519,6 @@ jobs:
 
 
 
-    #
-    # 编译缓存
-    #
 
     - name: Restore build cache
 
@@ -505,6 +527,7 @@ jobs:
 
 
       with:
+
 
 
         key: ${{ steps.cache-key.outputs.key }}
@@ -521,21 +544,18 @@ jobs:
         path: |
 
 
-          openwrt/dl
+          /workdir/openwrt/dl
 
 
-          openwrt/staging_dir
+          /workdir/openwrt/staging_dir
 
 
-          openwrt/build_dir
+          /workdir/openwrt/build_dir
 
 
 
 
 
-    #
-    # 下载源码包
-    #
 
     - name: Download packages
 
@@ -546,7 +566,9 @@ jobs:
       run: |
 
 
+
         make download -j$(nproc)
+
 
 
 
@@ -554,26 +576,35 @@ jobs:
 
 
 
-        du -sh dl
 
-           #
-    # 编译固件
-    #
+        echo "===== dl size ====="
+
+
+
+        du -sh dl
 
     - name: Compile firmware
 
+
       id: compile
+
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
+
       run: |
+
 
 
         echo "===== Start compile ====="
 
 
 
-        make -j$(nproc) V=s
+
+        make -j$(nproc) V=s || make -j1 V=s
+
+
+
 
 
 
@@ -582,7 +613,11 @@ jobs:
 
 
 
+
+
+
         echo "===== Build output ====="
+
 
 
 
@@ -600,57 +635,19 @@ jobs:
 
 
 
-    #
-    # 检查 target APK
-    #
-    # ImmortalWrt 25.12:
-    #
-    # kernel.apk
-    # kmod-*.apk
-    # packages.adb
-    #
-
-    - name: Check target APK packages
-
-      if: steps.compile.outputs.compile == 'success'
-
-      working-directory: ${{ env.OPENWRT_PATH }}
-
-      run: |
-
-
-        echo "===== Target APK packages ====="
-
-
-
-        find bin/targets \
-
-          -type f \
-
-          \( \
-
-          -name "*.apk" \
-
-          -o \
-
-          -name "packages.adb" \
-
-          \) \
-
-          | sort || true
-
-
-
 
     #
-    # 上传固件
+    # Firmware
     #
 
     - name: Upload firmware
 
+
       if: steps.compile.outputs.compile == 'success'
 
+
       uses: actions/upload-artifact@v4
+
 
 
       with:
@@ -679,7 +676,8 @@ jobs:
 
 
 
-        retention-days: 14
+        retention-days: 30
+
 
 
 
@@ -687,24 +685,23 @@ jobs:
 
 
     #
-    # 上传 target feed
+    # Target APK feed
     #
-    # 这里是关键
-    #
-    # 包含:
+    # ImmortalWrt 25.12:
     #
     # packages.adb
     # kernel.apk
     # kmod-*.apk
     #
 
-    - name: Upload target APK feed
+    - name: Upload target APK packages
 
 
       if: steps.compile.outputs.compile == 'success'
 
 
       uses: actions/upload-artifact@v4
+
 
 
       with:
@@ -728,19 +725,25 @@ jobs:
 
 
 
+
     #
-    # 上传普通 APK feed
+    # 普通 APK packages
     #
-    # base/luci/packages/routing等
+    # base
+    # luci
+    # packages
+    # routing
+    # telephony
     #
 
-    - name: Upload normal APK feed
+    - name: Upload APK feeds
 
 
       if: steps.compile.outputs.compile == 'success'
 
 
       uses: actions/upload-artifact@v4
+
 
 
       with:
@@ -753,7 +756,7 @@ jobs:
         path: |
 
 
-          openwrt/bin/packages/**/*
+          openwrt/bin/packages/**
 
 
 
@@ -764,8 +767,9 @@ jobs:
 
 
 
+
     #
-    # 上传最终配置
+    # 上传配置和 feeds hash
     #
 
     - name: Upload build config
@@ -777,10 +781,11 @@ jobs:
       uses: actions/upload-artifact@v4
 
 
+
       with:
 
 
-        name: config-${{ inputs.device }}
+        name: build-config-${{ inputs.device }}
 
 
 
@@ -801,8 +806,9 @@ jobs:
 
 
 
+
     #
-    # 构建总结
+    # 构建信息
     #
 
     - name: Build summary
@@ -814,7 +820,8 @@ jobs:
       run: |
 
 
-        echo "=============================="
+
+        echo "============================="
 
 
 
@@ -825,7 +832,9 @@ jobs:
 
 
 
+
         echo ""
+
 
 
         echo "Source:"
@@ -835,7 +844,9 @@ jobs:
 
 
 
+
         echo ""
+
 
 
         echo "Branch:"
@@ -845,7 +856,9 @@ jobs:
 
 
 
+
         echo ""
+
 
 
         echo "Commit:"
@@ -855,11 +868,10 @@ jobs:
 
 
 
-        echo ""
+
+        echo "============================="
 
 
-        echo "=============================="
 
 
-
-        df -h 
+        df -h
