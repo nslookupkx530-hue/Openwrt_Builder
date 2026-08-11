@@ -1,428 +1,561 @@
-name: OpenWrt build device
-
+name: OpenWrt Build Device
 
 on:
-
   workflow_call:
-
-
     inputs:
 
-
       device:
-
-        description: Device name
-
+        description: "Device name"
         required: true
-
         type: string
-
-
 
       config_file:
-
-        description: Device config file
-
+        description: "Device .config file"
         required: true
-
         type: string
-
-
 
       extra_config_file:
-
-        description: Extra config file
-
+        description: "Extra config file"
         required: false
-
         default: ""
-
         type: string
-
-
 
       workflow_name:
-
-        description: Workflow name
-
+        description: "Workflow name"
         required: true
-
         type: string
-
-
 
       repo_url:
-
-        description: OpenWrt source repository
-
+        description: "OpenWrt source repository"
         required: true
-
         type: string
-
-
 
       repo_branch:
-
-        description: OpenWrt source branch
-
+        description: "OpenWrt source branch"
         required: true
-
         type: string
-
-
 
       repo_commit:
-
-        description: Fixed source commit
-
+        description: "Fixed OpenWrt source commit"
         required: false
-
         default: ""
-
         type: string
-
-
 
       feeds_conf:
-
-        description: feeds.conf.default
-
+        description: "Custom feeds.conf.default"
         required: false
-
         default: ""
-
         type: string
-
-
 
       diy_p1_sh:
-
-        description: DIY script part1
-
+        description: "DIY script part 1"
         required: false
-
         default: "./sh/scripts-part1.sh"
-
         type: string
-
-
 
       diy_p2_sh:
-
-        description: DIY script part2
-
+        description: "DIY script part 2"
         required: false
-
         default: "./sh/scripts-part2.sh"
-
         type: string
-
-
 
       default_setting:
-
-        description: Default settings
-
+        description: "Default settings directory"
         required: false
-
         default: "./default-settings-m0eak"
-
         type: string
-
-
 
       install_automake_117:
-
-        description: Install automake 1.17
-
+        description: "Install automake 1.17"
         required: false
-
         default: "false"
-
         type: string
-
-
 
       sonic_fullcone:
-
-        description: Enable fullcone
-
+        description: "Enable Sonic fullcone"
         required: false
-
         default: "false"
-
         type: string
 
-
+      cache_toolchain:
+        description: "Enable build cache"
+        required: false
+        default: "true"
+        type: string
 
       timezone:
-
-        description: Timezone
-
+        description: "Build timezone"
         required: false
-
         default: "Asia/Shanghai"
-
         type: string
-
-
 
 
 jobs:
-
-
   build:
-
 
     name: Build ${{ inputs.device }}
 
-
     runs-on: ubuntu-22.04
 
-
-
     permissions:
-
       contents: read
-
-
-
 
     steps:
 
+      # ============================================================
+      # Checkout builder repository
+      # ============================================================
+
+      - name: Checkout builder repository
+        uses: actions/checkout@v5
 
 
-      - name: Checkout repository
-
-        uses: actions/checkout@v4
-
-
-
-
-
+      # ============================================================
+      # Show parameters
+      # ============================================================
 
       - name: Show build parameters
-
         shell: bash
-
         run: |
+          set -euo pipefail
 
           echo "::group::Build parameters"
 
-          echo "Device=${{ inputs.device }}"
+          echo "Device:"
+          echo "${{ inputs.device }}"
 
-          echo "Workflow=${{ inputs.workflow_name }}"
+          echo "Workflow:"
+          echo "${{ inputs.workflow_name }}"
 
-          echo "Repository=${{ inputs.repo_url }}"
+          echo "Repository:"
+          echo "${{ inputs.repo_url }}"
 
-          echo "Branch=${{ inputs.repo_branch }}"
+          echo "Branch:"
+          echo "${{ inputs.repo_branch }}"
 
-          echo "Commit=${{ inputs.repo_commit }}"
+          echo "Commit:"
+          echo "${{ inputs.repo_commit }}"
 
-          echo "Config=${{ inputs.config_file }}"
+          echo "Config:"
+          echo "${{ inputs.config_file }}"
+
+          echo "Extra config:"
+          echo "${{ inputs.extra_config_file }}"
+
+          echo "Feeds config:"
+          echo "${{ inputs.feeds_conf }}"
+
+          echo "DIY part1:"
+          echo "${{ inputs.diy_p1_sh }}"
+
+          echo "DIY part2:"
+          echo "${{ inputs.diy_p2_sh }}"
+
+          echo "Default setting:"
+          echo "${{ inputs.default_setting }}"
+
+          echo "Automake 1.17:"
+          echo "${{ inputs.install_automake_117 }}"
+
+          echo "Sonic fullcone:"
+          echo "${{ inputs.sonic_fullcone }}"
+
+          echo "Cache:"
+          echo "${{ inputs.cache_toolchain }}"
 
           echo "::endgroup::"
 
 
+      # ============================================================
+      # Check builder files
+      # ============================================================
+
+      - name: Check builder files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "::group::Repository files"
+
+          pwd
+
+          echo "--- Config ---"
+          if [ -f "${{ inputs.config_file }}" ]; then
+            echo "FOUND: ${{ inputs.config_file }}"
+          else
+            echo "MISSING: ${{ inputs.config_file }}"
+            exit 1
+          fi
+
+          echo "--- Feeds ---"
+          if [ -n "${{ inputs.feeds_conf }}" ]; then
+            if [ -f "${{ inputs.feeds_conf }}" ]; then
+              echo "FOUND: ${{ inputs.feeds_conf }}"
+            else
+              echo "WARNING: ${{ inputs.feeds_conf }} not found"
+            fi
+          else
+            echo "No custom feeds.conf.default specified"
+          fi
+
+          echo "--- DIY part1 ---"
+          if [ -f "${{ inputs.diy_p1_sh }}" ]; then
+            echo "FOUND: ${{ inputs.diy_p1_sh }}"
+          else
+            echo "Not found: ${{ inputs.diy_p1_sh }}"
+          fi
+
+          echo "--- DIY part2 ---"
+          if [ -f "${{ inputs.diy_p2_sh }}" ]; then
+            echo "FOUND: ${{ inputs.diy_p2_sh }}"
+          else
+            echo "Not found: ${{ inputs.diy_p2_sh }}"
+          fi
+
+          echo "--- Default settings ---"
+          if [ -e "${{ inputs.default_setting }}" ]; then
+            echo "FOUND: ${{ inputs.default_setting }}"
+          else
+            echo "Not found: ${{ inputs.default_setting }}"
+          fi
+
+          echo "::endgroup::"
 
 
-
-
+      # ============================================================
+      # Clean runner disk
+      # ============================================================
 
       - name: Cleanup disk space
-
         shell: bash
-
         run: |
+          set -euo pipefail
 
+          echo "::group::Disk before cleanup"
           df -hT
-
+          echo "::endgroup::"
 
           sudo rm -rf \
-          /usr/share/dotnet \
-          /usr/local/lib/android \
-          /opt/ghc \
-          /opt/hostedtoolcache/CodeQL
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL
 
+          sudo docker image prune --all --force || true
 
-
-          sudo docker image prune --all --force
-
-
-
+          echo "::group::Disk after cleanup"
           df -hT
+          echo "::endgroup::"
 
 
-
-
-
-
-
+      # ============================================================
+      # Initialize build environment
+      # ============================================================
 
       - name: Initialize build environment
-
         shell: bash
-
         env:
-
           DEBIAN_FRONTEND: noninteractive
-
           TZ: ${{ inputs.timezone }}
-
-
         run: |
+          set -euo pipefail
 
+          echo "::group::Install base dependencies"
 
           sudo -E apt-get update
 
-
-
           sudo -E apt-get install -y \
+            bash \
+            ca-certificates \
+            curl \
+            git \
+            wget \
+            build-essential \
+            dos2unix \
+            libfuse-dev \
+            rsync \
+            unzip \
+            zip \
+            file \
+            gawk \
+            gettext \
+            libncurses5-dev \
+            libssl-dev \
+            python3 \
+            python3-distutils \
+            python3-setuptools \
+            python3-pip \
+            perl \
+            rsync \
+            swig \
+            time \
+            xsltproc
 
-          dos2unix \
-
-          libfuse-dev
+          echo "::endgroup::"
 
 
+          echo "::group::Install automake 1.17"
 
-          sudo bash -c \
+          if [ "${{ inputs.install_automake_117 }}" = "true" ]; then
 
-          'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+            AUTOMAKE_VERSION="1.17"
 
+            cd /tmp
+
+            rm -rf "automake-${AUTOMAKE_VERSION}"
+
+            curl -fL \
+              "https://ftp.gnu.org/gnu/automake/automake-${AUTOMAKE_VERSION}.tar.xz" \
+              -o "automake-${AUTOMAKE_VERSION}.tar.xz"
+
+            tar -xf "automake-${AUTOMAKE_VERSION}.tar.xz"
+
+            cd "automake-${AUTOMAKE_VERSION}"
+
+            ./configure
+
+            make -j"$(nproc)"
+
+            sudo make install
+
+            cd /
+
+            automake --version
+
+          else
+
+            echo "Automake 1.17 installation disabled."
+
+          fi
+
+          echo "::endgroup::"
+
+
+          echo "::group::Install ImmortalWrt build environment"
+
+          curl -fsSL \
+            "https://build-scripts.immortalwrt.org/init_build_environment.sh" \
+            -o /tmp/init_build_environment.sh
+
+          chmod +x /tmp/init_build_environment.sh
+
+          sudo bash /tmp/init_build_environment.sh
+
+          echo "::endgroup::"
+
+
+          echo "::group::System information"
+
+          echo "Bash:"
+          bash --version | head -1
+
+          echo "Git:"
+          git --version
+
+          echo "Curl:"
+          curl --version | head -1
+
+          echo "Make:"
+          make --version | head -1
+
+          echo "Python:"
+          python3 --version
+
+          echo "Automake:"
+          automake --version | head -1
+
+          echo "CPU:"
+          nproc
+
+          echo "Disk:"
+          df -hT
+
+          echo "::endgroup::"
 
 
           sudo timedatectl set-timezone "$TZ"
 
-
-
           sudo mkdir -p /workdir
-
-
 
           sudo chown "$USER:$(id -gn)" /workdir
 
+          echo "WORKDIR=/workdir" >> "$GITHUB_ENV"
 
 
-          echo "WORKDIR=/workdir" >> $GITHUB_ENV
-
-
-
-
+      # ============================================================
+      # Clone OpenWrt source
+      # ============================================================
 
       - name: Clone OpenWrt source
-
         shell: bash
-
         working-directory: /workdir
-
         run: |
+          set -euo pipefail
 
+          rm -rf openwrt
 
-          set -e
-
-
+          echo "::group::Clone source"
 
           git clone \
+            --single-branch \
+            --branch "${{ inputs.repo_branch }}" \
+            "${{ inputs.repo_url }}" \
+            openwrt
 
-          -b "${{ inputs.repo_branch }}" \
-
-          "${{ inputs.repo_url }}" \
-
-          openwrt
-
-
+          echo "::endgroup::"
 
           cd openwrt
 
+          echo "::group::Source revision before checkout"
 
+          git remote -v
 
-          if [ -n "${{ inputs.repo_commit }}" ]; then
-
-
-            git checkout "${{ inputs.repo_commit }}"
-
-
-          fi
-
-
-
-          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
-
-
+          git branch --show-current
 
           git log -1 --oneline
 
+          echo "::endgroup::"
 
 
-          ln -sf /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
-      - name: Prepare feeds configuration
+          # ----------------------------------------------------------
+          # 固定 commit
+          # ----------------------------------------------------------
 
-        shell: bash
+          if [ -n "${{ inputs.repo_commit }}" ]; then
 
-        run: |
+            echo "Checking out fixed commit:"
+            echo "${{ inputs.repo_commit }}"
 
-          set -e
+            git fetch --no-tags origin \
+              "${{ inputs.repo_commit }}"
 
+            git checkout --detach \
+              "${{ inputs.repo_commit }}"
 
-          cd openwrt
+          else
 
+            echo "No fixed commit specified."
 
-
-          if [ -n "${{ inputs.feeds_conf }}" ] && [ -f "$GITHUB_WORKSPACE/${{ inputs.feeds_conf }}" ]; then
-
-
-            cp \
-            "$GITHUB_WORKSPACE/${{ inputs.feeds_conf }}" \
-            feeds.conf.default
-
+            echo "Using branch HEAD."
 
           fi
 
 
+          # ----------------------------------------------------------
+          # Save source revision
+          # ----------------------------------------------------------
+
+          OPENWRT_COMMIT="$(git rev-parse HEAD)"
+
+          OPENWRT_SHORT_COMMIT="$(git rev-parse --short HEAD)"
+
+          OPENWRT_BRANCH="$(git branch --show-current || true)"
+
+          echo "OPENWRT_COMMIT=$OPENWRT_COMMIT" >> "$GITHUB_ENV"
+
+          echo "OPENWRT_SHORT_COMMIT=$OPENWRT_SHORT_COMMIT" >> "$GITHUB_ENV"
+
+          echo "OPENWRT_BRANCH=$OPENWRT_BRANCH" >> "$GITHUB_ENV"
+
+          echo "::group::Final OpenWrt source revision"
+
+          echo "Repository:"
+          echo "${{ inputs.repo_url }}"
+
+          echo "Requested branch:"
+          echo "${{ inputs.repo_branch }}"
+
+          echo "Checked out commit:"
+          echo "$OPENWRT_COMMIT"
+
+          echo "Short commit:"
+          echo "$OPENWRT_SHORT_COMMIT"
+
+          echo "::endgroup::"
 
 
-          echo "::group::feeds.conf.default"
+          # ----------------------------------------------------------
+          # Link source tree into builder repository
+          # ----------------------------------------------------------
 
+          ln -sfn \
+            /workdir/openwrt \
+            "$GITHUB_WORKSPACE/openwrt"
+
+
+          echo "OPENWRT_PATH=/workdir/openwrt" >> "$GITHUB_ENV"
+
+                # ============================================================
+      # Prepare feeds.conf.default
+      # ============================================================
+
+      - name: Prepare feeds configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd openwrt
+
+          echo "::group::Current feeds.conf.default"
+
+          if [ -f feeds.conf.default ]; then
+            cat feeds.conf.default
+          else
+            echo "feeds.conf.default not found"
+          fi
+
+          echo "::endgroup::"
+
+
+          if [ -n "${{ inputs.feeds_conf }}" ]; then
+
+            if [ -f "$GITHUB_WORKSPACE/${{ inputs.feeds_conf }}" ]; then
+
+              echo "Using custom feeds.conf.default"
+
+              cp \
+              "$GITHUB_WORKSPACE/${{ inputs.feeds_conf }}" \
+              feeds.conf.default
+
+            else
+
+              echo "Custom feeds file does not exist:"
+              echo "${{ inputs.feeds_conf }}"
+
+              exit 1
+
+            fi
+
+          fi
+
+
+          echo "::group::Final feeds.conf.default"
 
           cat feeds.conf.default
-
 
           echo "::endgroup::"
 
 
 
 
+      # ============================================================
+      # Update feeds and create hash lock
+      # ============================================================
 
-
-
-      - name: Update feeds and generate lock
-
-        id: feeds-lock
-
+      - name: Update feeds and lock revision
+        id: feeds
         shell: bash
-
         run: |
-
-
-          set -e
-
-
+          set -euo pipefail
 
           cd openwrt
-
 
 
           echo "::group::Update feeds"
 
-
-
           ./scripts/feeds update -a
 
-
-
           echo "::endgroup::"
-
-
 
 
 
@@ -430,46 +563,39 @@ jobs:
 
 
 
-
-
-          echo "::group::Generate feeds commit lock"
-
+          echo "::group::Generate feeds lock"
 
 
 
+          while read -r line; do
 
-          for feed in $(ls feeds); do
+            FEED_NAME=$(echo "$line" | awk '{print $1}')
 
-
-
-            if [ -d "feeds/$feed/.git" ]; then
-
+            if [ -d "feeds/$FEED_NAME/.git" ]; then
 
 
-              COMMIT=$(git -C "feeds/$feed" rev-parse HEAD)
+              COMMIT=$(git -C "feeds/$FEED_NAME" rev-parse HEAD)
 
 
-
-              echo "$feed=$COMMIT"
-
+              echo "$FEED_NAME=$COMMIT"
 
 
-              echo "$COMMIT" > "feeds.lock/$feed.commit"
-
+              echo "$COMMIT" \
+              > "feeds.lock/${FEED_NAME}.commit"
 
 
             fi
 
 
-
-          done
-
-
+          done < <(
+            grep -v '^#' feeds.conf.default \
+            | grep '^src-git' \
+            | awk '{print $2}'
+          )
 
 
 
           echo "::endgroup::"
-
 
 
 
@@ -480,9 +606,11 @@ jobs:
 
           for file in feeds.lock/*.commit; do
 
+            if [ -f "$file" ]; then
 
-            echo "$(basename "$file" .commit): $(cat "$file")"
+              echo "$(basename "$file" .commit): $(cat "$file")"
 
+            fi
 
           done
 
@@ -494,17 +622,52 @@ jobs:
 
 
 
+      # ============================================================
+      # DIY script part1
+      # ============================================================
 
+      - name: Run DIY script part1
+        shell: bash
+        run: |
+          set -euo pipefail
+
+
+          if [ -f "$GITHUB_WORKSPACE/${{ inputs.diy_p1_sh }}" ]; then
+
+            echo "Running:"
+            echo "${{ inputs.diy_p1_sh }}"
+
+
+            chmod +x \
+            "$GITHUB_WORKSPACE/${{ inputs.diy_p1_sh }}"
+
+
+            cd openwrt
+
+
+            "$GITHUB_WORKSPACE/${{ inputs.diy_p1_sh }}"
+
+
+          else
+
+            echo "No DIY part1 script."
+
+          fi
+
+
+
+
+
+      # ============================================================
+      # Install feeds
+      # ============================================================
 
       - name: Install feeds
-
         shell: bash
-
         run: |
-
+          set -euo pipefail
 
           cd openwrt
-
 
 
           ./scripts/feeds install -a
@@ -514,44 +677,103 @@ jobs:
 
 
 
+      # ============================================================
+      # Load configuration
+      # ============================================================
 
-      - name: Load device configuration
-
+      - name: Load device config
         shell: bash
-
         run: |
-
-
-          set -e
-
+          set -euo pipefail
 
 
           cd openwrt
 
 
 
+          echo "::group::Copy config"
 
 
-          ####################################
+          if [ ! -f "$GITHUB_WORKSPACE/${{ inputs.config_file }}" ]; then
 
-          # Default settings
+            echo "Config file missing:"
+            echo "${{ inputs.config_file }}"
 
-          ####################################
+            exit 1
+
+          fi
 
 
-          if [ -d "$GITHUB_WORKSPACE/${{ inputs.default_setting }}" ]; then
+
+          cp \
+          "$GITHUB_WORKSPACE/${{ inputs.config_file }}" \
+          .config
+
+
+
+          echo "Main config loaded"
+
+
+
+
+          if [ -n "${{ inputs.extra_config_file }}" ]; then
+
+
+            if [ -f "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" ]; then
+
+
+              echo "Append extra config"
+
+              cat \
+              "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" \
+              >> .config
+
+
+            fi
+
+
+          fi
+
+
+          echo "::endgroup::"
+
+
+
+
+
+      # ============================================================
+      # Default settings
+      # ============================================================
+
+      - name: Install default settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+
+          cd openwrt
+
+
+
+          if [ -e "$GITHUB_WORKSPACE/${{ inputs.default_setting }}" ]; then
+
+
+            echo "Installing default settings"
 
 
             rm -rf package/default-settings-m0eak
 
 
 
-            cp -r \
-
+            cp -rf \
             "$GITHUB_WORKSPACE/${{ inputs.default_setting }}" \
-
             package/default-settings-m0eak
 
+
+          else
+
+
+            echo "No default settings"
 
 
           fi
@@ -560,49 +782,35 @@ jobs:
 
 
 
-          ####################################
+      # ============================================================
+      # Files overlay
+      # ============================================================
 
-          # files overlay
+      - name: Apply files overlay
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          ####################################
+
+          cd openwrt
+
 
 
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
 
 
+            echo "Applying files directory"
+
+
             cp -rf \
-
             "$GITHUB_WORKSPACE/files" \
-
             ./files
 
 
-
-          fi
-
+          else
 
 
-
-
-
-          ####################################
-
-          # Device config
-
-          ####################################
-
-
-          if [ ! -f "$GITHUB_WORKSPACE/${{ inputs.config_file }}" ]; then
-
-
-            echo "Missing config file:"
-
-
-            echo "${{ inputs.config_file }}"
-
-
-            exit 1
-
+            echo "No files overlay"
 
 
           fi
@@ -611,32 +819,33 @@ jobs:
 
 
 
-          cp \
+      # ============================================================
+      # Extra packages options
+      # ============================================================
 
-          "$GITHUB_WORKSPACE/${{ inputs.config_file }}" \
-
-          .config
-
-
-
-
-
-
-          ####################################
-
-          # Extra config (docker)
-
-          ####################################
+      - name: Apply extra options
+        shell: bash
+        run: |
+          set -euo pipefail
 
 
-          if [ -n "${{ inputs.extra_config_file }}" ] && [ -f "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" ]; then
+          cd openwrt
 
 
 
-            cat \
+          if [ "${{ inputs.sonic_fullcone }}" = "true" ]; then
 
-            "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" \
 
+            echo "Enable fullcone"
+
+
+
+            echo "CONFIG_PACKAGE_iptables-mod-fullconenat=y" \
+            >> .config
+
+
+
+            echo "CONFIG_PACKAGE_luci-app-fullconenat=y" \
             >> .config
 
 
@@ -648,23 +857,35 @@ jobs:
 
 
 
-          ####################################
+      # ============================================================
+      # Run DIY script part2
+      # ============================================================
 
-          # Sonic Fullcone
-
-          ####################################
-
-
-          if [ "${{ inputs.sonic_fullcone }}" = "true" ]; then
-
-
-
-            echo "CONFIG_PACKAGE_iptables-mod-fullconenat=y" >> .config
+      - name: Run DIY script part2
+        shell: bash
+        run: |
+          set -euo pipefail
 
 
+          if [ -f "$GITHUB_WORKSPACE/${{ inputs.diy_p2_sh }}" ]; then
 
-            echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
+            chmod +x \
+            "$GITHUB_WORKSPACE/${{ inputs.diy_p2_sh }}"
+
+
+
+            cd openwrt
+
+
+
+            "$GITHUB_WORKSPACE/${{ inputs.diy_p2_sh }}"
+
+
+          else
+
+
+            echo "No DIY part2 script."
 
 
           fi
@@ -674,20 +895,17 @@ jobs:
 
 
 
+      # ============================================================
+      # Defconfig
+      # ============================================================
 
-          echo "::group::Target config"
-
-
-
-          grep "^CONFIG_TARGET" .config || true
-
-
-
-          echo "::endgroup::"
+      - name: Run defconfig
+        shell: bash
+        run: |
+          set -euo pipefail
 
 
-
-
+          cd openwrt
 
 
 
@@ -697,13 +915,10 @@ jobs:
 
 
 
-
-          echo "::group::Final diffconfig"
-
+          echo "::group::Target configuration"
 
 
-          ./scripts/diffconfig.sh
-
+          grep '^CONFIG_TARGET' .config || true
 
 
           echo "::endgroup::"
@@ -712,13 +927,26 @@ jobs:
 
 
 
+          echo "::group::Diffconfig"
 
 
-      - name: Save build revision information
+          ./scripts/diffconfig.sh
 
+
+          echo "::endgroup::"
+
+
+
+
+
+      # ============================================================
+      # Save revision information
+      # ============================================================
+
+      - name: Save build revision
         shell: bash
-
         run: |
+          set -euo pipefail
 
 
           cd openwrt
@@ -733,15 +961,27 @@ jobs:
 
           {
 
-            echo "OpenWrt commit:"
+            echo "Device:"
+            echo "${{ inputs.device }}"
 
+            echo
+
+            echo "Repository:"
+            echo "${{ inputs.repo_url }}"
+
+            echo
+
+            echo "Branch:"
+            echo "${{ inputs.repo_branch }}"
+
+            echo
+
+            echo "Commit:"
             echo "$OPENWRT_COMMIT"
 
-            echo ""
+            echo
 
             echo "Feeds:"
-
-            
 
             for file in feeds.lock/*.commit; do
 
@@ -756,25 +996,29 @@ jobs:
 
 
 
-          echo "::group::Build revision"
-
-
+          echo "::group::Revision information"
 
           cat build-info/revision.txt
 
-
-
           echo "::endgroup::"
-      - name: Cache build environment
 
-        uses: actions/cache@v4
+                    echo "::endgroup::"
 
+
+
+
+
+      # ============================================================
+      # Cache toolchain
+      # ============================================================
+
+      - name: Restore build cache
+        if: inputs.cache_toolchain == 'true'
+        uses: actions/cache@v5
 
         with:
 
-
           path: |
-
 
             openwrt/staging_dir/host
 
@@ -785,11 +1029,9 @@ jobs:
             openwrt/.ccache
 
 
-
           key: |
 
             ${{ runner.os }}-${{ inputs.device }}-${{ inputs.repo_branch }}-${{ hashFiles('openwrt/.config', 'openwrt/feeds.conf.default', 'openwrt/feeds.lock/**') }}
-
 
 
           restore-keys: |
@@ -801,20 +1043,29 @@ jobs:
 
 
 
+      # ============================================================
+      # Download source packages
+      # ============================================================
+
       - name: Download packages
-
-
         shell: bash
-
-
         run: |
+          set -euo pipefail
 
 
           cd openwrt
 
 
 
-          make download -j8
+          echo "::group::Download packages"
+
+
+
+          make download -j"$(nproc)"
+
+
+
+          echo "::endgroup::"
 
 
 
@@ -829,10 +1080,8 @@ jobs:
 
 
           find dl \
-
           -size -1024c \
-
-          -exec ls -lh {} \;
+          -exec ls -lh {} \; || true
 
 
 
@@ -842,10 +1091,10 @@ jobs:
 
 
 
+          # remove broken empty files
+
           find dl \
-
           -size -1024c \
-
           -delete
 
 
@@ -853,49 +1102,43 @@ jobs:
 
 
 
+      # ============================================================
+      # Compile firmware
+      # ============================================================
+
       - name: Compile firmware
-
-
         id: compile
-
-
         shell: bash
-
-
         run: |
+          set -euo pipefail
 
 
           cd openwrt
 
 
 
-
-
-          THREADS=$(nproc)
-
-
-
-          echo "Using ${THREADS} threads"
+          THREADS="$(nproc)"
 
 
 
-
-
-          make -j${THREADS} || make -j1 V=s
+          echo "Compile threads:"
+          echo "$THREADS"
 
 
 
 
 
-          DEVICE_NAME=$(grep \
+          make -j"$THREADS" || make -j1 V=s
 
+
+
+
+
+          DEVICE_NAME="$(grep \
           '^CONFIG_TARGET.*DEVICE.*=y' \
-
           .config \
-
           | sed -r 's/.*DEVICE_(.*)=y/\1/' \
-
-          | head -1)
+          | head -1 || true)"
 
 
 
@@ -903,9 +1146,7 @@ jobs:
 
           if [ -z "$DEVICE_NAME" ]; then
 
-
             DEVICE_NAME="${{ inputs.device }}"
-
 
           fi
 
@@ -913,32 +1154,30 @@ jobs:
 
 
 
-          echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
+          echo "DEVICE_NAME=$DEVICE_NAME" >> "$GITHUB_ENV"
 
 
 
-          echo "device-name=$DEVICE_NAME" >> $GITHUB_OUTPUT
+          echo "device-name=$DEVICE_NAME" \
+          >> "$GITHUB_OUTPUT"
 
 
 
-          echo "compile=success" >> $GITHUB_OUTPUT
+          echo "compile=success" \
+          >> "$GITHUB_OUTPUT"
 
 
 
 
 
-          echo "::group::Firmware output"
+          echo "::group::Firmware result"
 
 
 
           find bin/targets \
-
           -maxdepth 4 \
-
           -type f \
-
           -printf '%p %s bytes\n' \
-
           | sort
 
 
@@ -950,14 +1189,14 @@ jobs:
 
 
 
+      # ============================================================
+      # Copy build information
+      # ============================================================
 
-      - name: Copy build metadata
-
-
+      - name: Copy build information
         shell: bash
-
-
         run: |
+          set -euo pipefail
 
 
           cd openwrt
@@ -968,12 +1207,8 @@ jobs:
 
 
 
-
-
           cp -rf \
-
           build-info \
-
           bin/build-info/
 
 
@@ -981,67 +1216,100 @@ jobs:
 
 
           cp -rf \
-
           feeds.lock \
-
           bin/build-info/
 
 
 
 
 
+          echo "OpenWrt revision:"
+          cat build-info/revision.txt
 
+
+
+
+
+
+      # ============================================================
+      # Generate package list
+      # ============================================================
 
       - name: Generate package list
-
-
         shell: bash
-
-
         run: |
+          set -euo pipefail
 
 
           cd openwrt
 
 
 
-
-
           mkdir -p \
-
-          ../package-list-${{ inputs.device }}
-
+          "../package-list-${{ inputs.device }}"
 
 
 
 
-          ./scripts/feeds list \
 
-          -r \
-
-          > ../package-list-${{ inputs.device }}/packages.txt
+          ./scripts/feeds list -r \
+          > "../package-list-${{ inputs.device }}/packages.txt"
 
 
 
 
+
+          echo "::group::Package list"
+
+          head -100 \
+          "../package-list-${{ inputs.device }}/packages.txt"
+
+          echo "::endgroup::"
+
+
+
+
+
+
+      # ============================================================
+      # Generate checksum
+      # ============================================================
+
+      - name: Generate firmware checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+
+
+          cd openwrt
+
+
+
+          cd bin/targets/*/*
+
+
+
+          sha256sum \
+          *.bin \
+          > sha256sums
+
+
+
+
+
+      # ============================================================
+      # Upload firmware artifact
+      # ============================================================
 
       - name: Upload firmware artifact
-
-
         if: steps.compile.outputs.compile == 'success'
-
-
-        uses: actions/upload-artifact@v4
-
+        uses: actions/upload-artifact@v5
 
         with:
 
-
           name: firmware-${{ inputs.device }}
 
-
           path: |
-
 
             openwrt/bin/targets/**
 
@@ -1050,35 +1318,63 @@ jobs:
 
 
 
-      - name: Upload package list
+      # ============================================================
+      # Upload package list
+      # ============================================================
 
+      - name: Upload package list artifact
 
-        uses: actions/upload-artifact@v4
-
+        uses: actions/upload-artifact@v5
 
         with:
 
-
           name: package-list-${{ inputs.device }}
 
+          path: |
 
-          path: package-list-${{ inputs.device }}
-
-
-
+            package-list-${{ inputs.device }}
 
 
 
-      - name: Show disk usage
 
 
+
+      # ============================================================
+      # Build summary
+      # ============================================================
+
+      - name: Build summary
         if: always()
-
-
         shell: bash
-
-
         run: |
 
+          echo "::group::Final system status"
 
           df -hT
+
+
+          echo
+
+          echo "Device:"
+          echo "${{ inputs.device }}"
+
+
+          echo
+
+          echo "Source:"
+          echo "${{ inputs.repo_url }}"
+
+
+          echo
+
+          echo "Branch:"
+          echo "${{ inputs.repo_branch }}"
+
+
+          echo
+
+          echo "Commit:"
+          echo "${OPENWRT_COMMIT:-unknown}"
+
+
+          echo "::endgroup::"
