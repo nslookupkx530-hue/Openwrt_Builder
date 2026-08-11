@@ -11,137 +11,160 @@ on:
 
       device:
 
-        description: Device name used for artifact names.
+        description: Device name
 
         required: true
 
         type: string
+
 
 
       config_file:
 
-        description: Repository config file.
+        description: Device config file
 
         required: true
 
         type: string
+
 
 
       extra_config_file:
 
-        description: Optional extra config.
+        description: Extra config file
+
+        required: false
 
         default: ""
 
         type: string
+
 
 
       workflow_name:
 
-        description: Workflow name.
+        description: Workflow name
 
         required: true
 
         type: string
+
 
 
       repo_url:
 
-        description: OpenWrt source repository.
+        description: OpenWrt source repository
 
         required: true
 
         type: string
+
 
 
       repo_branch:
 
-        description: OpenWrt source branch/tag.
+        description: OpenWrt source branch
 
         required: true
 
         type: string
 
 
+
       repo_commit:
 
-        description: Optional fixed OpenWrt commit.
+        description: Fixed source commit
+
+        required: false
 
         default: ""
 
         type: string
 
 
+
       feeds_conf:
 
-        description: feeds.conf.default path.
+        description: feeds.conf.default
 
-        default: feeds.conf.default
+        required: false
+
+        default: ""
 
         type: string
+
 
 
       diy_p1_sh:
 
-        description: Part1 script.
+        description: DIY script part1
 
-        default: ./sh/scripts-part1.sh
+        required: false
+
+        default: "./sh/scripts-part1.sh"
 
         type: string
+
 
 
       diy_p2_sh:
 
-        description: Part2 script.
+        description: DIY script part2
 
-        default: ./sh/scripts-part2.sh
+        required: false
+
+        default: "./sh/scripts-part2.sh"
 
         type: string
+
 
 
       default_setting:
 
-        description: Default settings package.
+        description: Default settings
 
-        default: ./default-settings-m0eak
+        required: false
 
-        type: string
-
-
-      cache_toolchain:
-
-        description: Enable cache.
-
-        default: "true"
+        default: "./default-settings-m0eak"
 
         type: string
 
-
-      timezone:
-
-        description: Timezone.
-
-        default: Asia/Shanghai
-
-        type: string
 
 
       install_automake_117:
 
-        description: Install automake 1.17.
+        description: Install automake 1.17
+
+        required: false
 
         default: "false"
 
         type: string
+
 
 
       sonic_fullcone:
 
-        description: Enable sonic fullcone.
+        description: Enable fullcone
+
+        required: false
 
         default: "false"
 
         type: string
+
+
+
+      timezone:
+
+        description: Timezone
+
+        required: false
+
+        default: "Asia/Shanghai"
+
+        type: string
+
 
 
 
@@ -151,15 +174,17 @@ jobs:
   build:
 
 
-    name: 编译 ${{ inputs.device }}
+    name: Build ${{ inputs.device }}
 
 
     runs-on: ubuntu-22.04
 
 
+
     permissions:
 
       contents: read
+
 
 
 
@@ -175,25 +200,26 @@ jobs:
 
 
 
-      - name: Show build information
+
+      - name: Show build parameters
 
         shell: bash
 
         run: |
 
-          echo "::group::Build inputs"
+          echo "::group::Build parameters"
 
-          echo "device=${{ inputs.device }}"
+          echo "Device=${{ inputs.device }}"
 
-          echo "workflow=${{ inputs.workflow_name }}"
+          echo "Workflow=${{ inputs.workflow_name }}"
 
-          echo "repo=${{ inputs.repo_url }}"
+          echo "Repository=${{ inputs.repo_url }}"
 
-          echo "branch=${{ inputs.repo_branch }}"
+          echo "Branch=${{ inputs.repo_branch }}"
 
-          echo "commit=${{ inputs.repo_commit }}"
+          echo "Commit=${{ inputs.repo_commit }}"
 
-          echo "config=${{ inputs.config_file }}"
+          echo "Config=${{ inputs.config_file }}"
 
           echo "::endgroup::"
 
@@ -201,13 +227,16 @@ jobs:
 
 
 
-      - name: Cleanup disk
+
+
+      - name: Cleanup disk space
 
         shell: bash
 
         run: |
 
           df -hT
+
 
           sudo rm -rf \
           /usr/share/dotnet \
@@ -216,7 +245,9 @@ jobs:
           /opt/hostedtoolcache/CodeQL
 
 
+
           sudo docker image prune --all --force
+
 
 
           df -hT
@@ -225,7 +256,10 @@ jobs:
 
 
 
-      - name: Initialize environment
+
+
+
+      - name: Initialize build environment
 
         shell: bash
 
@@ -235,38 +269,47 @@ jobs:
 
           TZ: ${{ inputs.timezone }}
 
+
         run: |
+
 
           sudo -E apt-get update
 
 
+
           sudo -E apt-get install -y \
+
           dos2unix \
-          libfuse-dev \
-          clang \
-          llvm
+
+          libfuse-dev
+
 
 
           sudo bash -c \
+
           'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+
 
 
           sudo timedatectl set-timezone "$TZ"
 
 
+
           sudo mkdir -p /workdir
+
 
 
           sudo chown "$USER:$(id -gn)" /workdir
 
 
-          echo "WORKFLOW_NAME=${{ inputs.workflow_name }}" >> $GITHUB_ENV
 
-          echo "TAG=${{ inputs.repo_branch }}" >> $GITHUB_ENV
+          echo "WORKDIR=/workdir" >> $GITHUB_ENV
 
-                - name: Clone OpenWrt source
 
-        id: clone-source
+
+
+
+      - name: Clone OpenWrt source
 
         shell: bash
 
@@ -279,13 +322,12 @@ jobs:
 
 
 
-          echo "::group::Clone source"
-
-
-
           git clone \
-          "${{ inputs.repo_url }}" \
+
           -b "${{ inputs.repo_branch }}" \
+
+          "${{ inputs.repo_url }}" \
+
           openwrt
 
 
@@ -294,31 +336,7 @@ jobs:
 
 
 
-          echo "Remote:"
-
-          git remote -v
-
-
-
-          echo ""
-
-          echo "Branch:"
-
-          git branch --show-current
-
-
-
-
-
-          # 如果指定 commit，则固定源码版本
-
           if [ -n "${{ inputs.repo_commit }}" ]; then
-
-
-            echo "Checkout fixed commit:"
-
-            echo "${{ inputs.repo_commit }}"
-
 
 
             git checkout "${{ inputs.repo_commit }}"
@@ -328,55 +346,29 @@ jobs:
 
 
 
+          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-
-          SOURCE_COMMIT=$(git rev-parse HEAD)
-
-
-
-          echo "OPENWRT_SOURCE_COMMIT=$SOURCE_COMMIT" >> "$GITHUB_ENV"
-
-
-
-          echo "openwrt-path=$PWD" >> "$GITHUB_OUTPUT"
-
-
-
-          echo "::group::Source revision"
 
 
           git log -1 --oneline
 
 
-          echo "Commit: $SOURCE_COMMIT"
-
-
-          echo "::endgroup::"
-
-
-
-
 
           ln -sf /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
-
-
-
-
-
       - name: Prepare feeds configuration
-
 
         shell: bash
 
-
         run: |
+
+          set -e
 
 
           cd openwrt
 
 
 
-          if [ -e "$GITHUB_WORKSPACE/${{ inputs.feeds_conf }}" ]; then
+          if [ -n "${{ inputs.feeds_conf }}" ] && [ -f "$GITHUB_WORKSPACE/${{ inputs.feeds_conf }}" ]; then
 
 
             cp \
@@ -389,12 +381,10 @@ jobs:
 
 
 
-
           echo "::group::feeds.conf.default"
 
 
           cat feeds.conf.default
-
 
 
           echo "::endgroup::"
@@ -404,14 +394,12 @@ jobs:
 
 
 
-      - name: Update feeds and lock revisions
 
+      - name: Update feeds and generate lock
 
         id: feeds-lock
 
-
         shell: bash
-
 
         run: |
 
@@ -444,7 +432,7 @@ jobs:
 
 
 
-          echo "::group::Generate feeds lock"
+          echo "::group::Generate feeds commit lock"
 
 
 
@@ -486,14 +474,17 @@ jobs:
 
 
 
-          echo "::group::Feeds lock files"
+          echo "::group::Feeds lock result"
 
 
 
-          find feeds.lock \
-          -type f \
-          -printf '%f ' \
-          -exec cat {} \;
+          for file in feeds.lock/*.commit; do
+
+
+            echo "$(basename "$file" .commit): $(cat "$file")"
+
+
+          done
 
 
 
@@ -503,63 +494,11 @@ jobs:
 
 
 
-          tar -czf feeds-lock.tar.gz feeds.lock
 
 
-
-
-
-      - name: Save build revision info
-
+      - name: Install feeds
 
         shell: bash
-
-
-        run: |
-
-
-          mkdir -p openwrt/build-info
-
-
-
-          echo "OpenWrt source commit:" \
-          > openwrt/build-info/revision.txt
-
-
-
-          echo "${OPENWRT_SOURCE_COMMIT}" \
-          >> openwrt/build-info/revision.txt
-
-
-
-
-          echo "" >> openwrt/build-info/revision.txt
-
-
-
-          echo "Feeds:" >> openwrt/build-info/revision.txt
-
-
-
-          for file in feeds.lock/*.commit; do
-
-
-            echo "$(basename "$file" .commit): $(cat "$file")" \
-            >> openwrt/build-info/revision.txt
-
-
-          done
-
-
-
-
-          cat openwrt/build-info/revision.txt
-
-                - name: Install feeds
-
-
-        shell: bash
-
 
         run: |
 
@@ -574,11 +513,11 @@ jobs:
 
 
 
-      - name: Load custom configuration
 
+
+      - name: Load device configuration
 
         shell: bash
-
 
         run: |
 
@@ -594,21 +533,27 @@ jobs:
 
 
           ####################################
-          # 默认设置包
+
+          # Default settings
+
           ####################################
 
 
-          if [ -e "$GITHUB_WORKSPACE/${{ inputs.default_setting }}" ]; then
+          if [ -d "$GITHUB_WORKSPACE/${{ inputs.default_setting }}" ]; then
 
 
             rm -rf package/default-settings-m0eak
 
 
+
             cp -r \
+
             "$GITHUB_WORKSPACE/${{ inputs.default_setting }}" \
+
             package/default-settings-m0eak
 
 
+
           fi
 
 
@@ -616,16 +561,21 @@ jobs:
 
 
           ####################################
-          # files目录
+
+          # files overlay
+
           ####################################
 
 
-          if [ -e "$GITHUB_WORKSPACE/files" ]; then
+          if [ -d "$GITHUB_WORKSPACE/files" ]; then
 
 
             cp -rf \
+
             "$GITHUB_WORKSPACE/files" \
+
             ./files
+
 
 
           fi
@@ -634,21 +584,25 @@ jobs:
 
 
 
+
           ####################################
-          # 主config
+
+          # Device config
+
           ####################################
 
 
-          if [ ! -e "$GITHUB_WORKSPACE/${{ inputs.config_file }}" ]; then
+          if [ ! -f "$GITHUB_WORKSPACE/${{ inputs.config_file }}" ]; then
 
 
-            echo "Config file not found:"
+            echo "Missing config file:"
 
 
             echo "${{ inputs.config_file }}"
 
 
             exit 1
+
 
 
           fi
@@ -658,7 +612,9 @@ jobs:
 
 
           cp \
+
           "$GITHUB_WORKSPACE/${{ inputs.config_file }}" \
+
           .config
 
 
@@ -667,17 +623,22 @@ jobs:
 
 
           ####################################
-          # Docker config
+
+          # Extra config (docker)
+
           ####################################
 
 
-          if [ -n "${{ inputs.extra_config_file }}" ] \
-          && [ -e "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" ]; then
+          if [ -n "${{ inputs.extra_config_file }}" ] && [ -f "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" ]; then
+
 
 
             cat \
+
             "$GITHUB_WORKSPACE/${{ inputs.extra_config_file }}" \
+
             >> .config
+
 
 
           fi
@@ -686,20 +647,24 @@ jobs:
 
 
 
+
           ####################################
+
           # Sonic Fullcone
+
           ####################################
 
 
           if [ "${{ inputs.sonic_fullcone }}" = "true" ]; then
 
 
-            echo "CONFIG_PACKAGE_luci-app-fullconenat=y" \
-            >> .config
+
+            echo "CONFIG_PACKAGE_iptables-mod-fullconenat=y" >> .config
 
 
-            echo "CONFIG_PACKAGE_iptables-mod-fullconenat=y" \
-            >> .config
+
+            echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
+
 
 
           fi
@@ -708,13 +673,19 @@ jobs:
 
 
 
-          echo "::group::Before defconfig"
 
 
-          grep '^CONFIG_TARGET' .config || true
+          echo "::group::Target config"
+
+
+
+          grep "^CONFIG_TARGET" .config || true
+
 
 
           echo "::endgroup::"
+
+
 
 
 
@@ -730,7 +701,9 @@ jobs:
           echo "::group::Final diffconfig"
 
 
+
           ./scripts/diffconfig.sh
+
 
 
           echo "::endgroup::"
@@ -741,16 +714,58 @@ jobs:
 
 
 
-      ########################################
-      # Cache
-      ########################################
+      - name: Save build revision information
+
+        shell: bash
+
+        run: |
 
 
-      - name: Restore build cache
+          cd openwrt
 
 
-        if: inputs.cache_toolchain == 'true'
 
+          mkdir -p build-info
+
+
+
+
+
+          {
+
+            echo "OpenWrt commit:"
+
+            echo "$OPENWRT_COMMIT"
+
+            echo ""
+
+            echo "Feeds:"
+
+            
+
+            for file in feeds.lock/*.commit; do
+
+              echo "$(basename "$file" .commit): $(cat "$file")"
+
+            done
+
+
+          } > build-info/revision.txt
+
+
+
+
+
+          echo "::group::Build revision"
+
+
+
+          cat build-info/revision.txt
+
+
+
+          echo "::endgroup::"
+      - name: Cache build environment
 
         uses: actions/cache@v4
 
@@ -763,12 +778,9 @@ jobs:
 
             openwrt/staging_dir/host
 
-
             openwrt/staging_dir/toolchain-*
 
-
             openwrt/build_dir/host
-
 
             openwrt/.ccache
 
@@ -776,29 +788,17 @@ jobs:
 
           key: |
 
-
-            ${{ runner.os }}-${{ inputs.device }}-${{ env.TAG }}-${{ hashFiles(
-            'openwrt/.config',
-            'openwrt/feeds.conf.default',
-            'openwrt/feeds.lock/**'
-            ) }}
+            ${{ runner.os }}-${{ inputs.device }}-${{ inputs.repo_branch }}-${{ hashFiles('openwrt/.config', 'openwrt/feeds.conf.default', 'openwrt/feeds.lock/**') }}
 
 
 
           restore-keys: |
 
-
-            ${{ runner.os }}-${{ inputs.device }}-${{ env.TAG }}-
-
+            ${{ runner.os }}-${{ inputs.device }}-${{ inputs.repo_branch }}-
 
 
 
 
-
-
-      ########################################
-      # Download package
-      ########################################
 
 
       - name: Download packages
@@ -820,14 +820,18 @@ jobs:
 
 
 
-          echo "::group::Download summary"
+          echo "::group::Download directory"
+
 
 
           du -sh dl || true
 
 
+
           find dl \
+
           -size -1024c \
+
           -exec ls -lh {} \;
 
 
@@ -839,17 +843,14 @@ jobs:
 
 
           find dl \
+
           -size -1024c \
+
           -delete
 
 
 
 
-
-
-      ########################################
-      # Compile
-      ########################################
 
 
       - name: Compile firmware
@@ -874,7 +875,7 @@ jobs:
 
 
 
-          echo "Compile threads: $THREADS"
+          echo "Using ${THREADS} threads"
 
 
 
@@ -887,9 +888,13 @@ jobs:
 
 
           DEVICE_NAME=$(grep \
+
           '^CONFIG_TARGET.*DEVICE.*=y' \
+
           .config \
+
           | sed -r 's/.*DEVICE_(.*)=y/\1/' \
+
           | head -1)
 
 
@@ -908,27 +913,32 @@ jobs:
 
 
 
-          echo "device-name=$DEVICE_NAME" \
-          >> "$GITHUB_OUTPUT"
+          echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
+
+
+
+          echo "device-name=$DEVICE_NAME" >> $GITHUB_OUTPUT
+
+
+
+          echo "compile=success" >> $GITHUB_OUTPUT
 
 
 
 
 
-          echo "compile=success" \
-          >> "$GITHUB_OUTPUT"
+          echo "::group::Firmware output"
 
-
-
-
-
-          echo "::group::Compile output"
 
 
           find bin/targets \
-          -maxdepth 3 \
+
+          -maxdepth 4 \
+
           -type f \
+
           -printf '%p %s bytes\n' \
+
           | sort
 
 
@@ -939,12 +949,6 @@ jobs:
 
 
 
-
-
-
-      ########################################
-      # 保存编译信息
-      ########################################
 
 
       - name: Copy build metadata
@@ -960,8 +964,6 @@ jobs:
 
 
 
-
-
           mkdir -p bin/build-info
 
 
@@ -969,54 +971,25 @@ jobs:
 
 
           cp -rf \
+
           build-info \
+
           bin/build-info/
 
 
 
 
 
-          cp \
-          feeds-lock.tar.gz \
+          cp -rf \
+
+          feeds.lock \
+
           bin/build-info/
 
 
 
 
 
-
-      ########################################
-      # Upload artifact
-      ########################################
-
-
-      - name: Upload firmware artifact
-
-
-        if: steps.compile.outputs.compile == 'success'
-
-
-        uses: actions/upload-artifact@v4
-
-
-
-        with:
-
-
-          name: firmware-${{ inputs.device }}
-
-
-          path: |
-
-
-            openwrt/bin/targets/**
-
-
-
-
-      ########################################
-      # Upload package list
-      ########################################
 
 
       - name: Generate package list
@@ -1034,15 +1007,43 @@ jobs:
 
 
 
-          mkdir -p package-list-${{ inputs.device }}
+          mkdir -p \
+
+          ../package-list-${{ inputs.device }}
 
 
 
 
 
           ./scripts/feeds list \
+
           -r \
-          > package-list-${{ inputs.device }}/packages.txt
+
+          > ../package-list-${{ inputs.device }}/packages.txt
+
+
+
+
+
+      - name: Upload firmware artifact
+
+
+        if: steps.compile.outputs.compile == 'success'
+
+
+        uses: actions/upload-artifact@v4
+
+
+        with:
+
+
+          name: firmware-${{ inputs.device }}
+
+
+          path: |
+
+
+            openwrt/bin/targets/**
 
 
 
@@ -1061,4 +1062,23 @@ jobs:
           name: package-list-${{ inputs.device }}
 
 
-          path: openwrt/package-list-${{ inputs.device }}
+          path: package-list-${{ inputs.device }}
+
+
+
+
+
+
+      - name: Show disk usage
+
+
+        if: always()
+
+
+        shell: bash
+
+
+        run: |
+
+
+          df -hT
