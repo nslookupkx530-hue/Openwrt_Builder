@@ -9,16 +9,17 @@ on:
 
       docker:
 
-        description: "是否编译 docker"
+        description: Enable docker
 
         required: false
 
         default: "false"
 
 
+
       tag2:
 
-        description: "ImmortalWrt版本"
+        description: ImmortalWrt tag
 
         required: false
 
@@ -26,13 +27,11 @@ on:
 
 
 
-permissions:
-
-  contents: write
-
-
-
 env:
+
+  TZ: Asia/Shanghai
+
+  WORKDIR: /workdir
 
   REPO_URL_IMM: https://github.com/immortalwrt/immortalwrt.git
 
@@ -42,13 +41,15 @@ env:
 
   CONFIG_FILE_DOCKER: ./config/docker.config
 
-  DIY_P2_SH: ./sh/scripts-part2.sh
+  UPLOAD_FIRMWARE: true
 
-  DEFAULT_SETTING: ./default-settings-m0eak
+  UPLOAD_RELEASE: true
 
-  TZ: Asia/Shanghai
 
-  WORKDIR: /workdir
+
+permissions:
+
+  contents: write
 
 
 
@@ -76,20 +77,15 @@ jobs:
 
 
 
-    - name: Debug
-
-      run: |
-
-        echo "docker=${{ github.event.inputs.docker }}"
-
-        echo "tag=${{ github.event.inputs.tag2 }}"
-
-
-
 
     - name: Free disk space
 
+      shell: bash
+
       run: |
+
+        set -e
+
 
         sudo rm -rf /usr/share/dotnet
 
@@ -97,16 +93,46 @@ jobs:
 
         sudo rm -rf /opt/ghc
 
+
         sudo docker image prune -af
+
 
         df -h
 
 
 
 
-    - name: Init environment
+
+
+    - name: Prepare workdir
+
+      shell: bash
 
       run: |
+
+        set -e
+
+
+        sudo mkdir -p $WORKDIR
+
+
+        sudo chown $USER:$USER $WORKDIR
+
+
+        ls -ld $WORKDIR
+
+
+
+
+
+
+    - name: Init build environment
+
+      shell: bash
+
+      run: |
+
+        set -e
 
 
         sudo apt-get update
@@ -114,17 +140,36 @@ jobs:
 
         sudo apt-get install -y \
 
+          curl \
+
+          wget \
+
+          rsync \
+
           dos2unix \
 
-          libfuse-dev \
-
-          rsync
+          libfuse-dev
 
 
 
-        sudo bash -c \
 
-        'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+
+        curl -fsSL \
+
+        https://build-scripts.immortalwrt.org/init_build_environment.sh \
+
+        -o /tmp/init_build_environment.sh
+
+
+
+
+        chmod +x /tmp/init_build_environment.sh
+
+
+
+
+        sudo bash /tmp/init_build_environment.sh
+
 
 
 
@@ -132,31 +177,31 @@ jobs:
 
 
 
-        sudo mkdir -p $WORKDIR
-
-        sudo chown $USER:$GROUPS $WORKDIR
-
-
-
-        echo "TAG2=${{ github.event.inputs.tag2 || 'v25.12.1' }}" >> $GITHUB_ENV
-
 
 
 
     - name: Clone ImmortalWrt source
 
+      shell: bash
+
       working-directory: ${{ env.WORKDIR }}
 
       run: |
+
+        set -e
+
 
 
         git clone \
 
           --single-branch \
 
-          https://github.com/immortalwrt/immortalwrt.git \
+          --branch "${{ github.event.inputs.tag2 || env.REPO_BRANCH }}" \
+
+          "$REPO_URL_IMM" \
 
           openwrt
+
 
 
 
@@ -164,49 +209,84 @@ jobs:
 
 
 
-        git fetch --tags
 
-
-
-        git checkout "${TAG2}"
-
-
-
-        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
-
-
-
-        echo "===== Source ====="
-
+        echo "===== SOURCE ====="
 
 
         git log -1 --oneline
 
 
+        git remote -v
 
-        echo "================="
+
+
+
+        echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+
+
+
+        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+
+    - name: Debug source
+
+      shell: bash
+
+      run: |
+
+        set -e
+
+
+        ls -la /workdir
+
+
+        ls -la /workdir/openwrt
+
+
+        test -f /workdir/openwrt/feeds.conf.default
+
+
+
+
+
 
     - name: Apply feeds config
+
+      shell: bash
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
       run: |
 
+        set -e
 
-        echo "===== feeds.conf.default ====="
+
+
+        echo "===== Original feeds ====="
+
+
+        cat feeds.conf.default
+
 
 
 
         if [ -f "${GITHUB_WORKSPACE}/feeds.conf.default" ]; then
 
 
+          echo "Using custom feeds.conf.default"
+
+
           cp "${GITHUB_WORKSPACE}/feeds.conf.default" \
 
-             feeds.conf.default
+          feeds.conf.default
 
 
         fi
 
+
+
+
+        echo "===== Current feeds ====="
 
 
         cat feeds.conf.default
@@ -216,14 +296,15 @@ jobs:
 
 
 
-    - name: Update feeds and lock hash
+    - name: Update feeds
+
+      shell: bash
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
       run: |
 
-
-        echo "===== Update feeds ====="
+        set -e
 
 
 
@@ -231,12 +312,9 @@ jobs:
 
 
 
-        mkdir -p feeds.lock
 
+        mkdir -p .github-feed-lock
 
-
-
-        echo "===== Feed commit ====="
 
 
 
@@ -246,25 +324,19 @@ jobs:
           if [ -d "$feed/.git" ]; then
 
 
-
             name=$(basename "$feed")
 
 
 
-            (
-
-              cd "$feed"
+            cd "$feed"
 
 
+            git rev-parse HEAD \
 
-              git rev-parse HEAD \
-
-              > "../../feeds.lock/${name}.commit"
-
-
-            )
+            > "../../.github-feed-lock/${name}.commit"
 
 
+            cd ../..
 
           fi
 
@@ -275,17 +347,11 @@ jobs:
 
 
 
-        echo "===== feeds lock ====="
+        echo "===== Feed lock ====="
 
 
+        cat .github-feed-lock/* || true
 
-        cat feeds.lock/* || true
-
-
-
-
-
-        tar czf feeds-lock.tar.gz feeds.lock
 
 
 
@@ -294,11 +360,14 @@ jobs:
 
     - name: Install feeds
 
+      shell: bash
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
-
       run: |
+
+        set -e
+
 
 
         ./scripts/feeds install -a
@@ -308,46 +377,35 @@ jobs:
 
 
 
-    - name: Apply custom files and config
+    - name: Load x86 config
 
+      shell: bash
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
-
       run: |
 
-
-
-        echo "===== Apply config ====="
-
-
-
-        if [ -d "${GITHUB_WORKSPACE}/files" ]; then
-
-
-          cp -rf "${GITHUB_WORKSPACE}/files" .
-
-
-        fi
+        set -e
 
 
 
-
-        if [ -d "${GITHUB_WORKSPACE}/default-settings-m0eak" ]; then
-
-
-          mkdir -p package/default-settings-m0eak
+        echo "===== Copy config ====="
 
 
-          cp -rf \
 
-          "${GITHUB_WORKSPACE}/default-settings-m0eak/"* \
+        if [ ! -f "${GITHUB_WORKSPACE}/${CONFIG_FILE}" ]; then
 
-          package/default-settings-m0eak/
+
+          echo "Config file missing:"
+
+
+          echo "${GITHUB_WORKSPACE}/${CONFIG_FILE}"
+
+
+          exit 1
 
 
         fi
-
 
 
 
@@ -357,15 +415,12 @@ jobs:
 
 
 
-
         if [ "${{ github.event.inputs.docker }}" = "true" ]; then
-
-
-          echo "Enable docker config"
 
 
 
           if [ -f "${GITHUB_WORKSPACE}/${CONFIG_FILE_DOCKER}" ]; then
+
 
 
             cat "${GITHUB_WORKSPACE}/${CONFIG_FILE_DOCKER}" \
@@ -381,26 +436,30 @@ jobs:
 
 
 
-
-        if [ -f "${GITHUB_WORKSPACE}/${DIY_P2_SH}" ]; then
-
-
-          chmod +x "${GITHUB_WORKSPACE}/${DIY_P2_SH}"
+        echo "===== Target ====="
 
 
-
-          "${GITHUB_WORKSPACE}/${DIY_P2_SH}"
-
-
-        fi
+        grep "^CONFIG_TARGET" .config || true
 
 
+
+
+
+
+    - name: Defconfig
+
+      shell: bash
+
+      working-directory: ${{ env.OPENWRT_PATH }}
+
+      run: |
+
+        set -e
 
 
 
 
         make defconfig
-
 
 
 
@@ -416,64 +475,59 @@ jobs:
 
 
 
-    - name: Upload feeds lock
-
-
-      uses: actions/upload-artifact@v4
-
-
-      with:
-
-
-        name: feeds-lock-x86
-
-
-        path: |
-
-
-          openwrt/feeds-lock.tar.gz
-
-
-        retention-days: 30
-
-
-
-
-
-
-    - name: Cache build files
-
+    - name: Generate cache key
 
       id: cache
 
+      shell: bash
+
+      run: |
+
+        set -e
+
+
+
+        HASH=$(sha256sum \
+
+        openwrt/.config \
+
+        openwrt/feeds.conf.default \
+
+        openwrt/.github-feed-lock/* 2>/dev/null \
+
+        | sha256sum | cut -d' ' -f1)
+
+
+
+        echo "key=${{ runner.os }}-immortalwrt-${HASH}" \
+
+        >> $GITHUB_OUTPUT
+
+
+
+
+
+
+    - name: Restore build cache
 
       uses: actions/cache@v4
 
 
       with:
 
-
-        key: |
-
-          ${{ runner.os }}-immortalwrt-${{ env.TAG2 }}-${{ hashFiles('openwrt/.config','openwrt/feeds.conf.default','openwrt/feeds.lock/*') }}
-
+        key: ${{ steps.cache.outputs.key }}
 
 
         restore-keys: |
 
-
-          ${{ runner.os }}-immortalwrt-${{ env.TAG2 }}-
-
+          ${{ runner.os }}-immortalwrt-
 
 
         path: |
 
-
           openwrt/dl
 
-
           openwrt/staging_dir
-
 
           openwrt/build_dir
 
@@ -481,13 +535,16 @@ jobs:
 
 
 
+
     - name: Download packages
 
+      shell: bash
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
-
       run: |
+
+        set -e
 
 
 
@@ -495,11 +552,9 @@ jobs:
 
 
 
+
         find dl -size -1024c -delete
 
-
-
-        echo "===== dl size ====="
 
 
 
@@ -509,17 +564,21 @@ jobs:
 
       id: compile
 
+      shell: bash
+
       working-directory: ${{ env.OPENWRT_PATH }}
 
       run: |
+
+        set -e
+
 
 
         echo "===== Start compile ====="
 
 
 
-        make -j$(nproc) V=s || make -j1 V=s
-
+        make -j$(nproc) V=s
 
 
 
@@ -528,7 +587,8 @@ jobs:
 
 
 
-        echo "===== Target files ====="
+
+        echo "===== Build output ====="
 
 
 
@@ -548,14 +608,55 @@ jobs:
 
 
     #
+    # 检查生成文件
+    #
+
+    - name: Check build result
+
+      if: always()
+
+      shell: bash
+
+      working-directory: ${{ env.OPENWRT_PATH }}
+
+      run: |
+
+        echo "===== bin directory ====="
+
+
+
+        ls -la bin || true
+
+
+
+        echo ""
+
+
+
+        echo "===== target directory ====="
+
+
+
+        find bin/targets \
+
+          -maxdepth 5 \
+
+          -type f \
+
+          | sort || true
+
+
+
+
+
+
+    #
     # 上传完整 bin
     #
 
-    - name: Upload firmware bin
-
+    - name: Upload firmware
 
       if: steps.compile.outputs.compile == 'success'
-
 
       uses: actions/upload-artifact@v4
 
@@ -563,27 +664,15 @@ jobs:
       with:
 
 
-        name: firmware-x86_64-${{ github.run_number }}
-
+        name: immortalwrt-x86_64-firmware
 
 
         path: |
 
-
-          openwrt/bin/targets/x86/64/*.bin
-
-
-          openwrt/bin/targets/x86/64/*.img*
+          openwrt/bin/targets/**/*
 
 
-          openwrt/bin/targets/x86/64/*.manifest
-
-
-          openwrt/bin/targets/x86/64/*sha256sums
-
-
-          openwrt/bin/targets/x86/64/*.buildinfo
-
+        if-no-files-found: error
 
 
         retention-days: 30
@@ -592,38 +681,36 @@ jobs:
 
 
 
+
     #
-    # 上传 x86 target apk feed
+    # 上传 target APK feed
     #
-    # ImmortalWrt 25.12:
+    # ImmortalWrt 25.12 APK:
     #
     # packages.adb
     # kernel.apk
     # kmod-*.apk
     #
 
-    - name: Upload x86 target packages
-
+    - name: Upload target APK packages
 
       if: steps.compile.outputs.compile == 'success'
 
-
       uses: actions/upload-artifact@v4
-
 
 
       with:
 
 
-        name: target-packages-x86
-
+        name: target-packages-x86_64
 
 
         path: |
 
-
           openwrt/bin/targets/x86/64/packages/**
 
+
+        if-no-files-found: error
 
 
         retention-days: 30
@@ -634,7 +721,7 @@ jobs:
 
 
     #
-    # 上传普通 apk packages
+    # 上传普通 packages feed
     #
     # base
     # luci
@@ -643,28 +730,25 @@ jobs:
     # telephony
     #
 
-    - name: Upload x86 apk feeds
-
+    - name: Upload normal APK feed
 
       if: steps.compile.outputs.compile == 'success'
 
-
       uses: actions/upload-artifact@v4
-
 
 
       with:
 
 
-        name: apk-packages-x86_64
-
+        name: packages-x86_64
 
 
         path: |
 
-
           openwrt/bin/packages/x86_64/**
 
+
+        if-no-files-found: error
 
 
         retention-days: 30
@@ -675,40 +759,36 @@ jobs:
 
 
     #
-    # 上传编译配置
+    # 上传配置和编译信息
     #
 
     - name: Upload build information
 
-
       if: always()
 
-
       uses: actions/upload-artifact@v4
-
 
 
       with:
 
 
-        name: build-info-x86
-
+        name: immortalwrt-x86-build-info
 
 
         path: |
 
-
           openwrt/.config
 
+          openwrt/.github-feed-lock/**
 
           openwrt/bin/targets/x86/64/*.buildinfo
 
-
           openwrt/bin/targets/x86/64/*.manifest
-
 
           openwrt/bin/targets/x86/64/*sha256sums
 
+
+        if-no-files-found: ignore
 
 
         retention-days: 30
@@ -724,62 +804,79 @@ jobs:
 
     - name: Release firmware
 
-
       if: steps.compile.outputs.compile == 'success'
 
-
-      uses: ./.github/actions/openwrt-release-firmware
-
+      uses: softprops/action-gh-release@v2
 
 
       with:
 
 
-        release-tag-prefix: immortalwrt-x86-64
+        tag_name: immortalwrt-x86-${{ github.run_number }}
 
 
-
-        source-url: ${{ env.REPO_URL_IMM }}
-
+        name: ImmortalWrt x86_64 ${{ github.run_number }}
 
 
-        source-branch: ${{ env.TAG2 }}
+        files: |
+
+          openwrt/bin/targets/**/*
 
 
-
-        release-files: |
-
-
-          openwrt/bin/targets/x86/64/*.bin
+      env:
 
 
-          openwrt/bin/targets/x86/64/*.img*
-
-
-          openwrt/bin/targets/x86/64/*.manifest
-
-
-          openwrt/bin/targets/x86/64/*sha256sums
-
-
-          openwrt/bin/targets/x86/64/*.buildinfo
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 
 
 
 
-    - name: Disk usage
+    #
+    # 最终检查
+    #
 
+    - name: Final summary
 
       if: always()
 
+      shell: bash
 
       run: |
 
-
-        echo "===== Disk ====="
-
+        echo "=============================="
 
 
-        df -hT
+
+        echo "ImmortalWrt Build Summary"
+
+
+
+        echo "=============================="
+
+
+
+        echo "Commit:"
+
+
+        echo "${OPENWRT_COMMIT}"
+
+
+
+        echo ""
+
+
+
+        echo "Tag:"
+
+
+        echo "${{ github.event.inputs.tag2 || env.REPO_BRANCH }}"
+
+
+
+        echo ""
+
+
+
+        df -h
