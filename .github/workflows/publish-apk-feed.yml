@@ -1,0 +1,109 @@
+name: Publish OpenWrt APK Feed
+
+on:
+  workflow_run:
+    workflows:
+      - Build x86
+      - Build filogic
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+
+  publish-apk-feed:
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    runs-on: ubuntu-22.04
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    # 下载所有编译产生的 target packages
+
+    - name: Download x86 packages
+      uses: actions/download-artifact@v4
+      with:
+        pattern: target-packages-x86*
+        path: downloaded
+
+
+    - name: Download filogic packages
+      uses: actions/download-artifact@v4
+      with:
+        pattern: target-packages-*
+        path: downloaded
+
+
+    - name: Show artifacts
+      run: |
+
+        echo "===== Artifact list ====="
+
+        find downloaded -type f | sort
+
+
+
+    # 创建 apk feed 目录
+
+    - name: Prepare APK repository
+
+      shell: bash
+
+      run: |
+
+        mkdir -p public/packages/x86_64/targets/x86/64
+
+        mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
+
+
+
+        echo "Copy x86 target packages"
+
+        find downloaded \
+        -path "*x86*" \
+        -type f \
+        -exec cp {} public/packages/x86_64/targets/x86/64/ \;
+
+
+
+        echo "Copy filogic target packages"
+
+        find downloaded \
+        -path "*filogic*" \
+        -type f \
+        -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
+
+
+
+    # 检查目录
+
+    - name: Check APK feed
+
+      run: |
+
+        tree public || true
+
+
+
+    # 发布 Pages
+
+    - name: Deploy GitHub Pages
+
+      uses: peaceiris/actions-gh-pages@v4
+
+      with:
+
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+        publish_dir: ./public
+
+        force_orphan: true
