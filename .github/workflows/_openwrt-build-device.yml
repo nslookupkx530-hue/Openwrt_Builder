@@ -18,7 +18,7 @@ on:
 
       repo_url:
 
-        description: Source repository
+        description: OpenWrt source repository
 
         required: true
 
@@ -27,7 +27,7 @@ on:
 
       repo_branch:
 
-        description: Source branch
+        description: OpenWrt branch
 
         required: true
 
@@ -36,7 +36,7 @@ on:
 
       config_file:
 
-        description: Config file
+        description: Device config
 
         required: true
 
@@ -52,28 +52,6 @@ on:
         type: string
 
 
-      install_automake_117:
-
-        description: Install automake
-
-        required: false
-
-        default: "false"
-
-        type: string
-
-
-      sonic_fullcone:
-
-        description: Enable fullcone
-
-        required: false
-
-        default: "false"
-
-        type: string
-
-
       extra_config_file:
 
         description: Extra config
@@ -81,6 +59,17 @@ on:
         required: false
 
         default: ""
+
+        type: string
+
+
+      sonic_fullcone:
+
+        description: Fullcone
+
+        required: false
+
+        default: "false"
 
         type: string
 
@@ -112,10 +101,10 @@ jobs:
     steps:
 
 
-
-    - name: Checkout builder
+    - name: Checkout
 
       uses: actions/checkout@v4
+
 
 
 
@@ -132,6 +121,7 @@ jobs:
 
         sudo rm -rf /opt/ghc
 
+
         sudo docker image prune -af
 
 
@@ -142,7 +132,7 @@ jobs:
 
 
 
-    - name: Init build environment
+    - name: Install dependencies
 
       run: |
 
@@ -152,17 +142,39 @@ jobs:
 
         sudo apt-get install -y \
 
+          curl \
+
+          wget \
+
+          rsync \
+
           dos2unix \
 
-          libfuse-dev \
-
-          rsync
+          libfuse-dev
 
 
 
-        sudo bash -c \
 
-        'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+
+
+    - name: Init ImmortalWrt build environment
+
+      run: |
+
+
+        curl -fsSL \
+
+        https://build-scripts.immortalwrt.org/init_build_environment.sh \
+
+        -o /tmp/init_build_environment.sh
+
+
+
+        chmod +x /tmp/init_build_environment.sh
+
+
+
+        sudo bash /tmp/init_build_environment.sh
 
 
 
@@ -175,7 +187,9 @@ jobs:
 
     - name: Clone source
 
+
       working-directory: ${{ env.WORKDIR }}
+
 
       run: |
 
@@ -196,7 +210,7 @@ jobs:
 
 
 
-        echo "===== SOURCE ====="
+        echo "===== Source ====="
 
 
 
@@ -208,7 +222,7 @@ jobs:
 
 
 
-        echo "================="
+        echo "=================="
 
 
 
@@ -216,12 +230,15 @@ jobs:
 
     - name: Apply feeds configuration
 
+
       working-directory: ${{ env.OPENWRT_PATH }}
+
 
       run: |
 
 
-        echo "===== Original feeds ====="
+        echo "===== feeds.conf.default ====="
+
 
 
         cat feeds.conf.default || true
@@ -229,10 +246,14 @@ jobs:
 
 
 
+
+
         if [ -f "${GITHUB_WORKSPACE}/feeds.conf.default" ]; then
 
 
+
           echo "Using custom feeds.conf.default"
+
 
 
           cp "${GITHUB_WORKSPACE}/feeds.conf.default" \
@@ -240,7 +261,9 @@ jobs:
              feeds.conf.default
 
 
+
         fi
+
 
 
 
@@ -248,7 +271,10 @@ jobs:
         echo "===== Current feeds ====="
 
 
+
         cat feeds.conf.default
+
+
 
 
 
@@ -264,7 +290,8 @@ jobs:
       run: |
 
 
-        echo "===== Update feeds ====="
+
+        echo "===== Updating feeds ====="
 
 
 
@@ -282,7 +309,7 @@ jobs:
 
 
 
-        echo "===== Feed commit ====="
+        echo "===== Feed commit lock ====="
 
 
 
@@ -315,7 +342,7 @@ jobs:
 
               echo "$COMMIT" \
 
-              > "../.github-feed-lock/${NAME}.commit"
+              > "../../.github-feed-lock/${NAME}.commit"
 
 
 
@@ -364,6 +391,7 @@ jobs:
 
 
 
+
     - name: Load device config
 
 
@@ -374,13 +402,7 @@ jobs:
 
 
 
-        echo "===== Load config ====="
-
-
-
-        echo "${{ inputs.config_file }}"
-
-
+        echo "===== Loading config ====="
 
 
 
@@ -394,12 +416,11 @@ jobs:
 
 
 
-
         if [ -n "${{ inputs.extra_config_file }}" ]; then
 
 
 
-          echo "Apply extra config"
+          echo "Applying extra config"
 
 
 
@@ -417,12 +438,12 @@ jobs:
 
 
 
-
-        echo "===== Target ====="
+        echo "===== Target config ====="
 
 
 
         grep "^CONFIG_TARGET" .config || true
+
 
 
 
@@ -456,7 +477,7 @@ jobs:
 
 
 
-    - name: Defconfig
+    - name: Run defconfig
 
 
       working-directory: ${{ env.OPENWRT_PATH }}
@@ -471,11 +492,13 @@ jobs:
 
 
 
+
         echo "===== diffconfig ====="
 
 
 
         ./scripts/diffconfig.sh || true
+
 
 
 
@@ -508,11 +531,10 @@ jobs:
 
 
 
-
-
         echo "key=${{ runner.os }}-${{ inputs.device }}-${HASH}" \
 
         >> $GITHUB_OUTPUT
+
 
 
 
@@ -537,11 +559,13 @@ jobs:
         restore-keys: |
 
 
+
           ${{ runner.os }}-${{ inputs.device }}-
 
 
 
         path: |
+
 
 
           /workdir/openwrt/dl
@@ -551,6 +575,8 @@ jobs:
 
 
           /workdir/openwrt/build_dir
+
+
 
 
 
@@ -567,7 +593,12 @@ jobs:
 
 
 
+        echo "===== Download ====="
+
+
+
         make download -j$(nproc)
+
 
 
 
@@ -577,7 +608,8 @@ jobs:
 
 
 
-        echo "===== dl size ====="
+
+        echo "===== DL size ====="
 
 
 
@@ -601,15 +633,13 @@ jobs:
 
 
 
-        make -j$(nproc) V=s || make -j1 V=s
-
+        make -j$(nproc) V=s
 
 
 
 
 
         echo "compile=success" >> $GITHUB_OUTPUT
-
 
 
 
@@ -636,8 +666,46 @@ jobs:
 
 
 
+
+    - name: Check target APK packages
+
+
+      if: steps.compile.outputs.compile == 'success'
+
+
+      working-directory: ${{ env.OPENWRT_PATH }}
+
+
+      run: |
+
+
+
+        echo "===== Target APK ====="
+
+
+
+        find bin/targets \
+
+          -type f \
+
+          \( \
+
+          -name "packages.adb" \
+
+          -o -name "*.apk" \
+
+          \) \
+
+          | sort || true
+
+
+
+
+
+
+
     #
-    # Firmware
+    # 固件上传
     #
 
     - name: Upload firmware
@@ -653,6 +721,7 @@ jobs:
       with:
 
 
+
         name: firmware-${{ inputs.device }}
 
 
@@ -660,20 +729,11 @@ jobs:
         path: |
 
 
-          openwrt/bin/targets/*/*/*.bin
+          openwrt/bin/targets/**/*
 
 
-          openwrt/bin/targets/*/*/*.img*
 
-
-          openwrt/bin/targets/*/*/*.manifest
-
-
-          openwrt/bin/targets/*/*/*sha256sums
-
-
-          openwrt/bin/targets/*/*/*.buildinfo
-
+        if-no-files-found: error
 
 
         retention-days: 30
@@ -685,7 +745,7 @@ jobs:
 
 
     #
-    # Target APK feed
+    # target APK feed
     #
     # ImmortalWrt 25.12:
     #
@@ -707,6 +767,7 @@ jobs:
       with:
 
 
+
         name: target-packages-${{ inputs.device }}
 
 
@@ -714,8 +775,11 @@ jobs:
         path: |
 
 
-          openwrt/bin/targets/*/*/packages/**
+          openwrt/bin/targets/**/packages/**
 
+
+
+        if-no-files-found: error
 
 
         retention-days: 30
@@ -727,7 +791,7 @@ jobs:
 
 
     #
-    # 普通 APK packages
+    # 普通 APK feed
     #
     # base
     # luci
@@ -736,7 +800,7 @@ jobs:
     # telephony
     #
 
-    - name: Upload APK feeds
+    - name: Upload package feed
 
 
       if: steps.compile.outputs.compile == 'success'
@@ -747,6 +811,7 @@ jobs:
 
 
       with:
+
 
 
         name: package-feed-${{ inputs.device }}
@@ -760,6 +825,9 @@ jobs:
 
 
 
+        if-no-files-found: error
+
+
         retention-days: 30
 
 
@@ -769,7 +837,7 @@ jobs:
 
 
     #
-    # 上传配置和 feeds hash
+    # 保存配置
     #
 
     - name: Upload build config
@@ -785,6 +853,7 @@ jobs:
       with:
 
 
+
         name: build-config-${{ inputs.device }}
 
 
@@ -795,8 +864,11 @@ jobs:
           openwrt/.config
 
 
-          openwrt/.github-feed-lock/*
+          openwrt/.github-feed-lock/**
 
+
+
+        if-no-files-found: ignore
 
 
         retention-days: 30
@@ -808,7 +880,7 @@ jobs:
 
 
     #
-    # 构建信息
+    # 编译总结
     #
 
     - name: Build summary
@@ -821,7 +893,7 @@ jobs:
 
 
 
-        echo "============================="
+        echo "=============================="
 
 
 
@@ -829,7 +901,6 @@ jobs:
 
 
         echo "${{ inputs.device }}"
-
 
 
 
@@ -844,7 +915,6 @@ jobs:
 
 
 
-
         echo ""
 
 
@@ -853,7 +923,6 @@ jobs:
 
 
         echo "${{ inputs.repo_branch }}"
-
 
 
 
@@ -868,9 +937,11 @@ jobs:
 
 
 
+        echo ""
 
-        echo "============================="
 
+
+        echo "=============================="
 
 
 
