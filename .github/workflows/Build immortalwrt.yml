@@ -186,7 +186,7 @@ jobs:
 
         echo "================="
 
-   - name: Apply feeds config
+    - name: Apply feeds config
 
       working-directory: ${{ env.OPENWRT_PATH }}
 
@@ -503,7 +503,7 @@ jobs:
 
 
 
-        du -sh dl  
+        du -sh dl
 
     - name: Compile firmware
 
@@ -782,4 +782,4 @@ jobs:
 
 
 
-        df -hT 
+        df -hT
