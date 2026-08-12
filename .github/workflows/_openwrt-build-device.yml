@@ -1,4 +1,4 @@
-name: Publish OpenWrt APK Feed
+name: OpenWrt Build Device
 
 
 on:
@@ -10,16 +10,13 @@ on:
     inputs:
 
 
-      feed_path:
+      device:
 
 
-        description: Feed directory
+        description: Device name
 
 
-        required: false
-
-
-        default: feed
+        required: true
 
 
         type: string
@@ -28,16 +25,160 @@ on:
 
 
 
+      repo_url:
+
+
+        description: OpenWrt source repository
+
+
+        required: true
+
+
+        type: string
+
+
+
+
+
+      repo_branch:
+
+
+        description: OpenWrt branch
+
+
+        required: true
+
+
+        type: string
+
+
+
+
+
+      config_file:
+
+
+        description: OpenWrt config file
+
+
+        required: true
+
+
+        type: string
+
+
+
+
+
+      workflow_name:
+
+
+        description: Workflow name
+
+
+        required: false
+
+
+        type: string
+
+
+        default: ""
+
+
+
+
+
+      install_automake_117:
+
+
+        description: Install automake tools
+
+
+        required: false
+
+
+        type: string
+
+
+        default: "false"
+
+
+
+
+
+      docker:
+
+
+        description: Enable docker packages
+
+
+        required: false
+
+
+        type: string
+
+
+        default: "false"
+
+
+
+
+
+      sonic_fullcone:
+
+
+        description: Enable fullcone
+
+
+        required: false
+
+
+        type: string
+
+
+        default: "false"
+
+
+
+
+
+      release:
+
+
+        description: Enable release
+
+
+        required: false
+
+
+        type: string
+
+
+        default: "false"
+
+
+
+
+
 permissions:
 
 
-  contents: write
+  contents: read
 
 
-  pages: write
 
 
-  id-token: write
+
+env:
+
+
+  TZ: Asia/Shanghai
+
+
+  WORKDIR: /workdir
+
+
+  OPENWRT_PATH: /workdir/openwrt
 
 
 
@@ -46,13 +187,16 @@ permissions:
 jobs:
 
 
-  deploy-feed:
+
+
+
+  build:
 
 
 
 
 
-    name: Deploy APK Feed
+    name: Build ${{ inputs.device }}
 
 
 
@@ -70,7 +214,7 @@ jobs:
 
 
 
-      - name: Checkout
+      - name: Checkout repository
 
 
         uses: actions/checkout@v4
@@ -79,7 +223,7 @@ jobs:
 
 
 
-      - name: Prepare Pages directory
+      - name: Free disk space
 
 
         shell: bash
@@ -94,37 +238,756 @@ jobs:
 
 
 
-          rm -rf public
+          sudo rm -rf /usr/share/dotnet || true
+
+
+          sudo rm -rf /usr/local/lib/android || true
+
+
+          sudo rm -rf /opt/ghc || true
 
 
 
 
 
-          mkdir -p public/packages
+          sudo docker image prune -af || true
 
 
 
 
 
-      - name: Download merged feed artifact
+          df -hT
 
 
-        uses: actions/download-artifact@v4
+
+
+
+      - name: Install dependencies
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          sudo apt-get update
+
+
+
+
+
+          sudo apt-get install -y \
+
+
+            build-essential \
+
+
+            gcc \
+
+
+            g++ \
+
+
+            make \
+
+
+            curl \
+
+
+            wget \
+
+
+            git \
+
+
+            rsync \
+
+
+            unzip \
+
+
+            file \
+
+
+            python3 \
+
+
+            gawk \
+
+
+            gettext \
+
+
+            libncurses-dev \
+
+
+            zlib1g-dev \
+
+
+            libssl-dev
+
+
+
+
+
+      - name: Prepare work directory
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          sudo mkdir -p "${WORKDIR}"
+
+
+
+
+
+          sudo chown -R "$USER:$USER" "${WORKDIR}"
+
+
+
+
+
+          sudo timedatectl set-timezone "${TZ}"
+
+
+
+
+
+      - name: Clone OpenWrt source
+
+
+        shell: bash
+
+
+        working-directory: /workdir
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          rm -rf openwrt
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Repository"
+
+
+          echo "${{ inputs.repo_url }}"
+
+
+
+
+
+          echo "Branch"
+
+
+          echo "${{ inputs.repo_branch }}"
+
+
+
+
+
+          echo "=============================="
+
+
+
+
+
+          git clone \
+
+
+            --depth=1 \
+
+
+            --single-branch \
+
+
+            --branch "${{ inputs.repo_branch }}" \
+
+
+            "${{ inputs.repo_url }}" \
+
+
+            openwrt
+
+
+
+
+
+          test -f openwrt/Makefile
+
+
+
+
+
+          cd openwrt
+
+
+
+
+
+          git log -1 --oneline
+
+
+
+
+
+          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+
+
+      - name: Verify OpenWrt source
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          test -f /workdir/openwrt/Makefile
+
+
+
+
+
+          echo "OpenWrt source verified"
+
+
+
+
+
+      - name: Update feeds
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          ./scripts/feeds update -a
+
+
+
+
+
+      - name: Install feeds
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          ./scripts/feeds install -a
+
+
+
+
+
+      - name: Load config
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+
+
+
+
+
+          echo "Using config:"
+
+
+          echo "${CONFIG}"
+
+
+
+
+
+          test -f "${CONFIG}"
+
+
+
+
+
+          cp "${CONFIG}" .config
+
+
+
+
+
+          echo "===== TARGET CONFIG ====="
+
+
+
+
+
+          grep "^CONFIG_TARGET" .config || true
+
+
+
+
+
+      - name: Enable Docker
+
+
+        if: inputs.docker == 'true'
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "Enable docker packages"
+
+
+
+
+
+          cat >> .config <<'EOF'
+
+
+CONFIG_PACKAGE_dockerd=y
+
+
+CONFIG_PACKAGE_docker=y
+
+
+CONFIG_PACKAGE_luci-app-dockerman=y
+
+
+EOF
+
+
+
+
+
+      - name: Enable FullCone
+
+
+        if: inputs.sonic_fullcone == 'true'
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "Enable fullcone"
+
+
+
+
+
+          grep -qx "CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
+
+
+          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
+
+
+
+
+
+          grep -qx "CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
+
+
+          echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
+
+
+
+
+
+      - name: Install automake compatibility
+
+
+        if: inputs.install_automake_117 == 'true'
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          sudo apt-get update
+
+
+
+
+
+          sudo apt-get install -y \
+
+
+            automake \
+
+
+            autoconf \
+
+
+            libtool
+
+
+
+
+
+      - name: Run defconfig
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          make defconfig
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "TARGET CONFIG"
+
+
+          echo "=============================="
+
+
+
+
+
+          grep "^CONFIG_TARGET" .config || true
+
+
+
+
+
+      - name: Generate cache key
+
+
+        id: cache
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          CONFIG_HASH=$(sha256sum .config | awk '{print $1}')
+
+
+
+
+
+          SOURCE_HASH=$(git rev-parse HEAD)
+
+
+
+
+
+          CACHE_KEY="openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}"
+
+
+
+
+
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+
+
+
+
+
+          echo "Cache key:"
+
+
+          echo "${CACHE_KEY}"
+
+
+
+
+
+      - name: Restore build cache
+
+
+        uses: actions/cache@v4
+
+
+
 
 
         with:
 
 
-          name: merged-openwrt-apk-feed
+          path: |
 
 
-          path: public
+            /workdir/openwrt/dl
+
+
+            /workdir/openwrt/build_dir
+
+
+            /workdir/openwrt/staging_dir
 
 
 
 
 
-      - name: Check feed files
+          key: ${{ steps.cache.outputs.key }}
+
+
+
+
+
+          restore-keys: |
+
+
+            openwrt-${{ inputs.device }}-
+
+
+
+      - name: Download packages
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          make download -j$(nproc)
+
+
+
+
+
+          find dl -size -1024c -delete || true
+
+
+
+
+
+          du -sh dl || true
+
+
+
+
+
+      - name: Compile firmware
+
+
+        id: compile
+
+
+        shell: bash
+
+
+        working-directory: /workdir/openwrt
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "=============================="
+
+
+          echo " Building ${{ inputs.device }} "
+
+
+          echo "=============================="
+
+
+
+
+
+          make -j$(nproc) V=s
+
+
+
+
+
+          echo "success=true" >> "$GITHUB_OUTPUT"
+
+
+
+
+
+      - name: Upload compile log
+
+
+        if: failure()
+
+
+        uses: actions/upload-artifact@v4
+
+
+
+
+
+        with:
+
+
+          name: compile-log-${{ inputs.device }}-${{ github.run_number }}
+
+
+
+
+
+          path: |
+
+
+            /workdir/openwrt/build.log
+
+
+
+
+
+          if-no-files-found: warn
+
+
+
+
+
+          retention-days: 30
+
+
+
+
+
+      - name: Check build output
+
+
+        if: always()
 
 
         shell: bash
@@ -142,7 +1005,7 @@ jobs:
           echo "=============================="
 
 
-          echo "FINAL APK FEED"
+          echo " Firmware output "
 
 
           echo "=============================="
@@ -151,28 +1014,259 @@ jobs:
 
 
 
-          find public -type f | sort
+          if [ -d /workdir/openwrt/bin/targets ]; then
+
+
+            find /workdir/openwrt/bin/targets -type f | sort
+
+
+          else
+
+
+            echo "No firmware output"
+
+
+          fi
 
 
 
 
 
-      - name: Upload Pages artifact
+          echo ""
 
 
-        uses: actions/upload-pages-artifact@v3
+
+
+
+          echo "=============================="
+
+
+          echo " APK output "
+
+
+          echo "=============================="
+
+
+
+
+
+          find /workdir/openwrt/bin \
+
+
+            -type f \
+
+
+            \(
+
+
+              -name "*.apk" \
+
+
+              -o -name "packages.adb"
+
+
+            \) \
+
+
+            | sort || true
+
+
+
+
+
+      - name: Upload firmware artifact
+
+
+        if: steps.compile.outputs.success == 'true'
+
+
+        uses: actions/upload-artifact@v4
+
+
+
 
 
         with:
 
 
-          path: public
+          name: firmware-${{ inputs.device }}-${{ github.run_number }}
 
 
 
 
 
-      - name: Deploy GitHub Pages
+          path: |
 
 
-        uses: actions/deploy-pages@v4
+            /workdir/openwrt/bin/targets/**
+
+
+
+
+
+          if-no-files-found: warn
+
+
+
+
+
+          retention-days: 30
+
+
+
+
+
+      - name: Upload APK feed artifact
+
+
+        if: steps.compile.outputs.success == 'true'
+
+
+        uses: actions/upload-artifact@v4
+
+
+
+
+
+        with:
+
+
+          name: apk-feed-${{ inputs.device }}-${{ github.run_number }}
+
+
+
+
+
+          path: |
+
+
+            /workdir/openwrt/bin/packages/**
+
+
+            /workdir/openwrt/bin/targets/**/packages/**
+
+
+            /workdir/openwrt/bin/targets/**/packages.adb
+
+
+
+
+
+          if-no-files-found: warn
+
+
+
+
+
+          retention-days: 90
+
+
+
+
+
+      - name: Upload build information
+
+
+        if: always()
+
+
+        uses: actions/upload-artifact@v4
+
+
+
+
+
+        with:
+
+
+          name: build-info-${{ inputs.device }}-${{ github.run_number }}
+
+
+
+
+
+          path: |
+
+
+            /workdir/openwrt/.config
+
+
+            /workdir/openwrt/build.log
+
+
+
+
+
+          if-no-files-found: warn
+
+
+
+
+
+          retention-days: 30
+
+
+
+
+
+      - name: Build summary
+
+
+        if: always()
+
+
+        shell: bash
+
+
+        run: |
+
+
+          echo "================================"
+
+
+          echo " OpenWrt Build Summary "
+
+
+          echo "================================"
+
+
+
+
+
+          echo "Device: ${{ inputs.device }}"
+
+
+
+
+
+          echo "Repository: ${{ inputs.repo_url }}"
+
+
+
+
+
+          echo "Branch: ${{ inputs.repo_branch }}"
+
+
+
+
+
+          echo "Commit: ${OPENWRT_COMMIT:-unknown}"
+
+
+
+
+
+          echo ""
+
+
+
+
+
+          echo "Disk usage:"
+
+
+
+
+
+          df -hT
