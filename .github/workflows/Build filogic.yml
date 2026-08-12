@@ -17,7 +17,6 @@ on:
 
 
 
-
   workflow_dispatch:
 
 
@@ -42,82 +41,16 @@ on:
 
 
 
+
 jobs:
 
 
 
-  build:
+  GL-MT5000:
 
 
 
-    name: Build ${{ matrix.device }}
-
-
-
-    strategy:
-
-
-      fail-fast: false
-
-
-      matrix:
-
-
-        include:
-
-
-
-          ########################################
-          # GL-MT5000
-          ########################################
-
-
-          - device: GL-MT5000
-
-
-            repo_url: https://github.com/m0eak/fanchmwrt.git
-
-
-            repo_branch: mt5000
-
-
-            config_file: config/mt5000.config
-
-
-            workflow_name: GL-MT5000
-
-
-            sonic_fullcone: "true"
-
-
-
-
-
-
-          ########################################
-          # Tenda BE12 Pro
-          ########################################
-
-
-          - device: Tenda-BE12PRO
-
-
-            repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
-
-
-            repo_branch: 25.12-dev-wifi7
-
-
-            config_file: config/be12pro.config
-
-
-            workflow_name: Tenda-BE12PRO
-
-
-            sonic_fullcone: "false"
-
-
-
+    name: Build GL-MT5000
 
 
 
@@ -129,23 +62,23 @@ jobs:
 
 
 
-      device: ${{ matrix.device }}
+      device: GL-MT5000
 
 
 
-      repo_url: ${{ matrix.repo_url }}
+      repo_url: https://github.com/m0eak/fanchmwrt.git
 
 
 
-      repo_branch: ${{ matrix.repo_branch }}
+      repo_branch: mt5000
 
 
 
-      config_file: ${{ matrix.config_file }}
+      config_file: config/mt5000.config
 
 
 
-      workflow_name: ${{ matrix.workflow_name }}
+      workflow_name: GL-MT5000
 
 
 
@@ -153,11 +86,67 @@ jobs:
 
 
 
-      sonic_fullcone: ${{ matrix.sonic_fullcone }}
+      sonic_fullcone: "true"
 
 
 
-      docker: ${{ github.event.inputs.docker }}
+      docker: ${{ github.event.inputs.docker || 'false' }}
+
+
+
+      release: "true"
+
+
+
+
+
+
+
+  Tenda-BE12PRO:
+
+
+
+    name: Build Tenda-BE12PRO
+
+
+
+    uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+
+    with:
+
+
+
+      device: Tenda-BE12PRO
+
+
+
+      repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
+
+
+
+      repo_branch: 25.12-dev-wifi7
+
+
+
+      config_file: config/be12pro.config
+
+
+
+      workflow_name: Tenda-BE12PRO
+
+
+
+      install_automake_117: "true"
+
+
+
+      sonic_fullcone: "false"
+
+
+
+      docker: ${{ github.event.inputs.docker || 'false' }}
 
 
 
