@@ -3,6 +3,7 @@ name: Build ImmortalWrt x86_64
 
 on:
 
+
   workflow_dispatch:
 
 
@@ -19,7 +20,6 @@ on:
 
 
         default: "false"
-
 
 
       tag2:
@@ -61,10 +61,7 @@ env:
 permissions:
 
 
-  contents: write
-
-
-  actions: write
+  contents: read
 
 
 
@@ -81,6 +78,8 @@ jobs:
 
 
     name: Build ImmortalWrt x86_64
+
+
 
 
 
@@ -118,6 +117,8 @@ jobs:
 
 
 
+
+
           sudo rm -rf /usr/share/dotnet || true
 
 
@@ -128,7 +129,11 @@ jobs:
 
 
 
+
+
           sudo docker image prune -af || true
+
+
 
 
 
@@ -151,21 +156,35 @@ jobs:
 
 
 
+
+
           sudo apt-get update
+
+
 
 
 
           sudo apt-get install -y \
 
+
             curl \
+
 
             rsync \
 
+
             dos2unix \
+
 
             libfuse-dev \
 
-            build-essential
+
+            build-essential \
+
+
+            git
+
+
 
 
 
@@ -177,7 +196,9 @@ jobs:
 
           sudo curl -L \
 
+
             https://build-scripts.immortalwrt.org/init_build_environment.sh \
+
 
             -o /tmp/init_build_environment.sh
 
@@ -215,12 +236,6 @@ jobs:
 
 
 
-          ls -ld "$WORKDIR"
-
-
-
-
-
       - name: Clone ImmortalWrt source
 
 
@@ -247,7 +262,9 @@ jobs:
 
           git clone \
 
+
             "${REPO_URL}" \
+
 
             openwrt
 
@@ -288,10 +305,10 @@ jobs:
           else
 
 
-            echo "Target not found, use default branch"
+            echo "Use master branch"
 
 
-            git checkout -B build origin/master
+            git checkout master
 
 
           fi
@@ -310,9 +327,6 @@ jobs:
 
 
           echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-
-
 
 
           echo "OPENWRT_PATH=$PWD" >> "$GITHUB_ENV"
@@ -382,7 +396,6 @@ jobs:
           if [ -f "${GITHUB_WORKSPACE}/feeds.conf.default" ]; then
 
 
-
             echo "Use custom feeds.conf.default"
 
 
@@ -391,8 +404,8 @@ jobs:
 
             cp "${GITHUB_WORKSPACE}/feeds.conf.default" \
 
-               feeds.conf.default
 
+              feeds.conf.default
 
 
           fi
@@ -402,9 +415,6 @@ jobs:
 
 
           echo "===== Current feeds ====="
-
-
-
 
 
           cat feeds.conf.default
@@ -446,9 +456,7 @@ jobs:
           for feed in feeds/*; do
 
 
-
             if [ -d "$feed/.git" ]; then
-
 
 
               name=$(basename "$feed")
@@ -460,7 +468,6 @@ jobs:
               (
 
 
-
                 cd "$feed"
 
 
@@ -469,18 +476,14 @@ jobs:
 
                 git rev-parse HEAD \
 
+
                   > "../../.github-feed-lock/${name}.commit"
-
-
-
 
 
               )
 
 
-
             fi
-
 
 
           done
@@ -543,33 +546,16 @@ jobs:
 
 
 
-          echo "Config: ${CONFIG_FILE}"
+          echo "Config file:"
+
+
+          echo "${CONFIG_FILE}"
 
 
 
 
 
-          if [ ! -f "${GITHUB_WORKSPACE}/${CONFIG_FILE}" ]; then
-
-
-
-            echo "Config file missing"
-
-
-
-
-
-            ls -la "${GITHUB_WORKSPACE}/config" || true
-
-
-
-
-
-            exit 1
-
-
-
-          fi
+          test -f "${GITHUB_WORKSPACE}/${CONFIG_FILE}"
 
 
 
@@ -614,12 +600,16 @@ jobs:
 
 
 
+          echo "Enable docker"
+
+
+
+
+
           if [ -f "${GITHUB_WORKSPACE}/config/docker.config" ]; then
 
 
-
             cat "${GITHUB_WORKSPACE}/config/docker.config" >> .config
-
 
 
           fi
@@ -709,6 +699,9 @@ jobs:
         shell: bash
 
 
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
         run: |
 
 
@@ -720,15 +713,21 @@ jobs:
 
           HASH=$(sha256sum \
 
-            "${OPENWRT_PATH}/.config" \
 
-            "${OPENWRT_PATH}/feeds.conf.default" \
+            .config \
 
-            ${OPENWRT_PATH}/.github-feed-lock/* \
+
+            feeds.conf.default \
+
+
+            .github-feed-lock/* \
+
 
             2>/dev/null \
 
+
             | sha256sum \
+
 
             | cut -d' ' -f1)
 
@@ -737,6 +736,8 @@ jobs:
 
 
           echo "key=immortalwrt-x86-${HASH}" >> "$GITHUB_OUTPUT"
+
+
 
 
 
@@ -752,10 +753,15 @@ jobs:
           key: ${{ steps.cache-key.outputs.key }}
 
 
+
+
+
           restore-keys: |
 
 
             immortalwrt-x86-
+
+
 
 
 
@@ -808,8 +814,6 @@ jobs:
 
 
 
-
-
       - name: Compile firmware
 
 
@@ -855,6 +859,51 @@ jobs:
 
 
 
+      - name: Upload compile log
+
+
+        if: failure()
+
+
+        uses: actions/upload-artifact@v4
+
+
+
+
+
+        with:
+
+
+          name: immortalwrt-build-log-${{ github.run_number }}
+
+
+
+
+
+          path: |
+
+
+            /workdir/openwrt/logs/**
+
+
+            /workdir/openwrt/build.log
+
+
+
+
+
+          if-no-files-found: warn
+
+
+
+
+
+          retention-days: 30
+
+
+
+
+
       - name: Check build output
 
 
@@ -876,13 +925,25 @@ jobs:
 
 
 
-          echo "===== TARGET TREE ====="
+          echo "=============================="
+
+
+          echo " TARGET OUTPUT "
+
+
+          echo "=============================="
 
 
 
 
 
-          find bin -maxdepth 5 -type f | sort || true
+          find bin/targets \
+
+
+            -type f \
+
+
+            | sort || true
 
 
 
@@ -891,7 +952,16 @@ jobs:
           echo ""
 
 
-          echo "===== APK FILES ====="
+
+
+
+          echo "=============================="
+
+
+          echo " APK OUTPUT "
+
+
+          echo "=============================="
 
 
 
@@ -903,22 +973,25 @@ jobs:
             -type f \
 
 
-            \( \
+            \(
 
 
               -name "*.apk" \
 
 
-              -o -name "packages.adb" \
+              -o -name "packages.adb"
 
 
-            \) | sort || true
+            \) \
+
+
+            | sort || true
 
 
 
 
 
-      - name: Upload firmware
+      - name: Upload firmware artifact
 
 
         if: steps.compile.outputs.compile == 'success'
@@ -936,13 +1009,22 @@ jobs:
           name: immortalwrt-x86_64-firmware-${{ github.run_number }}
 
 
+
+
+
           path: |
 
 
             /workdir/openwrt/bin/targets/**
 
 
+
+
+
           if-no-files-found: warn
+
+
+
 
 
           retention-days: 30
@@ -951,7 +1033,7 @@ jobs:
 
 
 
-      - name: Upload APK feed
+      - name: Upload APK feed artifact
 
 
         if: steps.compile.outputs.compile == 'success'
@@ -969,7 +1051,13 @@ jobs:
           name: apk-feed-immortalwrt-x86-${{ github.run_number }}
 
 
+
+
+
           path: |
+
+
+            /workdir/openwrt/bin/packages/**
 
 
             /workdir/openwrt/bin/targets/**/packages/**
@@ -978,10 +1066,13 @@ jobs:
             /workdir/openwrt/bin/targets/**/packages.adb
 
 
-            /workdir/openwrt/bin/packages/**
+
 
 
           if-no-files-found: warn
+
+
+
 
 
           retention-days: 90
@@ -1008,6 +1099,9 @@ jobs:
           name: immortalwrt-build-info-${{ github.run_number }}
 
 
+
+
+
           path: |
 
 
@@ -1026,49 +1120,16 @@ jobs:
             /workdir/openwrt/bin/targets/**/*sha256sums
 
 
+
+
+
           if-no-files-found: ignore
 
 
+
+
+
           retention-days: 30
-
-
-
-
-
-      - name: Create GitHub Release
-
-
-        if: steps.compile.outputs.compile == 'success'
-
-
-        uses: softprops/action-gh-release@v2
-
-
-
-
-
-        with:
-
-
-          tag_name: immortalwrt-x86_64-${{ github.run_number }}
-
-
-          name: ImmortalWrt x86_64 Build ${{ github.run_number }}
-
-
-          files: |
-
-
-            /workdir/openwrt/bin/targets/**/*
-
-
-
-
-
-        env:
-
-
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 
@@ -1113,7 +1174,13 @@ jobs:
           echo "Build target:"
 
 
-          grep "^CONFIG_TARGET.*=y" "${OPENWRT_PATH}/.config" || true
+
+
+
+          grep "^CONFIG_TARGET.*=y" \
+
+
+            "${OPENWRT_PATH}/.config" || true
 
 
 
@@ -1122,67 +1189,13 @@ jobs:
           echo ""
 
 
+
+
+
           echo "Disk usage:"
 
 
+
+
+
           df -hT
-
-
-
-
-
-  publish-feed:
-
-
-
-    name: Publish APK Feed
-
-
-
-    needs: build
-
-
-
-    runs-on: ubuntu-22.04
-
-
-
-
-
-    steps:
-
-
-
-      - name: Trigger Publish APK Feed
-
-
-
-        uses: actions/github-script@v7
-
-
-
-
-
-        with:
-
-
-
-          script: |
-
-
-            await github.rest.actions.createWorkflowDispatch({
-
-
-              owner: context.repo.owner,
-
-
-              repo: context.repo.repo,
-
-
-              workflow_id: 'publish-apk-feed.yml',
-
-
-              ref: 'main'
-
-
-            })
