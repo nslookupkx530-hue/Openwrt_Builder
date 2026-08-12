@@ -12,9 +12,6 @@ on:
       device:
 
 
-        description: Device name
-
-
         required: true
 
 
@@ -23,9 +20,6 @@ on:
 
 
       repo_url:
-
-
-        description: Source repository
 
 
         required: true
@@ -38,9 +32,6 @@ on:
       repo_branch:
 
 
-        description: Source branch
-
-
         required: true
 
 
@@ -49,9 +40,6 @@ on:
 
 
       config_file:
-
-
-        description: Config file
 
 
         required: true
@@ -64,9 +52,6 @@ on:
       workflow_name:
 
 
-        description: Build name
-
-
         required: false
 
 
@@ -77,10 +62,7 @@ on:
 
 
 
-      install_automake_117:
-
-
-        description: Install automake compatibility
+      docker:
 
 
         required: false
@@ -96,9 +78,6 @@ on:
       sonic_fullcone:
 
 
-        description: Enable fullcone
-
-
         required: false
 
 
@@ -109,32 +88,13 @@ on:
 
 
 
-      docker:
-
-
-        description: Enable docker
+      install_automake_117:
 
 
         required: false
 
 
         default: "false"
-
-
-        type: string
-
-
-
-      extra_config_file:
-
-
-        description: Extra config file
-
-
-        required: false
-
-
-        default: ""
 
 
         type: string
@@ -144,9 +104,6 @@ on:
       release:
 
 
-        description: Create release
-
-
         required: false
 
 
@@ -154,6 +111,7 @@ on:
 
 
         type: string
+
 
 
 
@@ -174,10 +132,12 @@ env:
 
 
 
+
 permissions:
 
 
   contents: write
+
 
 
 
@@ -200,13 +160,10 @@ jobs:
 
 
 
-
-
       - name: Checkout
 
 
         uses: actions/checkout@v4
-
 
 
 
@@ -242,8 +199,7 @@ jobs:
 
 
 
-
-      - name: Install dependencies
+      - name: Install build packages
 
 
         shell: bash
@@ -270,11 +226,31 @@ jobs:
             rsync \
 
 
-            dos2unix \
+            unzip \
 
 
-            libfuse-dev
+            file \
 
+
+            python3 \
+
+
+            python3-setuptools \
+
+
+            libncurses5-dev \
+
+
+            zlib1g-dev \
+
+
+            gawk \
+
+
+            gettext \
+
+
+            libssl-dev
 
 
 
@@ -292,20 +268,19 @@ jobs:
           set -euxo pipefail
 
 
-          sudo mkdir -p "${WORKDIR}"
+          sudo mkdir -p "$WORKDIR"
 
 
-          sudo chown "${USER}:${USER}" "${WORKDIR}"
+          sudo chown "$USER:$USER" "$WORKDIR"
 
 
-          sudo timedatectl set-timezone "${TZ}"
-
-
-
+          sudo timedatectl set-timezone "$TZ"
 
 
 
-      - name: Clone OpenWrt source
+
+
+      - name: Clone source
 
 
         shell: bash
@@ -323,7 +298,11 @@ jobs:
           rm -rf openwrt
 
 
+
           git clone \
+
+
+            --depth=1 \
 
 
             --branch "${{ inputs.repo_branch }}" \
@@ -335,10 +314,13 @@ jobs:
             openwrt
 
 
+
           cd openwrt
 
 
+
           git log -1 --oneline
+
 
 
           echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -347,8 +329,7 @@ jobs:
 
 
 
-
-      - name: Verify source
+      - name: Check source
 
 
         shell: bash
@@ -360,14 +341,10 @@ jobs:
           set -euxo pipefail
 
 
-          test -f "${OPENWRT_PATH}/Makefile"
+          test -f "$OPENWRT_PATH/Makefile"
 
 
-          echo "Source OK"
-
-      #
-      # 更新 feeds
-      #
+          echo "OpenWrt source OK"
 
       - name: Update feeds
 
@@ -396,11 +373,6 @@ jobs:
 
 
 
-
-      #
-      # 导入配置
-      #
-
       - name: Load config
 
 
@@ -417,10 +389,7 @@ jobs:
 
 
 
-          echo "Using config:"
-
-
-          echo "${{ inputs.config_file }}"
+          echo "Loading config: ${{ inputs.config_file }}"
 
 
 
@@ -429,7 +398,7 @@ jobs:
           if [ ! -f "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" ]; then
 
 
-            echo "ERROR: config file missing"
+            echo "Config file not found"
 
 
             ls -la "${GITHUB_WORKSPACE}/config" || true
@@ -444,45 +413,13 @@ jobs:
 
 
 
-
           cp "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" .config
 
 
 
 
 
-
-          #
-          # 追加额外配置
-          #
-
-          if [ -n "${{ inputs.extra_config_file }}" ]; then
-
-
-
-            if [ -f "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" ]; then
-
-
-
-              echo "Apply extra config"
-
-
-
-              cat "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" >> .config
-
-
-
-            fi
-
-
-
-          fi
-
-
-
-
-
-          echo "===== TARGET ====="
+          echo "===== TARGET CONFIG ====="
 
 
 
@@ -493,10 +430,79 @@ jobs:
 
 
 
+      - name: Enable docker
 
-      #
-      # automake 1.17 兼容
-      #
+
+        if: inputs.docker == 'true'
+
+
+        shell: bash
+
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+          cat >> .config <<'EOF'
+
+
+CONFIG_PACKAGE_dockerd=y
+
+CONFIG_PACKAGE_docker=y
+
+CONFIG_PACKAGE_luci-app-dockerman=y
+
+
+EOF
+
+
+
+
+
+
+      - name: Enable fullcone
+
+
+        if: inputs.sonic_fullcone == 'true'
+
+
+        shell: bash
+
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+          echo "Enable fullcone"
+
+
+
+          cat >> .config <<'EOF'
+
+
+CONFIG_PACKAGE_kmod-nft-fullcone=y
+
+CONFIG_PACKAGE_luci-app-fullconenat=y
+
+
+EOF
+
+
+
+
+
 
       - name: Install automake compatibility
 
@@ -525,95 +531,7 @@ jobs:
 
 
 
-      #
-      # sonic fullcone
-      #
-
-      - name: Enable fullcone
-
-
-        if: inputs.sonic_fullcone == 'true'
-
-
-        shell: bash
-
-
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-          echo "Enable fullcone"
-
-
-
-          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
-
-
-
-          echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
-
-
-
-
-
-
-
-      #
-      # docker
-      #
-
-      - name: Enable docker
-
-
-        if: inputs.docker == 'true'
-
-
-        shell: bash
-
-
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-          echo "Enable docker"
-
-
-
-          cat >> .config <<'EOF'
-
-
-CONFIG_PACKAGE_dockerd=y
-
-CONFIG_PACKAGE_docker=y
-
-CONFIG_PACKAGE_luci-app-dockerman=y
-
-
-EOF
-
-
-
-
-
-
-
-      #
-      # 生成最终配置
-      #
-
-      - name: Defconfig
+      - name: Generate config
 
 
         shell: bash
@@ -633,7 +551,7 @@ EOF
 
 
 
-          echo "===== CONFIG SUMMARY ====="
+          echo "===== DIFF CONFIG ====="
 
 
 
@@ -643,11 +561,6 @@ EOF
 
 
 
-
-
-      #
-      # 缓存 key
-      #
 
       - name: Generate cache key
 
@@ -668,13 +581,15 @@ EOF
           HASH=$(sha256sum \
 
 
-          "${OPENWRT_PATH}/.config" \
+          "$OPENWRT_PATH/.config" \
 
 
-          "${OPENWRT_PATH}/feeds.conf.default" \
+          "$OPENWRT_PATH/feeds.conf.default" \
 
 
           | sha256sum | cut -d' ' -f1)
+
+
 
 
 
@@ -686,15 +601,11 @@ EOF
 
 
 
-
-      #
-      # Cache
-      #
-
       - name: Restore build cache
 
 
         uses: actions/cache@v4
+
 
 
         with:
@@ -728,11 +639,6 @@ EOF
 
 
 
-
-      #
-      # 下载源码包
-      #
-
       - name: Download packages
 
 
@@ -758,10 +664,6 @@ EOF
 
 
           du -sh dl
-
-      #
-      # 编译固件
-      #
 
       - name: Compile firmware
 
@@ -808,12 +710,7 @@ EOF
 
 
 
-
-      #
-      # 检查生成文件
-      #
-
-      - name: Check firmware output
+      - name: Check build output
 
 
         if: always()
@@ -852,7 +749,7 @@ EOF
 
 
 
-          echo "===== APK FEED ====="
+          echo "===== APK FILES ====="
 
 
 
@@ -862,16 +759,13 @@ EOF
             -type f \
 
 
-            \( \
+            \(
 
 
-              -name "*.apk" \
+              -name "*.apk" -o -name "packages.adb"
 
 
-              -o -name "packages.adb" \
-
-
-            \) \
+            \)
 
 
             | sort
@@ -880,11 +774,6 @@ EOF
 
 
 
-
-
-      #
-      # 上传固件
-      #
 
       - name: Upload firmware
 
@@ -922,10 +811,6 @@ EOF
 
 
 
-
-      #
-      # 上传 target APK feed
-      #
 
       - name: Upload target APK feed
 
@@ -967,10 +852,6 @@ EOF
 
 
 
-      #
-      # 上传普通 APK feed
-      #
-
       - name: Upload packages APK feed
 
 
@@ -1008,11 +889,7 @@ EOF
 
 
 
-      #
-      # 上传编译信息
-      #
-
-      - name: Upload build information
+      - name: Upload build info
 
 
         if: always()
@@ -1058,10 +935,6 @@ EOF
 
 
 
-      #
-      # GitHub Release
-      #
-
       - name: Create GitHub Release
 
 
@@ -1080,7 +953,7 @@ EOF
 
 
 
-          name: "${{ inputs.device }} ImmortalWrt Build ${{ github.run_number }}"
+          name: "${{ inputs.device }} Build ${{ github.run_number }}"
 
 
 
@@ -1102,11 +975,6 @@ EOF
 
 
 
-
-
-      #
-      # Summary
-      #
 
       - name: Build summary
 
