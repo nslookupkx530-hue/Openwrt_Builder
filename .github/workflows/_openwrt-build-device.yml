@@ -7,7 +7,6 @@ on:
 
     inputs:
 
-
       device:
 
         description: Device name
@@ -28,7 +27,7 @@ on:
 
       repo_branch:
 
-        description: OpenWrt branch
+        description: OpenWrt source branch
 
         required: true
 
@@ -37,7 +36,7 @@ on:
 
       config_file:
 
-        description: OpenWrt config file
+        description: Config file path
 
         required: true
 
@@ -57,7 +56,7 @@ on:
 
       install_automake_117:
 
-        description: Install automake tools
+        description: Install automake compatibility
 
         required: false
 
@@ -68,7 +67,7 @@ on:
 
       docker:
 
-        description: Enable docker
+        description: Build docker packages
 
         required: false
 
@@ -101,19 +100,14 @@ on:
 
 
 
-
 permissions:
-
 
   contents: write
 
 
 
 
-
-
 env:
-
 
   TZ: Asia/Shanghai
 
@@ -124,18 +118,13 @@ env:
 
 
 
-
-
 jobs:
-
 
 
   build:
 
 
-
     name: Build ${{ inputs.device }}
-
 
 
     runs-on: ubuntu-22.04
@@ -146,11 +135,9 @@ jobs:
 
 
 
-      - name: Checkout repository
+      - name: Checkout
 
         uses: actions/checkout@v4
-
-
 
 
 
@@ -179,8 +166,6 @@ jobs:
 
 
 
-
-
       - name: Install dependencies
 
         shell: bash
@@ -194,40 +179,22 @@ jobs:
 
 
           sudo apt-get install -y \
-
             build-essential \
-
             gcc \
-
             g++ \
-
             make \
-
-            curl \
-
-            wget \
-
             git \
-
+            curl \
+            wget \
             rsync \
-
             unzip \
-
             file \
-
             python3 \
-
             gawk \
-
             gettext \
-
             libncurses-dev \
-
             zlib1g-dev \
-
             libssl-dev
-
-
 
 
 
@@ -252,8 +219,6 @@ jobs:
 
 
 
-
-
       - name: Clone OpenWrt source
 
         shell: bash
@@ -268,30 +233,20 @@ jobs:
           rm -rf openwrt
 
 
-          echo "================================"
-
-          echo "Repository"
-
+          echo "Repository:"
           echo "${{ inputs.repo_url }}"
 
-          echo "Branch"
 
+          echo "Branch:"
           echo "${{ inputs.repo_branch }}"
-
-          echo "================================"
 
 
 
           git clone \
-
             --depth=1 \
-
             --single-branch \
-
             --branch "${{ inputs.repo_branch }}" \
-
             "${{ inputs.repo_url }}" \
-
             openwrt
 
 
@@ -312,8 +267,6 @@ jobs:
 
 
 
-
-
       - name: Verify OpenWrt source
 
         shell: bash
@@ -326,9 +279,7 @@ jobs:
           test -f /workdir/openwrt/Makefile
 
 
-          echo "OpenWrt source verified"
-
-
+          echo "OpenWrt source OK"
 
 
 
@@ -352,8 +303,6 @@ jobs:
 
 
 
-
-
       - name: Load config
 
         shell: bash
@@ -368,26 +317,17 @@ jobs:
           CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
-
-          echo "Using config:"
-
+          echo "Config:"
           echo "${CONFIG}"
-
 
 
           test -f "${CONFIG}"
 
 
-
           cp "${CONFIG}" .config
 
 
-
-          echo "Target config:"
-
-
           grep "^CONFIG_TARGET" .config || true
-
 
 
       - name: Enable Docker
@@ -403,16 +343,14 @@ jobs:
           set -eux
 
 
-          echo "Enable docker packages"
+          echo "Enable docker"
 
 
 
-          cat >> .config <<EOF
+          cat >> .config <<'EOF'
 
 CONFIG_PACKAGE_dockerd=y
-
 CONFIG_PACKAGE_docker=y
-
 CONFIG_PACKAGE_luci-app-dockerman=y
 
 EOF
@@ -440,13 +378,11 @@ EOF
 
 
           grep -qx "CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
-
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
 
 
           grep -qx "CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
-
           echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
 
@@ -469,11 +405,8 @@ EOF
 
 
           sudo apt-get install -y \
-
             automake \
-
             autoconf \
-
             libtool
 
 
@@ -481,7 +414,7 @@ EOF
 
 
 
-      - name: Run defconfig
+      - name: Defconfig
 
         shell: bash
 
@@ -530,15 +463,7 @@ EOF
 
 
 
-          CACHE_KEY="openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}"
-
-
-
-          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
-
-
-
-          echo "Cache key: ${CACHE_KEY}"
+          echo "key=openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
 
 
 
@@ -638,11 +563,15 @@ EOF
 
         with:
 
+
           name: compile-log-${{ inputs.device }}-${{ github.run_number }}
+
 
           path: /workdir/openwrt/build.log
 
+
           if-no-files-found: warn
+
 
           retention-days: 30
 
