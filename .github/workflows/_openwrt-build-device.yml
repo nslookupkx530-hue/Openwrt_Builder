@@ -149,7 +149,7 @@ jobs:
   build:
 
 
-    name: ${{ inputs.device }}
+    name: Build ${{ inputs.device }}
 
 
     runs-on: ubuntu-22.04
@@ -170,7 +170,7 @@ jobs:
 
 
 
-      - name: Free disk
+      - name: Free disk space
 
 
         shell: bash
@@ -201,7 +201,7 @@ jobs:
 
 
 
-      - name: Install packages
+      - name: Install dependencies
 
 
         shell: bash
@@ -271,15 +271,15 @@ jobs:
 
 
 
-          sudo mkdir -p "$WORKDIR"
+          sudo mkdir -p "${WORKDIR}"
 
 
 
-          sudo chown "$USER:$USER" "$WORKDIR"
+          sudo chown "${USER}:${USER}" "${WORKDIR}"
 
 
 
-          sudo timedatectl set-timezone "$TZ"
+          sudo timedatectl set-timezone "${TZ}"
 
 
 
@@ -302,7 +302,28 @@ jobs:
 
 
 
-          rm -rf openwrt
+          rm -rf /workdir/openwrt
+
+
+
+          echo "=================================="
+
+
+          echo "Repository:"
+
+
+          echo "${{ inputs.repo_url }}"
+
+
+          echo "Branch:"
+
+
+          echo "${{ inputs.repo_branch }}"
+
+
+          echo "=================================="
+
+
 
 
 
@@ -312,17 +333,30 @@ jobs:
             --depth=1 \
 
 
+            --single-branch \
+
+
             --branch "${{ inputs.repo_branch }}" \
 
 
             "${{ inputs.repo_url }}" \
 
 
-            openwrt
+            /workdir/openwrt
 
 
 
-          cd openwrt
+
+
+          test -d /workdir/openwrt
+
+
+
+          test -f /workdir/openwrt/Makefile
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -337,7 +371,7 @@ jobs:
 
 
 
-      - name: Verify source
+      - name: Verify workspace
 
 
         shell: bash
@@ -350,11 +384,31 @@ jobs:
 
 
 
-          test -f "$OPENWRT_PATH/Makefile"
+          echo "===== WORKSPACE ====="
 
 
 
-          echo "Source OK"
+          ls -lah /workdir
+
+
+
+          echo ""
+
+
+
+          echo "===== OPENWRT ====="
+
+
+
+          ls -lah /workdir/openwrt
+
+
+
+          test -f /workdir/openwrt/Makefile
+
+
+
+          echo "OpenWrt source OK"
 
       - name: Update feeds
 
@@ -362,7 +416,7 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
@@ -383,13 +437,14 @@ jobs:
 
 
 
+
       - name: Load config
 
 
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
@@ -399,31 +454,28 @@ jobs:
 
 
 
-          CONFIG_FILE="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
 
 
 
-          if [ ! -f "$CONFIG_FILE" ]; then
+          echo "Config file:"
 
 
-            echo "Config file not found:"
-
-
-            echo "$CONFIG_FILE"
-
-
-            exit 1
-
-
-          fi
+          echo "$CONFIG"
 
 
 
 
 
-          cp "$CONFIG_FILE" .config
+          test -f "$CONFIG"
+
+
+
+
+
+          cp "$CONFIG" .config
 
 
 
@@ -450,13 +502,17 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
 
 
           set -euxo pipefail
+
+
+
+          echo "Enable docker"
 
 
 
@@ -489,13 +545,17 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
 
 
           set -euxo pipefail
+
+
+
+          echo "Enable fullcone"
 
 
 
@@ -516,7 +576,7 @@ jobs:
 
 
 
-      - name: Install automake compatibility
+      - name: Install automake
 
 
         if: inputs.install_automake_117 == 'true'
@@ -553,13 +613,13 @@ jobs:
 
 
 
-      - name: Defconfig
+      - name: Generate config
 
 
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
@@ -573,7 +633,7 @@ jobs:
 
 
 
-          echo "===== DIFFCONFIG ====="
+          echo "===== DIFF CONFIG ====="
 
 
 
@@ -604,13 +664,15 @@ jobs:
           HASH=$(sha256sum \
 
 
-          "$OPENWRT_PATH/.config" \
+          /workdir/openwrt/.config \
 
 
-          "$OPENWRT_PATH/feeds.conf.default" \
+          /workdir/openwrt/feeds.conf.default \
 
 
           | sha256sum | cut -d' ' -f1)
+
+
 
 
 
@@ -667,7 +729,7 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
@@ -696,7 +758,7 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
@@ -709,7 +771,7 @@ jobs:
           echo "=================================="
 
 
-          echo " Building ${{ inputs.device }}"
+          echo "Start build: ${{ inputs.device }}"
 
 
           echo "=================================="
@@ -732,7 +794,7 @@ jobs:
 
 
 
-      - name: Check output
+      - name: Check build result
 
 
         if: always()
@@ -741,7 +803,7 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
+        working-directory: /workdir/openwrt
 
 
         run: |
@@ -765,21 +827,7 @@ jobs:
 
 
 
-          echo "===== PACKAGE FILES ====="
-
-
-
-          find bin/packages -type f | sort || true
-
-
-
-
-
-          echo ""
-
-
-
-          echo "===== APK FILES ====="
+          echo "===== APK / PACKAGE FILES ====="
 
 
 
@@ -809,10 +857,7 @@ jobs:
 
 
 
-          path: |
-
-
-            /workdir/openwrt/bin/targets/**
+          path: /workdir/openwrt/bin/targets/**
 
 
 
@@ -828,7 +873,7 @@ jobs:
 
 
 
-      - name: Upload target APK feed
+      - name: Upload APK target feed
 
 
         if: steps.compile.outputs.success == 'true'
@@ -868,7 +913,7 @@ jobs:
 
 
 
-      - name: Upload package APK feed
+      - name: Upload APK packages feed
 
 
         if: steps.compile.outputs.success == 'true'
@@ -908,7 +953,7 @@ jobs:
 
 
 
-      - name: Upload build info
+      - name: Upload build information
 
 
         if: always()
@@ -954,7 +999,7 @@ jobs:
 
 
 
-      - name: Create Release
+      - name: Create GitHub Release
 
 
         if: steps.compile.outputs.success == 'true' && inputs.release == 'true'
@@ -972,7 +1017,7 @@ jobs:
 
 
 
-          name: "${{ inputs.device }} ImmortalWrt Build ${{ github.run_number }}"
+          name: "${{ inputs.device }} Build ${{ github.run_number }}"
 
 
 
@@ -995,7 +1040,7 @@ jobs:
 
 
 
-      - name: Summary
+      - name: Build summary
 
 
         if: always()
@@ -1061,4 +1106,4 @@ jobs:
 
 
 
-          df -hT
+          df -h
