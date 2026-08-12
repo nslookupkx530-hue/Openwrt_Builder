@@ -5,14 +5,18 @@ on:
 
   workflow_call:
 
+
     inputs:
 
 
       device:
 
+
         description: Device name
 
+
         required: true
+
 
         type: string
 
@@ -20,9 +24,12 @@ on:
 
       repo_url:
 
+
         description: Source repository
 
+
         required: true
+
 
         type: string
 
@@ -30,9 +37,12 @@ on:
 
       repo_branch:
 
+
         description: Source branch
 
+
         required: true
+
 
         type: string
 
@@ -40,9 +50,12 @@ on:
 
       config_file:
 
-        description: Config file path
+
+        description: Config file
+
 
         required: true
+
 
         type: string
 
@@ -50,11 +63,15 @@ on:
 
       workflow_name:
 
+
         description: Build name
+
 
         required: false
 
+
         default: OpenWrt Build
+
 
         type: string
 
@@ -62,11 +79,15 @@ on:
 
       install_automake_117:
 
+
         description: Install automake compatibility
+
 
         required: false
 
+
         default: "false"
+
 
         type: string
 
@@ -74,23 +95,15 @@ on:
 
       sonic_fullcone:
 
+
         description: Enable fullcone
 
+
         required: false
+
 
         default: "false"
 
-        type: string
-
-
-
-      extra_config_file:
-
-        description: Extra config
-
-        required: false
-
-        default: ""
 
         type: string
 
@@ -98,11 +111,31 @@ on:
 
       docker:
 
+
         description: Enable docker
+
 
         required: false
 
+
         default: "false"
+
+
+        type: string
+
+
+
+      extra_config_file:
+
+
+        description: Extra config file
+
+
+        required: false
+
+
+        default: ""
+
 
         type: string
 
@@ -110,11 +143,15 @@ on:
 
       release:
 
-        description: Upload release
+
+        description: Create release
+
 
         required: false
 
+
         default: "true"
+
 
         type: string
 
@@ -159,14 +196,14 @@ jobs:
 
 
 
-
-
     steps:
 
 
 
 
-      - name: Checkout builder
+
+      - name: Checkout
+
 
         uses: actions/checkout@v4
 
@@ -177,16 +214,21 @@ jobs:
 
       - name: Free disk space
 
+
         shell: bash
 
+
         run: |
+
 
           set -euxo pipefail
 
 
           sudo rm -rf /usr/share/dotnet || true
 
+
           sudo rm -rf /usr/local/lib/android || true
+
 
           sudo rm -rf /opt/ghc || true
 
@@ -203,27 +245,33 @@ jobs:
 
       - name: Install dependencies
 
+
         shell: bash
+
 
         run: |
 
-          set -euxo pipefail
 
+          set -euxo pipefail
 
 
           sudo apt-get update
 
 
-
           sudo apt-get install -y \
+
+
+            build-essential \
+
 
             curl \
 
+
             rsync \
+
 
             dos2unix \
 
-            build-essential \
 
             libfuse-dev
 
@@ -232,23 +280,22 @@ jobs:
 
 
 
-
       - name: Prepare workspace
+
 
         shell: bash
 
+
         run: |
 
-          set -euxo pipefail
 
+          set -euxo pipefail
 
 
           sudo mkdir -p "${WORKDIR}"
 
 
-
-          sudo chown -R "${USER}:${USER}" "${WORKDIR}"
-
+          sudo chown "${USER}:${USER}" "${WORKDIR}"
 
 
           sudo timedatectl set-timezone "${TZ}"
@@ -258,92 +305,40 @@ jobs:
 
 
 
+      - name: Clone OpenWrt source
 
-      - name: Init ImmortalWrt build environment
 
         shell: bash
 
-        run: |
-
-          set -euxo pipefail
-
-
-
-          curl -L \
-
-          https://build-scripts.immortalwrt.org/init_build_environment.sh \
-
-          -o /tmp/init_build_environment.sh
-
-
-
-
-
-          chmod +x /tmp/init_build_environment.sh
-
-
-
-
-
-          sudo bash /tmp/init_build_environment.sh
-
-
-
-
-
-
-
-      - name: Clone ImmortalWrt source
-
-        shell: bash
 
         working-directory: /workdir
 
+
         run: |
 
+
           set -euxo pipefail
-
-
-
 
 
           rm -rf openwrt
 
 
-
-
-
           git clone \
+
 
             --branch "${{ inputs.repo_branch }}" \
 
+
             "${{ inputs.repo_url }}" \
 
+
             openwrt
-
-
-
-
 
 
           cd openwrt
 
 
-
-
-
-          echo "===== Git ====="
-
-
-
-          git branch
-
-
-
           git log -1 --oneline
-
-
-
 
 
           echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -353,231 +348,167 @@ jobs:
 
 
 
-
       - name: Verify source
+
 
         shell: bash
 
+
         run: |
 
-          set -euxo pipefail
 
+          set -euxo pipefail
 
 
           test -f "${OPENWRT_PATH}/Makefile"
 
 
+          echo "Source OK"
 
-          echo "OpenWrt source OK"
+      #
+      # 更新 feeds
+      #
 
-name: OpenWrt Build Device
+      - name: Update feeds
 
-
-on:
-
-  workflow_call:
-
-    inputs:
-
-
-      device:
-
-        description: Device name
-
-        required: true
-
-        type: string
-
-
-
-      repo_url:
-
-        description: Source repository
-
-        required: true
-
-        type: string
-
-
-
-      repo_branch:
-
-        description: Source branch
-
-        required: true
-
-        type: string
-
-
-
-      config_file:
-
-        description: Config file path
-
-        required: true
-
-        type: string
-
-
-
-      workflow_name:
-
-        description: Build name
-
-        required: false
-
-        default: OpenWrt Build
-
-        type: string
-
-
-
-      install_automake_117:
-
-        description: Install automake compatibility
-
-        required: false
-
-        default: "false"
-
-        type: string
-
-
-
-      sonic_fullcone:
-
-        description: Enable fullcone
-
-        required: false
-
-        default: "false"
-
-        type: string
-
-
-
-      extra_config_file:
-
-        description: Extra config
-
-        required: false
-
-        default: ""
-
-        type: string
-
-
-
-      docker:
-
-        description: Enable docker
-
-        required: false
-
-        default: "false"
-
-        type: string
-
-
-
-      release:
-
-        description: Upload release
-
-        required: false
-
-        default: "true"
-
-        type: string
-
-
-
-
-
-env:
-
-
-  TZ: Asia/Shanghai
-
-
-  WORKDIR: /workdir
-
-
-  OPENWRT_PATH: /workdir/openwrt
-
-
-
-
-
-permissions:
-
-
-  contents: write
-
-
-
-
-
-jobs:
-
-
-  build:
-
-
-    name: ${{ inputs.device }}
-
-
-    runs-on: ubuntu-22.04
-
-
-
-
-
-    steps:
-
-
-
-
-      - name: Checkout builder
-
-        uses: actions/checkout@v4
-
-
-
-
-
-
-      - name: Free disk space
 
         shell: bash
 
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
         run: |
+
 
           set -euxo pipefail
 
 
-          sudo rm -rf /usr/share/dotnet || true
 
-          sudo rm -rf /usr/local/lib/android || true
-
-          sudo rm -rf /opt/ghc || true
+          ./scripts/feeds update -a
 
 
-          sudo docker image prune -af || true
 
-
-          df -h
+          ./scripts/feeds install -a
 
 
 
 
 
 
-      - name: Install dependencies
+
+      #
+      # 导入配置
+      #
+
+      - name: Load config
+
 
         shell: bash
 
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
         run: |
+
+
+          set -euxo pipefail
+
+
+
+          echo "Using config:"
+
+
+          echo "${{ inputs.config_file }}"
+
+
+
+
+
+          if [ ! -f "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" ]; then
+
+
+            echo "ERROR: config file missing"
+
+
+            ls -la "${GITHUB_WORKSPACE}/config" || true
+
+
+            exit 1
+
+
+          fi
+
+
+
+
+
+
+          cp "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" .config
+
+
+
+
+
+
+          #
+          # 追加额外配置
+          #
+
+          if [ -n "${{ inputs.extra_config_file }}" ]; then
+
+
+
+            if [ -f "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" ]; then
+
+
+
+              echo "Apply extra config"
+
+
+
+              cat "${GITHUB_WORKSPACE}/${{ inputs.extra_config_file }}" >> .config
+
+
+
+            fi
+
+
+
+          fi
+
+
+
+
+
+          echo "===== TARGET ====="
+
+
+
+          grep "^CONFIG_TARGET" .config || true
+
+
+
+
+
+
+
+      #
+      # automake 1.17 兼容
+      #
+
+      - name: Install automake compatibility
+
+
+        if: inputs.install_automake_117 == 'true'
+
+
+        shell: bash
+
+
+        run: |
+
 
           set -euxo pipefail
 
@@ -587,43 +518,45 @@ jobs:
 
 
 
-          sudo apt-get install -y \
-
-            curl \
-
-            rsync \
-
-            dos2unix \
-
-            build-essential \
-
-            libfuse-dev
+          sudo apt-get install -y automake autoconf libtool
 
 
 
 
 
 
+      #
+      # sonic fullcone
+      #
 
-      - name: Prepare workspace
+      - name: Enable fullcone
+
+
+        if: inputs.sonic_fullcone == 'true'
+
 
         shell: bash
 
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
         run: |
+
 
           set -euxo pipefail
 
 
 
-          sudo mkdir -p "${WORKDIR}"
+          echo "Enable fullcone"
 
 
 
-          sudo chown -R "${USER}:${USER}" "${WORKDIR}"
+          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
 
 
-          sudo timedatectl set-timezone "${TZ}"
+          echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
 
 
@@ -631,33 +564,44 @@ jobs:
 
 
 
-      - name: Init ImmortalWrt build environment
+      #
+      # docker
+      #
+
+      - name: Enable docker
+
+
+        if: inputs.docker == 'true'
+
 
         shell: bash
 
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
         run: |
+
 
           set -euxo pipefail
 
 
 
-          curl -L \
-
-          https://build-scripts.immortalwrt.org/init_build_environment.sh \
-
-          -o /tmp/init_build_environment.sh
+          echo "Enable docker"
 
 
 
+          cat >> .config <<'EOF'
 
 
-          chmod +x /tmp/init_build_environment.sh
+CONFIG_PACKAGE_dockerd=y
+
+CONFIG_PACKAGE_docker=y
+
+CONFIG_PACKAGE_luci-app-dockerman=y
 
 
-
-
-
-          sudo bash /tmp/init_build_environment.sh
+EOF
 
 
 
@@ -665,60 +609,35 @@ jobs:
 
 
 
-      - name: Clone ImmortalWrt source
+      #
+      # 生成最终配置
+      #
+
+      - name: Defconfig
+
 
         shell: bash
 
-        working-directory: /workdir
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
 
         run: |
+
 
           set -euxo pipefail
 
 
 
-
-
-          rm -rf openwrt
-
+          make defconfig
 
 
 
-
-          git clone \
-
-            --branch "${{ inputs.repo_branch }}" \
-
-            "${{ inputs.repo_url }}" \
-
-            openwrt
+          echo "===== CONFIG SUMMARY ====="
 
 
 
-
-
-
-          cd openwrt
-
-
-
-
-
-          echo "===== Git ====="
-
-
-
-          git branch
-
-
-
-          git log -1 --oneline
-
-
-
-
-
-          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          ./scripts/diffconfig.sh || true
 
 
 
@@ -726,21 +645,119 @@ jobs:
 
 
 
-      - name: Verify source
+      #
+      # 缓存 key
+      #
+
+      - name: Generate cache key
+
+
+        id: cache
+
 
         shell: bash
 
+
         run: |
+
 
           set -euxo pipefail
 
 
 
-          test -f "${OPENWRT_PATH}/Makefile"
+          HASH=$(sha256sum \
+
+
+          "${OPENWRT_PATH}/.config" \
+
+
+          "${OPENWRT_PATH}/feeds.conf.default" \
+
+
+          | sha256sum | cut -d' ' -f1)
 
 
 
-          echo "OpenWrt source OK"
+          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> "$GITHUB_OUTPUT"
+
+
+
+
+
+
+
+
+      #
+      # Cache
+      #
+
+      - name: Restore build cache
+
+
+        uses: actions/cache@v4
+
+
+        with:
+
+
+
+          key: ${{ steps.cache.outputs.key }}
+
+
+
+          restore-keys: |
+
+
+            openwrt-${{ inputs.device }}-
+
+
+
+          path: |
+
+
+            /workdir/openwrt/dl
+
+
+            /workdir/openwrt/build_dir
+
+
+            /workdir/openwrt/staging_dir
+
+
+
+
+
+
+
+      #
+      # 下载源码包
+      #
+
+      - name: Download packages
+
+
+        shell: bash
+
+
+        working-directory: ${{ env.OPENWRT_PATH }}
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+          make download -j$(nproc)
+
+
+
+          find dl -size -1024c -delete
+
+
+
+          du -sh dl
 
       #
       # 编译固件
@@ -748,22 +765,32 @@ jobs:
 
       - name: Compile firmware
 
+
         id: compile
+
 
         shell: bash
 
+
         working-directory: ${{ env.OPENWRT_PATH }}
 
+
         run: |
+
 
           set -euxo pipefail
 
 
-          echo "================================"
 
-          echo " Build ${{ inputs.device }} "
+          echo "=================================="
 
-          echo "================================"
+
+          echo " Building ${{ inputs.device }}"
+
+
+          echo "=================================="
+
+
 
 
 
@@ -771,7 +798,9 @@ jobs:
 
 
 
-          echo "compile_success=true" >> "$GITHUB_OUTPUT"
+
+
+          echo "success=true" >> "$GITHUB_OUTPUT"
 
 
 
@@ -781,16 +810,20 @@ jobs:
 
 
       #
-      # 检查输出
+      # 检查生成文件
       #
 
-      - name: Check build output
+      - name: Check firmware output
+
 
         if: always()
 
+
         shell: bash
 
+
         working-directory: ${{ env.OPENWRT_PATH }}
+
 
         run: |
 
@@ -799,41 +832,49 @@ jobs:
 
 
 
-          echo "===== TARGET DIRECTORY ====="
+          echo "===== TARGET FILES ====="
 
 
 
           find bin/targets \
 
-            -maxdepth 5 \
 
             -type f \
 
+
             | sort
+
 
 
 
 
           echo ""
 
-          echo "===== APK FILES ====="
+
+
+          echo "===== APK FEED ====="
 
 
 
           find bin \
 
+
             -type f \
+
 
             \( \
 
+
               -name "*.apk" \
+
 
               -o -name "packages.adb" \
 
+
             \) \
 
-            | sort
 
+            | sort
 
 
 
@@ -848,7 +889,7 @@ jobs:
       - name: Upload firmware
 
 
-        if: steps.compile.outputs.compile_success == 'true'
+        if: steps.compile.outputs.success == 'true'
 
 
         uses: actions/upload-artifact@v4
@@ -889,7 +930,7 @@ jobs:
       - name: Upload target APK feed
 
 
-        if: steps.compile.outputs.compile_success == 'true'
+        if: steps.compile.outputs.success == 'true'
 
 
         uses: actions/upload-artifact@v4
@@ -900,7 +941,7 @@ jobs:
 
 
 
-          name: target-apk-${{ inputs.device }}-${{ github.run_number }}
+          name: apk-target-${{ inputs.device }}-${{ github.run_number }}
 
 
 
@@ -911,7 +952,6 @@ jobs:
 
 
             /workdir/openwrt/bin/targets/**/packages.adb
-
 
 
 
@@ -934,7 +974,7 @@ jobs:
       - name: Upload packages APK feed
 
 
-        if: steps.compile.outputs.compile_success == 'true'
+        if: steps.compile.outputs.success == 'true'
 
 
         uses: actions/upload-artifact@v4
@@ -945,7 +985,7 @@ jobs:
 
 
 
-          name: packages-apk-${{ inputs.device }}-${{ github.run_number }}
+          name: apk-packages-${{ inputs.device }}-${{ github.run_number }}
 
 
 
@@ -953,7 +993,6 @@ jobs:
 
 
             /workdir/openwrt/bin/packages/**
-
 
 
 
@@ -973,7 +1012,7 @@ jobs:
       # 上传编译信息
       #
 
-      - name: Upload build info
+      - name: Upload build information
 
 
         if: always()
@@ -997,13 +1036,10 @@ jobs:
             /workdir/openwrt/.config
 
 
-            /workdir/openwrt/.github-feed-lock/**
+            /workdir/openwrt/bin/targets/**/*.manifest
 
 
             /workdir/openwrt/bin/targets/**/*.buildinfo
-
-
-            /workdir/openwrt/bin/targets/**/*.manifest
 
 
             /workdir/openwrt/bin/targets/**/*sha256sums
@@ -1029,7 +1065,7 @@ jobs:
       - name: Create GitHub Release
 
 
-        if: steps.compile.outputs.compile_success == 'true' && inputs.release == 'true'
+        if: steps.compile.outputs.success == 'true' && inputs.release == 'true'
 
 
         uses: softprops/action-gh-release@v2
@@ -1044,7 +1080,7 @@ jobs:
 
 
 
-          name: OpenWrt ${{ inputs.device }} Build ${{ github.run_number }}
+          name: "${{ inputs.device }} ImmortalWrt Build ${{ github.run_number }}"
 
 
 
@@ -1067,8 +1103,9 @@ jobs:
 
 
 
+
       #
-      # 构建总结
+      # Summary
       #
 
       - name: Build summary
@@ -1083,15 +1120,18 @@ jobs:
         run: |
 
 
-          echo "================================"
+          echo "=================================="
+
 
           echo " OpenWrt Build Summary "
 
-          echo "================================"
+
+          echo "=================================="
 
 
 
           echo "Device:"
+
 
           echo "${{ inputs.device }}"
 
@@ -1099,7 +1139,21 @@ jobs:
 
           echo ""
 
+
+
+          echo "Repository:"
+
+
+          echo "${{ inputs.repo_url }}"
+
+
+
+          echo ""
+
+
+
           echo "Branch:"
+
 
           echo "${{ inputs.repo_branch }}"
 
@@ -1107,7 +1161,10 @@ jobs:
 
           echo ""
 
+
+
           echo "Commit:"
+
 
           echo "${OPENWRT_COMMIT:-unknown}"
 
@@ -1115,6 +1172,6 @@ jobs:
 
           echo ""
 
-          echo "Disk:"
+
 
           df -hT
