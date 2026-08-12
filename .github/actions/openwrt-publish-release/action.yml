@@ -1,33 +1,30 @@
-name: OpenWrt publish release
+name: OpenWrt Publish Release
 
-description: Merge per-device artifacts, generate a release body, publish a GitHub release, and clean old runs.
+
+description: Merge firmware artifacts and create release
+
 
 
 inputs:
 
+
   release-tag-prefix:
-    description: Prefix for the generated release tag.
+
     required: true
 
-  source-url:
-    description: Source repository URL to include in release body.
-    default: ""
+    description: Release tag prefix
 
-  source-branch:
-    description: Source branch/tag to include in release body.
-    default: ""
 
   release-files:
-    description: Newline-separated glob list passed to softprops/action-gh-release.
-    required: true
 
-  keep-latest:
-    description: Number of releases to keep.
-    default: "10"
+    required: false
+
+    description: Release files
 
 
 
 runs:
+
 
   using: composite
 
@@ -35,230 +32,101 @@ runs:
   steps:
 
 
-    ##################################################
-    # 下载编译产物
-    ##################################################
 
-    - name: Download firmware artifacts
+    - name: Prepare release directory
+
+      shell: bash
+
+      run: |
+
+        set -eux
+
+
+        rm -rf downloaded
+
+        mkdir -p downloaded
+
+
+        mkdir -p public
+
+
+        mkdir -p public/firmware
+
+
+        mkdir -p public/packages
+
+
+
+
+
+
+    - name: Download workflow artifacts
 
       uses: actions/download-artifact@v4
 
-
       with:
 
-        path: all-artifacts
+
+        path: downloaded
 
 
 
 
 
 
-    ##################################################
-    # 查看目录
-    ##################################################
-
-    - name: Show downloaded artifact layout
+    - name: Check downloaded artifacts
 
       shell: bash
 
-
       run: |
 
-
-        echo "::group::Downloaded artifacts"
-
-
-        find all-artifacts \
-          -maxdepth 3 \
-          -type f \
-          -printf '%p %s bytes\n' \
-          | sort
+        set +e
 
 
-        echo "::endgroup::"
+        echo "=============================="
+
+        echo "Downloaded artifacts"
+
+        echo "=============================="
 
 
+        if [ -d downloaded ]; then
 
+          find downloaded -type f
 
+        else
 
-
-
-    ##################################################
-    # 固件文件改名
-    ##################################################
-
-    - name: Prefix generic firmware metadata files
-
-
-      shell: bash
-
-
-      run: |
-
-
-        shopt -s nullglob
-
-
-
-        firmware_dirs=(all-artifacts/firmware-*)
-
-
-
-        if [ "${#firmware_dirs[@]}" -eq 0 ]; then
-
-          echo "No firmware artifacts found."
-
-          exit 1
+          echo "No downloaded directory"
 
         fi
 
 
 
 
-        echo "::group::Prefix firmware metadata"
 
 
-
-        for dir in "${firmware_dirs[@]}";
-
-
-        do
-
-
-          DEVICE_NAME=$(basename "$dir" | sed 's/firmware-//')
-
-
-
-          echo "Processing device: $DEVICE_NAME"
-
-
-
-          cd "$dir"
-
-
-
-          for file in \
-            version.buildinfo \
-            sha256sums \
-            profiles.json \
-            config.buildinfo \
-            feeds.buildinfo
-
-
-          do
-
-
-            if [ -f "$file" ]; then
-
-
-              mv "$file" "${DEVICE_NAME}-${file}"
-
-
-            fi
-
-
-          done
-
-
-
-
-
-          if [ -f "${DEVICE_NAME}-sha256sums" ]; then
-
-
-            sed -i \
-            "s/ \*/ ${DEVICE_NAME}-/" \
-            "${DEVICE_NAME}-sha256sums"
-
-
-          fi
-
-
-
-
-          cd ../..
-
-
-
-        done
-
-
-
-
-        echo "::endgroup::"
-
-
-
-
-
-
-
-
-    ##################################################
-    # 生成 Release 信息
-    ##################################################
-
-    - name: Generate release tag and body
-
-
-      id: release-meta
-
+    - name: Collect firmware
 
       shell: bash
 
-
       run: |
 
-
-        DATE_SUFFIX=$(date +"%Y%m%d-%H%M")
-
+        set -eux
 
 
-        RELEASE_TAG="${{ inputs.release-tag-prefix }}-${DATE_SUFFIX}"
+        if [ -d downloaded ]; then
 
 
-
-        echo "release-tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-
+          echo "Collect firmware"
 
 
-
-        echo "### Firmware download" > release-body.md
-
-
-        echo "" >> release-body.md
+          find downloaded -type f \( -name "*.bin" -o -name "*.img" -o -name "*.manifest" -o -name "*sha256sums" -o -name "*.buildinfo" \) -exec cp --parents {} public/firmware/ \;
 
 
-        echo "This release includes firmware for:" >> release-body.md
+        else
 
 
-
-
-
-        for dir in all-artifacts/firmware-*;
-
-
-        do
-
-
-          DEVICE_NAME=$(basename "$dir" | sed 's/firmware-//')
-
-
-          echo "- **$DEVICE_NAME**" >> release-body.md
-
-
-        done
-
-
-
-
-
-        if [ -n "${{ inputs.source-url }}" ]; then
-
-
-          echo "" >> release-body.md
-
-          echo "**Source repository:** \`${{ inputs.source-url }}\`" >> release-body.md
+          echo "No artifacts"
 
 
         fi
@@ -267,10 +135,29 @@ runs:
 
 
 
-        if [ -n "${{ inputs.source-branch }}" ]; then
+
+    - name: Collect APK packages
+
+      shell: bash
+
+      run: |
+
+        set -eux
 
 
-          echo "**Source branch/tag:** \`${{ inputs.source-branch }}\`" >> release-body.md
+        echo "===== APK packages ====="
+
+
+        if [ -d downloaded ]; then
+
+
+          find downloaded -type f -name "*.apk" -exec cp --parents {} public/packages/ \;
+
+
+        else
+
+
+          echo "No apk source"
 
 
         fi
@@ -279,145 +166,78 @@ runs:
 
 
 
-        echo "" >> release-body.md
+
+    - name: Collect packages adb
+
+      shell: bash
+
+      run: |
+
+        set -eux
 
 
-        echo "---" >> release-body.md
+        echo "===== packages.adb ====="
 
 
-        echo "### LuCI package list" >> release-body.md
+        if [ -d downloaded ]; then
 
 
+          find downloaded -type f -name "packages.adb" -exec cp --parents {} public/packages/ \;
 
 
-
-        for dir in all-artifacts/package-list-*;
-
-
-        do
+        else
 
 
-          DEVICE_NAME=$(basename "$dir" | sed 's/package-list-//')
+          echo "No adb files"
 
 
-
-          echo "" >> release-body.md
-
-
-          echo "#### $DEVICE_NAME" >> release-body.md
-
-
-
-          if [ -f "$dir/packages.txt" ]; then
-
-            sed 's/^/- /' \
-            "$dir/packages.txt" \
-            >> release-body.md
-
-          fi
-
-
-        done
-
-
-
-
-
-        echo "::group::Release metadata"
-
-
-        cat release-body.md
-
-
-        echo "::endgroup::"
+        fi
 
 
 
 
 
 
+    - name: Show release files
+
+      shell: bash
+
+      run: |
+
+        set +e
 
 
-    ##################################################
-    # 创建 Release
-    ##################################################
+        echo "=============================="
 
-    - name: Create GitHub release
+        echo "Release content"
 
+        echo "=============================="
+
+
+        find public -type f
+
+
+
+
+
+
+    - name: Create Release
 
       uses: softprops/action-gh-release@v2
 
 
-
       with:
 
 
-        tag_name: ${{ steps.release-meta.outputs.release-tag }}
+        tag_name: ${{ inputs.release-tag-prefix }}-${{ github.run_number }}
 
 
-        body_path: release-body.md
+        name: "${{ inputs.release-tag-prefix }} Build ${{ github.run_number }}"
 
 
-        files: ${{ inputs.release-files }}
+        files: |
 
-
-        token: ${{ github.token }}
-
-
-
-
-
-
-
-
-    ##################################################
-    # 删除旧 Release
-    ##################################################
-
-    - name: Delete old releases
-
-
-      uses: dev-drprasad/delete-older-releases@v0.1.0
-
-
-      with:
-
-
-        keep_latest: ${{ inputs.keep-latest }}
-
-
-        delete_tags: true
-
-
-      env:
-
-
-        GITHUB_TOKEN: ${{ github.token }}
-
-
-
-
-
-
-
-
-    ##################################################
-    # 删除旧 Workflow
-    ##################################################
-
-    - name: Delete old workflow runs
-
-
-      uses: GitRML/delete-workflow-runs@main
-
-
-      with:
-
-
-        retain_days: 5
-
-
-        keep_minimum_runs: 5
+          public/**
 
 
       env:
