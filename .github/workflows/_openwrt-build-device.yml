@@ -9,16 +9,12 @@ on:
 
       device:
 
-        description: Device name
-
         required: true
 
         type: string
 
 
       repo_url:
-
-        description: OpenWrt source repository
 
         required: true
 
@@ -27,8 +23,6 @@ on:
 
       repo_branch:
 
-        description: OpenWrt source branch
-
         required: true
 
         type: string
@@ -36,16 +30,12 @@ on:
 
       config_file:
 
-        description: Config file path
-
         required: true
 
         type: string
 
 
       workflow_name:
-
-        description: Workflow name
 
         required: false
 
@@ -56,8 +46,6 @@ on:
 
       install_automake_117:
 
-        description: Install automake compatibility
-
         required: false
 
         type: string
@@ -66,8 +54,6 @@ on:
 
 
       docker:
-
-        description: Build docker packages
 
         required: false
 
@@ -78,8 +64,6 @@ on:
 
       sonic_fullcone:
 
-        description: Enable fullcone
-
         required: false
 
         type: string
@@ -89,13 +73,12 @@ on:
 
       release:
 
-        description: Enable release
-
         required: false
 
         type: string
 
         default: "true"
+
 
 
 
@@ -107,6 +90,7 @@ permissions:
 
 
 
+
 env:
 
   TZ: Asia/Shanghai
@@ -114,6 +98,7 @@ env:
   WORKDIR: /workdir
 
   OPENWRT_PATH: /workdir/openwrt
+
 
 
 
@@ -142,6 +127,8 @@ jobs:
 
 
 
+
+
       - name: Free disk space
 
         shell: bash
@@ -166,6 +153,8 @@ jobs:
 
 
 
+
+
       - name: Install dependencies
 
         shell: bash
@@ -179,22 +168,40 @@ jobs:
 
 
           sudo apt-get install -y \
+
             build-essential \
+
             gcc \
+
             g++ \
+
             make \
+
             git \
+
             curl \
+
             wget \
+
             rsync \
+
             unzip \
+
             file \
+
             python3 \
+
             gawk \
+
             gettext \
+
             libncurses-dev \
+
             zlib1g-dev \
+
             libssl-dev
+
+
 
 
 
@@ -219,6 +226,8 @@ jobs:
 
 
 
+
+
       - name: Clone OpenWrt source
 
         shell: bash
@@ -233,20 +242,16 @@ jobs:
           rm -rf openwrt
 
 
-          echo "Repository:"
-          echo "${{ inputs.repo_url }}"
-
-
-          echo "Branch:"
-          echo "${{ inputs.repo_branch }}"
-
-
-
           git clone \
+
             --depth=1 \
+
             --single-branch \
+
             --branch "${{ inputs.repo_branch }}" \
+
             "${{ inputs.repo_url }}" \
+
             openwrt
 
 
@@ -267,7 +272,9 @@ jobs:
 
 
 
-      - name: Verify OpenWrt source
+
+
+      - name: Verify source
 
         shell: bash
 
@@ -280,6 +287,8 @@ jobs:
 
 
           echo "OpenWrt source OK"
+
+
 
 
 
@@ -303,6 +312,8 @@ jobs:
 
 
 
+
+
       - name: Load config
 
         shell: bash
@@ -317,10 +328,6 @@ jobs:
           CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
-          echo "Config:"
-          echo "${CONFIG}"
-
-
           test -f "${CONFIG}"
 
 
@@ -328,6 +335,7 @@ jobs:
 
 
           grep "^CONFIG_TARGET" .config || true
+
 
 
       - name: Enable Docker
@@ -342,14 +350,16 @@ jobs:
 
           set -eux
 
-          echo "Enable docker"
+
+          echo "Enable docker packages"
 
 
-          cat >> .config <<EOF
-          CONFIG_PACKAGE_dockerd=y
-          CONFIG_PACKAGE_docker=y
-          CONFIG_PACKAGE_luci-app-dockerman=y
-          EOF
+
+          echo "CONFIG_PACKAGE_dockerd=y" >> .config
+
+          echo "CONFIG_PACKAGE_docker=y" >> .config
+
+          echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
 
 
 
@@ -373,12 +383,8 @@ jobs:
 
 
 
-          grep -qx "CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
-
-
-          grep -qx "CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
           echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
 
@@ -401,8 +407,11 @@ jobs:
 
 
           sudo apt-get install -y \
+
             automake \
+
             autoconf \
+
             libtool
 
 
@@ -537,7 +546,7 @@ jobs:
 
           echo "================================"
 
-          echo "Building ${{ inputs.device }}"
+          echo "Build device: ${{ inputs.device }}"
 
           echo "================================"
 
@@ -559,15 +568,11 @@ jobs:
 
         with:
 
-
           name: compile-log-${{ inputs.device }}-${{ github.run_number }}
-
 
           path: /workdir/openwrt/build.log
 
-
           if-no-files-found: warn
-
 
           retention-days: 30
 
@@ -610,7 +615,6 @@ jobs:
           echo ""
 
 
-
           echo "================================"
 
           echo "Package output"
@@ -640,7 +644,6 @@ jobs:
 
         uses: actions/upload-artifact@v4
 
-
         with:
 
 
@@ -668,7 +671,6 @@ jobs:
         if: steps.compile.outputs.success == 'true'
 
         uses: actions/upload-artifact@v4
-
 
         with:
 
@@ -699,7 +701,6 @@ jobs:
         if: always()
 
         uses: actions/upload-artifact@v4
-
 
         with:
 
