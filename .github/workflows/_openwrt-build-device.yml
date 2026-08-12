@@ -36,7 +36,7 @@ on:
 
       config_file:
 
-        description: Config file
+        description: OpenWrt config file
 
         required: true
 
@@ -138,7 +138,7 @@ jobs:
 
 
 
-      - name: Checkout
+      - name: Checkout repository
 
         uses: actions/checkout@v4
 
@@ -185,7 +185,7 @@ jobs:
           sudo apt-get update
 
 
-          sudo apt-get install -y build-essential gcc g++ make git curl wget rsync unzip file python3 gawk gettext libncurses-dev zlib1g-dev libssl-dev
+          sudo apt-get install -y build-essential gcc g++ make git curl wget rsync unzip file python3 gawk gettext libncurses-dev zlib1g-dev libssl-dev libelf-dev libdw-dev
 
 
 
@@ -226,6 +226,17 @@ jobs:
 
 
           rm -rf openwrt
+
+
+          echo "Repository:"
+
+          echo "${{ inputs.repo_url }}"
+
+
+          echo "Branch:"
+
+          echo "${{ inputs.repo_branch }}"
+
 
 
           git clone --depth=1 --single-branch --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" openwrt
@@ -318,6 +329,7 @@ jobs:
           grep "^CONFIG_TARGET" .config || true
 
 
+
       - name: Enable Docker
 
         if: inputs.docker == 'true'
@@ -331,7 +343,7 @@ jobs:
           set -eux
 
 
-          echo "Enable docker packages"
+          echo "Enable docker"
 
 
           echo "CONFIG_PACKAGE_dockerd=y" >> .config
@@ -358,12 +370,33 @@ jobs:
           set -eux
 
 
-          echo "Enable fullcone packages"
+          echo "Enable fullcone"
 
 
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
           echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
+
+
+
+
+
+
+      - name: Disable v2ray-plugin
+
+        shell: bash
+
+        working-directory: /workdir/openwrt
+
+        run: |
+
+          set -eux
+
+
+          echo "Disable broken v2ray-plugin"
+
+
+          echo "CONFIG_PACKAGE_v2ray-plugin=n" >> .config
 
 
 
@@ -456,14 +489,9 @@ jobs:
 
             /workdir/openwrt/dl
 
-            /workdir/openwrt/build_dir
-
-            /workdir/openwrt/staging_dir
-
 
 
           key: ${{ steps.cache.outputs.key }}
-
 
 
           restore-keys: |
@@ -524,6 +552,7 @@ jobs:
 
 
           echo "success=true" >> "$GITHUB_OUTPUT"
+
 
 
       - name: Upload compile log
