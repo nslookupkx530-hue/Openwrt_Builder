@@ -2,28 +2,41 @@ name: Build filogic
 
 
 permissions:
+
   contents: write
 
 
 
 on:
 
+
   schedule:
 
-    - cron: '0 2 */4 * *'
+
+    - cron: "0 2 */4 * *"
+
+
 
 
   workflow_dispatch:
 
+
     inputs:
+
 
       docker:
 
-        description: '是否编译 docker'
+
+        description: "是否编译 docker"
+
 
         required: false
 
-        default: 'false'
+
+        default: false
+
+
+        type: boolean
 
 
 
@@ -36,11 +49,13 @@ jobs:
   build:
 
 
-    name: 编译 ${{ matrix.device }}
+
+    name: Build ${{ matrix.device }}
 
 
 
     strategy:
+
 
       fail-fast: false
 
@@ -56,17 +71,25 @@ jobs:
           # GL-MT5000
           ########################################
 
+
           - device: GL-MT5000
+
 
             repo_url: https://github.com/m0eak/fanchmwrt.git
 
+
             repo_branch: mt5000
 
-            config_file: ./config/mt5000.config
+
+            config_file: config/mt5000.config
+
 
             workflow_name: GL-MT5000
 
+
             sonic_fullcone: "true"
+
+
 
 
 
@@ -75,15 +98,21 @@ jobs:
           # Tenda BE12 Pro
           ########################################
 
+
           - device: Tenda-BE12PRO
+
 
             repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
 
+
             repo_branch: 25.12-dev-wifi7
 
-            config_file: ./config/be12pro.config
+
+            config_file: config/be12pro.config
+
 
             workflow_name: Tenda-BE12PRO
+
 
             sonic_fullcone: "false"
 
@@ -100,131 +129,36 @@ jobs:
 
 
 
-      device:
+      device: ${{ matrix.device }}
 
-        ${{ matrix.device }}
 
 
+      repo_url: ${{ matrix.repo_url }}
 
-      config_file:
 
-        ${{ matrix.config_file }}
 
+      repo_branch: ${{ matrix.repo_branch }}
 
 
-      workflow_name:
 
-        ${{ matrix.workflow_name }}
+      config_file: ${{ matrix.config_file }}
 
 
 
-      repo_url:
+      workflow_name: ${{ matrix.workflow_name }}
 
-        ${{ matrix.repo_url }}
 
 
+      install_automake_117: "true"
 
-      repo_branch:
 
-        ${{ matrix.repo_branch }}
 
+      sonic_fullcone: ${{ matrix.sonic_fullcone }}
 
 
-      install_automake_117:
 
-        "true"
+      docker: ${{ github.event.inputs.docker }}
 
 
 
-      sonic_fullcone:
-
-        ${{ matrix.sonic_fullcone }}
-
-
-
-      extra_config_file:
-
-        ${{ github.event.inputs.docker == 'true' && './config/docker.config' || '' }}
-
-
-
-
-
-
-
-  ############################################
-  # 汇总发布
-  ############################################
-
-
-  publish_release:
-
-
-
-    name: 合并并发布固件
-
-
-
-    needs: build
-
-
-
-    if: success()
-
-
-
-    runs-on: ubuntu-22.04
-
-
-
-
-
-    steps:
-
-
-
-      - name: Checkout repository
-
-        uses: actions/checkout@v4
-
-
-
-
-
-
-      - name: Publish release
-
-
-        uses: ./.github/actions/openwrt-publish-release
-
-
-
-        with:
-
-
-
-          release-tag-prefix:
-
-            filogic
-
-
-
-          release-files: |
-
-            all-artifacts/firmware-*/*.manifest
-
-            all-artifacts/firmware-*/*sysupgrade.bin
-
-            all-artifacts/firmware-*/*factory.bin
-
-            all-artifacts/firmware-*/*initramfs-kernel.bin
-
-            all-artifacts/firmware-*/*-version.buildinfo
-
-            all-artifacts/firmware-*/*-sha256sums
-
-            all-artifacts/firmware-*/*-profiles.json
-
-            all-artifacts/firmware-*/*-config.buildinfo
-
-            all-artifacts/firmware-*/*-feeds.buildinfo
+      release: "true"
