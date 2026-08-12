@@ -1,109 +1,292 @@
 name: Publish OpenWrt APK Feed
 
+
 on:
+
   workflow_run:
+
     workflows:
+
       - Build x86
+
       - Build filogic
+
     types:
+
       - completed
 
+
+  workflow_dispatch:
+
+
+
+
 permissions:
+
+
   contents: write
+
   pages: write
+
   id-token: write
+
+
+
+
+
 
 jobs:
 
+
+
   publish-apk-feed:
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+
+    name: Publish APK Feed
+
+
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+
 
     runs-on: ubuntu-22.04
 
+
+
+
+
     steps:
 
-    - name: Checkout
-      uses: actions/checkout@v4
 
 
-    # 下载所有编译产生的 target packages
+      - name: Checkout
 
-    - name: Download x86 packages
-      uses: actions/download-artifact@v4
-      with:
-        pattern: target-packages-x86*
-        path: downloaded
-
-
-    - name: Download filogic packages
-      uses: actions/download-artifact@v4
-      with:
-        pattern: target-packages-*
-        path: downloaded
-
-
-    - name: Show artifacts
-      run: |
-
-        echo "===== Artifact list ====="
-
-        find downloaded -type f | sort
+        uses: actions/checkout@v4
 
 
 
-    # 创建 apk feed 目录
-
-    - name: Prepare APK repository
-
-      shell: bash
-
-      run: |
-
-        mkdir -p public/packages/x86_64/targets/x86/64
-
-        mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
 
 
 
-        echo "Copy x86 target packages"
+      - name: Prepare directory
 
-        find downloaded \
-        -path "*x86*" \
-        -type f \
-        -exec cp {} public/packages/x86_64/targets/x86/64/ \;
+        shell: bash
 
+        run: |
 
-
-        echo "Copy filogic target packages"
-
-        find downloaded \
-        -path "*filogic*" \
-        -type f \
-        -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
+          set -eux
 
 
+          rm -rf downloaded
 
-    # 检查目录
+          rm -rf public
 
-    - name: Check APK feed
 
-      run: |
+          mkdir -p downloaded
 
-        tree public || true
+
+          mkdir -p public/packages/x86_64/targets/x86/64
+
+
+          mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
 
 
 
-    # 发布 Pages
 
-    - name: Deploy GitHub Pages
 
-      uses: peaceiris/actions-gh-pages@v4
 
-      with:
+      - name: Download APK artifacts
 
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/download-artifact@v4
 
-        publish_dir: ./public
+        with:
 
-        force_orphan: true
+
+          pattern: apk-feed-*
+
+
+          path: downloaded
+
+
+          merge-multiple: false
+
+
+
+
+
+
+      - name: Show downloaded artifacts
+
+        shell: bash
+
+        run: |
+
+          set +e
+
+
+          echo "========== downloaded =========="
+
+
+          if [ -d downloaded ]; then
+
+            find downloaded -type f
+
+          else
+
+            echo "No downloaded artifacts"
+
+          fi
+
+
+
+
+
+
+      - name: Collect x86 packages
+
+        shell: bash
+
+        run: |
+
+          set -eux
+
+
+          echo "========== x86 packages =========="
+
+
+          if [ -d downloaded ]; then
+
+
+            find downloaded -path "*x86*" -type f -exec cp {} public/packages/x86_64/targets/x86/64/ \;
+
+
+          else
+
+
+            echo "No x86 artifacts"
+
+          fi
+
+
+
+
+
+
+      - name: Collect filogic packages
+
+        shell: bash
+
+        run: |
+
+          set -eux
+
+
+          echo "========== filogic packages =========="
+
+
+          if [ -d downloaded ]; then
+
+
+            find downloaded -path "*filogic*" -type f -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
+
+
+          else
+
+
+            echo "No filogic artifacts"
+
+          fi
+
+
+
+
+
+
+      - name: Collect all apk files
+
+        shell: bash
+
+        run: |
+
+          set -eux
+
+
+          echo "========== apk files =========="
+
+
+          if [ -d downloaded ]; then
+
+
+            find downloaded -name "*.apk" -exec cp {} public/packages/ \;
+
+
+          fi
+
+
+
+
+
+
+      - name: Collect packages database
+
+        shell: bash
+
+        run: |
+
+          set -eux
+
+
+          echo "========== packages.adb =========="
+
+
+          if [ -d downloaded ]; then
+
+
+            find downloaded -name "packages.adb" -exec cp {} public/packages/ \;
+
+
+          fi
+
+
+
+
+
+
+      - name: Check feed
+
+        shell: bash
+
+        run: |
+
+          set +e
+
+
+          echo "========== FINAL FEED =========="
+
+
+          find public -type f
+
+
+
+
+
+
+      - name: Upload Pages artifact
+
+        uses: actions/upload-pages-artifact@v3
+
+        with:
+
+
+          path: public
+
+
+
+
+
+
+      - name: Deploy GitHub Pages
+
+        uses: actions/deploy-pages@v4
