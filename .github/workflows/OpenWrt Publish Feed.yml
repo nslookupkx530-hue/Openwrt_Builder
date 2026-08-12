@@ -1,0 +1,445 @@
+name: OpenWrt Publish Feed
+
+
+on:
+
+
+  workflow_dispatch:
+
+
+
+
+
+  workflow_run:
+
+
+    workflows:
+
+
+      - Build x86
+
+
+      - Build filogic
+
+
+      - Build ImmortalWrt x86_64
+
+
+    types:
+
+
+      - completed
+
+
+
+
+
+permissions:
+
+
+  contents: write
+
+
+  actions: write
+
+
+  pages: write
+
+
+  id-token: write
+
+
+
+
+
+jobs:
+
+
+
+
+
+  collect-feed:
+
+
+
+    name: Collect OpenWrt APK Feed
+
+
+
+    if: >-
+
+
+      github.event_name == 'workflow_dispatch' ||
+
+
+      github.event.workflow_run.conclusion == 'success'
+
+
+
+    runs-on: ubuntu-22.04
+
+
+
+
+
+    steps:
+
+
+
+
+
+      - name: Checkout
+
+
+        uses: actions/checkout@v4
+
+
+
+
+
+      - name: Download all build artifacts
+
+
+        uses: actions/download-artifact@v4
+
+
+        with:
+
+
+          pattern: "*apk*"
+
+
+          path: downloaded
+
+
+          merge-multiple: false
+
+
+
+
+
+      - name: Show artifacts
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set +e
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Downloaded artifacts"
+
+
+          echo "=============================="
+
+
+
+
+
+          find downloaded -type f | sort
+
+
+
+
+
+      - name: Prepare feed workspace
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          rm -rf feed
+
+
+
+
+
+          mkdir -p feed
+
+
+
+
+
+          mkdir -p feed/packages/x86_64/targets/x86/64
+
+
+
+
+
+          mkdir -p feed/packages/aarch64_cortex-a53/targets/mediatek/filogic
+
+
+
+
+
+      - name: Collect x86 packages
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "========== x86 =========="
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            \(
+
+
+              -name "*.apk" \
+
+
+              -o -name "packages.adb"
+
+
+            \) \
+
+
+            | grep -E "x86|x86_64" \
+
+
+            | while read file
+
+
+              do
+
+
+                cp "$file" \
+
+
+                feed/packages/x86_64/targets/x86/64/
+
+
+              done || true
+
+
+
+
+
+      - name: Collect filogic packages
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "========== filogic =========="
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            \(
+
+
+              -name "*.apk" \
+
+
+              -o -name "packages.adb"
+
+
+            \) \
+
+
+            | grep -E "aarch64|filogic|mediatek" \
+
+
+            | while read file
+
+
+              do
+
+
+                cp "$file" \
+
+
+                feed/packages/aarch64_cortex-a53/targets/mediatek/filogic/
+
+
+              done || true
+
+
+
+
+
+      - name: Copy all package files
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            -name "*.apk" \
+
+
+            -exec cp --parents {} feed/packages/ \;
+
+
+          true
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            -name "packages.adb" \
+
+
+            -exec cp --parents {} feed/packages/ \;
+
+
+          true
+
+
+
+
+
+      - name: Check final feed
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set +e
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "FINAL FEED"
+
+
+          echo "=============================="
+
+
+
+
+
+          find feed -type f | sort
+
+
+
+
+
+      - name: Upload merged feed
+
+
+        uses: actions/upload-artifact@v4
+
+
+        with:
+
+
+          name: merged-openwrt-apk-feed
+
+
+          path: feed
+
+
+          retention-days: 30
+
+
+
+
+
+      - name: Call publish workflow
+
+
+        uses: actions/github-script@v7
+
+
+        with:
+
+
+          script: |
+
+
+            await github.rest.actions.createWorkflowDispatch({
+
+
+              owner: context.repo.owner,
+
+
+              repo: context.repo.repo,
+
+
+              workflow_id: "publish-apk-feed.yml",
+
+
+              ref: "main"
+
+
+            })
