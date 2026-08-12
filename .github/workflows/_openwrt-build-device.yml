@@ -55,10 +55,10 @@ on:
         required: false
 
 
-        default: OpenWrt Build
-
-
         type: string
+
+
+        default: OpenWrt Build
 
 
 
@@ -68,10 +68,10 @@ on:
         required: false
 
 
-        default: "false"
-
-
         type: string
+
+
+        default: "false"
 
 
 
@@ -81,10 +81,10 @@ on:
         required: false
 
 
-        default: "false"
-
-
         type: string
+
+
+        default: "false"
 
 
 
@@ -94,10 +94,10 @@ on:
         required: false
 
 
-        default: "false"
-
-
         type: string
+
+
+        default: "false"
 
 
 
@@ -107,10 +107,11 @@ on:
         required: false
 
 
+        type: string
+
+
         default: "true"
 
-
-        type: string
 
 
 
@@ -160,10 +161,13 @@ jobs:
 
 
 
-      - name: Checkout
+
+
+      - name: Checkout repository
 
 
         uses: actions/checkout@v4
+
 
 
 
@@ -199,7 +203,8 @@ jobs:
 
 
 
-      - name: Install build packages
+
+      - name: Install dependencies
 
 
         shell: bash
@@ -212,6 +217,7 @@ jobs:
 
 
           sudo apt-get update
+
 
 
           sudo apt-get install -y \
@@ -238,19 +244,20 @@ jobs:
             python3-setuptools \
 
 
-            libncurses5-dev \
-
-
-            zlib1g-dev \
-
-
             gawk \
 
 
             gettext \
 
 
+            libncurses5-dev \
+
+
+            zlib1g-dev \
+
+
             libssl-dev
+
 
 
 
@@ -268,13 +275,14 @@ jobs:
           set -euxo pipefail
 
 
-          sudo mkdir -p "$WORKDIR"
+          sudo mkdir -p "${WORKDIR}"
 
 
-          sudo chown "$USER:$USER" "$WORKDIR"
+          sudo chown "${USER}:${USER}" "${WORKDIR}"
 
 
-          sudo timedatectl set-timezone "$TZ"
+          sudo timedatectl set-timezone "${TZ}"
+
 
 
 
@@ -293,6 +301,7 @@ jobs:
 
 
           set -euxo pipefail
+
 
 
           rm -rf openwrt
@@ -329,7 +338,8 @@ jobs:
 
 
 
-      - name: Check source
+
+      - name: Verify source
 
 
         shell: bash
@@ -341,7 +351,9 @@ jobs:
           set -euxo pipefail
 
 
-          test -f "$OPENWRT_PATH/Makefile"
+
+          test -f "${OPENWRT_PATH}/Makefile"
+
 
 
           echo "OpenWrt source OK"
@@ -389,16 +401,16 @@ jobs:
 
 
 
-          echo "Loading config: ${{ inputs.config_file }}"
+          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
 
 
 
-          if [ ! -f "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" ]; then
+          if [ ! -f "$CONFIG" ]; then
 
 
-            echo "Config file not found"
+            echo "Missing config file: $CONFIG"
 
 
             ls -la "${GITHUB_WORKSPACE}/config" || true
@@ -413,13 +425,13 @@ jobs:
 
 
 
-          cp "${GITHUB_WORKSPACE}/${{ inputs.config_file }}" .config
+          cp "$CONFIG" .config
 
 
 
 
 
-          echo "===== TARGET CONFIG ====="
+          echo "===== Target config ====="
 
 
 
@@ -449,7 +461,7 @@ jobs:
 
 
 
-          cat >> .config <<'EOF'
+          cat >> .config <<EOF
 
 
 CONFIG_PACKAGE_dockerd=y
@@ -485,11 +497,7 @@ EOF
 
 
 
-          echo "Enable fullcone"
-
-
-
-          cat >> .config <<'EOF'
+          cat >> .config <<EOF
 
 
 CONFIG_PACKAGE_kmod-nft-fullcone=y
@@ -504,7 +512,7 @@ EOF
 
 
 
-      - name: Install automake compatibility
+      - name: Install automake
 
 
         if: inputs.install_automake_117 == 'true'
@@ -551,7 +559,7 @@ EOF
 
 
 
-          echo "===== DIFF CONFIG ====="
+          echo "===== diffconfig ====="
 
 
 
@@ -562,7 +570,7 @@ EOF
 
 
 
-      - name: Generate cache key
+      - name: Cache key
 
 
         id: cache
@@ -581,15 +589,13 @@ EOF
           HASH=$(sha256sum \
 
 
-          "$OPENWRT_PATH/.config" \
+          "${OPENWRT_PATH}/.config" \
 
 
-          "$OPENWRT_PATH/feeds.conf.default" \
+          "${OPENWRT_PATH}/feeds.conf.default" \
 
 
           | sha256sum | cut -d' ' -f1)
-
-
 
 
 
@@ -600,8 +606,7 @@ EOF
 
 
 
-
-      - name: Restore build cache
+      - name: Restore cache
 
 
         uses: actions/cache@v4
@@ -687,7 +692,7 @@ EOF
           echo "=================================="
 
 
-          echo " Building ${{ inputs.device }}"
+          echo " Build ${{ inputs.device }}"
 
 
           echo "=================================="
@@ -710,7 +715,7 @@ EOF
 
 
 
-      - name: Check build output
+      - name: Show build result
 
 
         if: always()
@@ -729,17 +734,11 @@ EOF
 
 
 
-          echo "===== TARGET FILES ====="
+          echo "===== TARGET ====="
 
 
 
-          find bin/targets \
-
-
-            -type f \
-
-
-            | sort
+          find bin/targets -type f | sort || true
 
 
 
@@ -749,26 +748,26 @@ EOF
 
 
 
-          echo "===== APK FILES ====="
+          echo "===== PACKAGES ====="
 
 
 
-          find bin \
+          find bin/packages -type f | sort || true
 
 
-            -type f \
 
 
-            \(
+
+          echo ""
 
 
-              -name "*.apk" -o -name "packages.adb"
+
+          echo "===== APK ====="
 
 
-            \)
 
+          find bin -type f \( -name "*.apk" -o -name "packages.adb" \) | sort || true
 
-            | sort
 
 
 
@@ -833,7 +832,7 @@ EOF
           path: |
 
 
-            /workdir/openwrt/bin/targets/**/packages/**
+            /workdir/openwrt/bin/targets/**/*.apk
 
 
             /workdir/openwrt/bin/targets/**/packages.adb
@@ -852,7 +851,7 @@ EOF
 
 
 
-      - name: Upload packages APK feed
+      - name: Upload package APK feed
 
 
         if: steps.compile.outputs.success == 'true'
@@ -873,7 +872,10 @@ EOF
           path: |
 
 
-            /workdir/openwrt/bin/packages/**
+            /workdir/openwrt/bin/packages/**/*.apk
+
+
+            /workdir/openwrt/bin/packages/**/packages.adb
 
 
 
@@ -889,7 +891,7 @@ EOF
 
 
 
-      - name: Upload build info
+      - name: Upload build information
 
 
         if: always()
@@ -953,14 +955,14 @@ EOF
 
 
 
-          name: "${{ inputs.device }} Build ${{ github.run_number }}"
+          name: "${{ inputs.device }} ImmortalWrt Build ${{ github.run_number }}"
 
 
 
           files: |
 
 
-            /workdir/openwrt/bin/targets/**/*
+            /workdir/openwrt/bin/targets/**
 
 
 
