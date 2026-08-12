@@ -346,10 +346,10 @@ jobs:
 
 
           cat >> .config <<EOF
-CONFIG_PACKAGE_dockerd=y
-CONFIG_PACKAGE_docker=y
-CONFIG_PACKAGE_luci-app-dockerman=y
-EOF
+          CONFIG_PACKAGE_dockerd=y
+          CONFIG_PACKAGE_docker=y
+          CONFIG_PACKAGE_luci-app-dockerman=y
+          EOF
 
 
 
