@@ -1,153 +1,109 @@
 name: Build filogic
 
-
 permissions:
-
   contents: write
-
 
 
 on:
 
-
   schedule:
-
 
     - cron: "0 2 */4 * *"
 
 
-
   workflow_dispatch:
-
 
     inputs:
 
-
       docker:
 
-
-        description: "是否编译 docker"
-
+        description: 是否编译 docker
 
         required: false
 
-
         default: false
-
 
         type: boolean
 
 
+concurrency:
 
+  group: filogic-build
+
+  cancel-in-progress: true
 
 
 
 jobs:
 
+  build:
+
+    strategy:
+
+      fail-fast: false
 
 
-  GL-MT5000:
+      matrix:
+
+        include:
 
 
+          - device: GL-MT5000
 
-    name: Build GL-MT5000
+            repo_url: https://github.com/m0eak/fanchmwrt.git
 
+            repo_branch: mt5000
 
+            config_file: config/mt5000.config
 
-    uses: ./.github/workflows/_openwrt-build-device.yml
+            workflow_name: GL-MT5000
 
-
-
-    with:
-
-
-
-      device: GL-MT5000
-
-
-
-      repo_url: https://github.com/m0eak/fanchmwrt.git
-
-
-
-      repo_branch: mt5000
+            sonic_fullcone: "true"
 
 
 
-      config_file: config/mt5000.config
+          - device: Tenda-BE12PRO
 
+            repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
 
+            repo_branch: 25.12-dev-wifi7
 
-      workflow_name: GL-MT5000
+            config_file: config/be12pro.config
 
+            workflow_name: Tenda-BE12PRO
 
-
-      install_automake_117: "true"
-
-
-
-      sonic_fullcone: "true"
-
-
-
-      docker: ${{ github.event.inputs.docker || 'false' }}
-
-
-
-      release: "true"
-
-
-
-
-
-
-
-  Tenda-BE12PRO:
-
-
-
-    name: Build Tenda-BE12PRO
+            sonic_fullcone: "false"
 
 
 
     uses: ./.github/workflows/_openwrt-build-device.yml
 
 
-
     with:
 
 
-
-      device: Tenda-BE12PRO
-
+      device: ${{ matrix.device }}
 
 
-      repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
+      repo_url: ${{ matrix.repo_url }}
 
 
-
-      repo_branch: 25.12-dev-wifi7
-
+      repo_branch: ${{ matrix.repo_branch }}
 
 
-      config_file: config/be12pro.config
+      config_file: ${{ matrix.config_file }}
 
 
-
-      workflow_name: Tenda-BE12PRO
-
+      workflow_name: ${{ matrix.workflow_name }}
 
 
       install_automake_117: "true"
 
 
-
-      sonic_fullcone: "false"
-
+      sonic_fullcone: ${{ matrix.sonic_fullcone }}
 
 
-      docker: ${{ github.event.inputs.docker || 'false' }}
-
+      docker: ${{ inputs.docker }}
 
 
       release: "true"
