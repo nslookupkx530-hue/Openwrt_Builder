@@ -117,7 +117,6 @@ on:
 
 
 
-
 env:
 
 
@@ -161,9 +160,7 @@ jobs:
 
 
 
-
-
-      - name: Checkout repository
+      - name: Checkout
 
 
         uses: actions/checkout@v4
@@ -173,7 +170,7 @@ jobs:
 
 
 
-      - name: Free disk space
+      - name: Free disk
 
 
         shell: bash
@@ -204,7 +201,7 @@ jobs:
 
 
 
-      - name: Install dependencies
+      - name: Install packages
 
 
         shell: bash
@@ -214,6 +211,7 @@ jobs:
 
 
           set -euxo pipefail
+
 
 
           sudo apt-get update
@@ -239,9 +237,6 @@ jobs:
 
 
             python3 \
-
-
-            python3-setuptools \
 
 
             gawk \
@@ -275,13 +270,16 @@ jobs:
           set -euxo pipefail
 
 
-          sudo mkdir -p "${WORKDIR}"
+
+          sudo mkdir -p "$WORKDIR"
 
 
-          sudo chown "${USER}:${USER}" "${WORKDIR}"
+
+          sudo chown "$USER:$USER" "$WORKDIR"
 
 
-          sudo timedatectl set-timezone "${TZ}"
+
+          sudo timedatectl set-timezone "$TZ"
 
 
 
@@ -352,11 +350,11 @@ jobs:
 
 
 
-          test -f "${OPENWRT_PATH}/Makefile"
+          test -f "$OPENWRT_PATH/Makefile"
 
 
 
-          echo "OpenWrt source OK"
+          echo "Source OK"
 
       - name: Update feeds
 
@@ -401,19 +399,19 @@ jobs:
 
 
 
-          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+          CONFIG_FILE="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
 
 
 
-          if [ ! -f "$CONFIG" ]; then
+          if [ ! -f "$CONFIG_FILE" ]; then
 
 
-            echo "Missing config file: $CONFIG"
+            echo "Config file not found:"
 
 
-            ls -la "${GITHUB_WORKSPACE}/config" || true
+            echo "$CONFIG_FILE"
 
 
             exit 1
@@ -425,17 +423,18 @@ jobs:
 
 
 
-          cp "$CONFIG" .config
+          cp "$CONFIG_FILE" .config
 
 
 
 
 
-          echo "===== Target config ====="
+          echo "===== TARGET CONFIG ====="
 
 
 
           grep "^CONFIG_TARGET" .config || true
+
 
 
 
@@ -461,17 +460,20 @@ jobs:
 
 
 
-          cat >> .config <<EOF
+          printf '%s\n' \
 
 
-CONFIG_PACKAGE_dockerd=y
-
-CONFIG_PACKAGE_docker=y
-
-CONFIG_PACKAGE_luci-app-dockerman=y
+          'CONFIG_PACKAGE_dockerd=y' \
 
 
-EOF
+          'CONFIG_PACKAGE_docker=y' \
+
+
+          'CONFIG_PACKAGE_luci-app-dockerman=y' \
+
+
+          >> .config
+
 
 
 
@@ -497,22 +499,24 @@ EOF
 
 
 
-          cat >> .config <<EOF
+          printf '%s\n' \
 
 
-CONFIG_PACKAGE_kmod-nft-fullcone=y
-
-CONFIG_PACKAGE_luci-app-fullconenat=y
+          'CONFIG_PACKAGE_kmod-nft-fullcone=y' \
 
 
-EOF
+          'CONFIG_PACKAGE_luci-app-fullconenat=y' \
 
 
-
+          >> .config
 
 
 
-      - name: Install automake
+
+
+
+
+      - name: Install automake compatibility
 
 
         if: inputs.install_automake_117 == 'true'
@@ -532,14 +536,24 @@ EOF
 
 
 
-          sudo apt-get install -y automake autoconf libtool
+          sudo apt-get install -y \
+
+
+            automake \
+
+
+            autoconf \
+
+
+            libtool
 
 
 
 
 
 
-      - name: Generate config
+
+      - name: Defconfig
 
 
         shell: bash
@@ -559,7 +573,7 @@ EOF
 
 
 
-          echo "===== diffconfig ====="
+          echo "===== DIFFCONFIG ====="
 
 
 
@@ -570,7 +584,8 @@ EOF
 
 
 
-      - name: Cache key
+
+      - name: Generate cache key
 
 
         id: cache
@@ -589,10 +604,10 @@ EOF
           HASH=$(sha256sum \
 
 
-          "${OPENWRT_PATH}/.config" \
+          "$OPENWRT_PATH/.config" \
 
 
-          "${OPENWRT_PATH}/feeds.conf.default" \
+          "$OPENWRT_PATH/feeds.conf.default" \
 
 
           | sha256sum | cut -d' ' -f1)
@@ -600,6 +615,7 @@ EOF
 
 
           echo "key=openwrt-${{ inputs.device }}-${HASH}" >> "$GITHUB_OUTPUT"
+
 
 
 
@@ -638,6 +654,7 @@ EOF
 
 
             /workdir/openwrt/staging_dir
+
 
 
 
@@ -692,7 +709,7 @@ EOF
           echo "=================================="
 
 
-          echo " Build ${{ inputs.device }}"
+          echo " Building ${{ inputs.device }}"
 
 
           echo "=================================="
@@ -715,7 +732,7 @@ EOF
 
 
 
-      - name: Show build result
+      - name: Check output
 
 
         if: always()
@@ -734,7 +751,7 @@ EOF
 
 
 
-          echo "===== TARGET ====="
+          echo "===== TARGET FILES ====="
 
 
 
@@ -748,7 +765,7 @@ EOF
 
 
 
-          echo "===== PACKAGES ====="
+          echo "===== PACKAGE FILES ====="
 
 
 
@@ -762,7 +779,7 @@ EOF
 
 
 
-          echo "===== APK ====="
+          echo "===== APK FILES ====="
 
 
 
@@ -891,7 +908,7 @@ EOF
 
 
 
-      - name: Upload build information
+      - name: Upload build info
 
 
         if: always()
@@ -937,7 +954,7 @@ EOF
 
 
 
-      - name: Create GitHub Release
+      - name: Create Release
 
 
         if: steps.compile.outputs.success == 'true' && inputs.release == 'true'
@@ -978,7 +995,7 @@ EOF
 
 
 
-      - name: Build summary
+      - name: Summary
 
 
         if: always()
