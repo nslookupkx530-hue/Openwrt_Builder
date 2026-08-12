@@ -3,7 +3,6 @@ name: Publish OpenWrt APK Feed
 
 on:
 
-
   workflow_run:
 
     workflows:
@@ -17,7 +16,6 @@ on:
       - completed
 
 
-
   workflow_dispatch:
 
 
@@ -25,7 +23,6 @@ on:
 
 
 permissions:
-
 
   contents: read
 
@@ -39,8 +36,7 @@ permissions:
 
 concurrency:
 
-
-  group: pages
+  group: github-pages
 
   cancel-in-progress: true
 
@@ -54,9 +50,7 @@ jobs:
   publish-apk-feed:
 
 
-
     name: Publish APK Feed
-
 
 
     if: >-
@@ -66,13 +60,11 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
 
 
-
     runs-on: ubuntu-22.04
 
 
 
     environment:
-
 
       name: github-pages
 
@@ -81,8 +73,6 @@ jobs:
 
 
     steps:
-
-
 
 
 
@@ -108,9 +98,7 @@ jobs:
 
         run: |
 
-
           set -eux
-
 
 
           rm -rf downloaded
@@ -118,13 +106,10 @@ jobs:
           rm -rf public
 
 
-
           mkdir -p downloaded
 
 
-
           mkdir -p public/packages/x86_64/targets/x86/64
-
 
 
           mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
@@ -135,18 +120,13 @@ jobs:
 
       - name: Download APK artifacts
 
-
         uses: actions/download-artifact@v4
-
 
         with:
 
-
           pattern: apk-feed-*
 
-
           path: downloaded
-
 
           merge-multiple: false
 
@@ -154,25 +134,20 @@ jobs:
 
 
 
-      - name: Show artifacts
-
+      - name: Show downloaded artifacts
 
         shell: bash
 
-
         run: |
-
 
           set +e
 
 
-
           echo "=============================="
 
-          echo "Downloaded files"
+          echo "Downloaded artifacts"
 
           echo "=============================="
-
 
 
           if [ -d downloaded ]; then
@@ -191,28 +166,16 @@ jobs:
 
       - name: Collect x86 packages
 
-
         shell: bash
 
-
         run: |
-
 
           set -eux
 
 
-
           if [ -d downloaded ]; then
 
-
-            find downloaded \
-
-              -path "*x86*" \
-
-              -type f \
-
-              -exec cp {} public/packages/x86_64/targets/x86/64/ \;
-
+            find downloaded -type f -path "*x86*" -exec cp {} public/packages/x86_64/targets/x86/64/ \;
 
           fi
 
@@ -222,28 +185,16 @@ jobs:
 
       - name: Collect filogic packages
 
-
         shell: bash
 
-
         run: |
-
 
           set -eux
 
 
-
           if [ -d downloaded ]; then
 
-
-            find downloaded \
-
-              -path "*filogic*" \
-
-              -type f \
-
-              -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
-
+            find downloaded -type f -path "*filogic*" -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
 
           fi
 
@@ -253,26 +204,16 @@ jobs:
 
       - name: Collect APK files
 
-
         shell: bash
 
-
         run: |
-
 
           set -eux
 
 
-
           if [ -d downloaded ]; then
 
-
-            find downloaded \
-
-              -name "*.apk" \
-
-              -exec cp --parents {} public/packages/ \;
-
+            find downloaded -type f -name "*.apk" -exec cp --parents {} public/packages/ \;
 
           fi
 
@@ -282,26 +223,16 @@ jobs:
 
       - name: Collect packages database
 
-
         shell: bash
 
-
         run: |
-
 
           set -eux
 
 
-
           if [ -d downloaded ]; then
 
-
-            find downloaded \
-
-              -name "packages.adb" \
-
-              -exec cp --parents {} public/packages/ \;
-
+            find downloaded -type f -name "packages.adb" -exec cp --parents {} public/packages/ \;
 
           fi
 
@@ -311,23 +242,18 @@ jobs:
 
       - name: Check final feed
 
-
         shell: bash
 
-
         run: |
-
 
           set +e
 
 
-
           echo "=============================="
 
-          echo "Final Pages content"
+          echo "Final feed"
 
           echo "=============================="
-
 
 
           find public -type f | sort
@@ -338,12 +264,9 @@ jobs:
 
       - name: Upload Pages artifact
 
-
         uses: actions/upload-pages-artifact@v3
 
-
         with:
-
 
           path: public
 
@@ -353,8 +276,6 @@ jobs:
 
       - name: Deploy Pages
 
-
         id: deployment
-
 
         uses: actions/deploy-pages@v4
