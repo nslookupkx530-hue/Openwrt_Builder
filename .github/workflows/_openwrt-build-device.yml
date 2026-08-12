@@ -1,118 +1,226 @@
 name: OpenWrt Build Device
 
+
 on:
+
   workflow_call:
+
     inputs:
+
+
       device:
+
         required: true
+
         type: string
+
+
 
       repo_url:
+
         required: true
+
         type: string
+
+
 
       repo_branch:
+
         required: true
+
         type: string
+
+
 
       config_file:
+
         required: true
+
         type: string
+
+
+
+      workflow_name:
+
+        required: false
+
+        type: string
+
+        default: ""
+
+
+
+      install_automake_117:
+
+        required: false
+
+        type: string
+
+        default: "false"
+
+
 
       docker:
+
         required: false
+
         type: string
+
         default: "false"
+
+
 
       sonic_fullcone:
+
         required: false
+
         type: string
+
         default: "false"
 
+
+
       release:
+
         required: false
+
         type: string
+
         default: "true"
 
+
+
+
 permissions:
+
   contents: write
 
 
+
+
 env:
-  WORKDIR: /workdir
-  OPENWRT_PATH: /workdir/openwrt
+
+
   TZ: Asia/Shanghai
+
+
+  WORKDIR: /workdir
+
+
+  OPENWRT_PATH: /workdir/openwrt
+
+
+
 
 
 jobs:
 
+
+
   build:
+
+
 
     name: Build ${{ inputs.device }}
 
+
+
     runs-on: ubuntu-22.04
+
+
 
 
     steps:
 
 
+
+
       - name: Checkout
+
 
         uses: actions/checkout@v4
 
 
 
-      - name: Free disk
+
+
+
+      - name: Free disk space
+
 
         shell: bash
 
+
         run: |
+
 
           set -eux
 
+
           sudo rm -rf /usr/share/dotnet || true
+
 
           sudo rm -rf /usr/local/lib/android || true
 
+
           sudo rm -rf /opt/ghc || true
 
+
           sudo docker image prune -af || true
+
 
           df -h
 
 
 
+
+
+
       - name: Install dependencies
+
 
         shell: bash
 
+
         run: |
+
 
           set -eux
 
+
           sudo apt-get update
+
 
           sudo apt-get install -y build-essential curl rsync unzip file python3 gawk gettext libncurses5-dev zlib1g-dev libssl-dev
 
 
 
+
+
+
       - name: Prepare workdir
+
 
         shell: bash
 
+
         run: |
+
 
           set -eux
 
+
           sudo mkdir -p /workdir
+
 
           sudo chown $USER:$USER /workdir
 
-          sudo timedatectl set-timezone Asia/Shanghai
+
+          sudo timedatectl set-timezone "$TZ"
 
 
 
-      - name: Clone source
+      - name: Clone OpenWrt source
 
         shell: bash
 
@@ -126,20 +234,12 @@ jobs:
           rm -rf openwrt
 
 
-          echo "Repository:"
+          echo "Repository: ${{ inputs.repo_url }}"
 
-          echo "${{ inputs.repo_url }}"
-
-
-          echo "Branch:"
-
-          echo "${{ inputs.repo_branch }}"
+          echo "Branch: ${{ inputs.repo_branch }}"
 
 
           git clone --depth=1 --single-branch --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" openwrt
-
-
-          test -d /workdir/openwrt
 
 
           test -f /workdir/openwrt/Makefile
@@ -151,7 +251,10 @@ jobs:
           git log -1 --oneline
 
 
-          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+
+
 
 
 
@@ -163,13 +266,17 @@ jobs:
 
           set -eux
 
-          ls -la /workdir
 
-          ls -la /workdir/openwrt
+          test -d /workdir/openwrt
+
 
           test -f /workdir/openwrt/Makefile
 
-          echo "SOURCE OK"
+
+          echo "OpenWrt source OK"
+
+
+
 
 
 
@@ -182,9 +289,6 @@ jobs:
         run: |
 
           set -eux
-
-
-          test -d /workdir/openwrt
 
 
           ./scripts/feeds update -a
@@ -208,21 +312,21 @@ jobs:
           set -eux
 
 
-          CONFIG_FILE="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
-          echo "Config file:"
+          echo "Using config:"
 
-          echo "$CONFIG_FILE"
-
-
-          test -f "$CONFIG_FILE"
+          echo "$CONFIG"
 
 
-          cp "$CONFIG_FILE" .config
+          test -f "$CONFIG"
 
 
-          echo "Target config:"
+          cp "$CONFIG" .config
+
+
+          echo "Target:"
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -243,9 +347,6 @@ jobs:
         run: |
 
           set -eux
-
-
-          echo "Enable docker"
 
 
           echo "CONFIG_PACKAGE_dockerd=y" >> .config
@@ -272,12 +373,30 @@ jobs:
           set -eux
 
 
-          echo "Enable fullcone"
-
-
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
           echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
+
+
+
+
+
+
+      - name: Install automake compatibility
+
+        if: inputs.install_automake_117 == 'true'
+
+        shell: bash
+
+        run: |
+
+          set -eux
+
+
+          sudo apt-get update
+
+
+          sudo apt-get install -y automake autoconf libtool
 
 
 
@@ -298,7 +417,7 @@ jobs:
           make defconfig
 
 
-          echo "===== CONFIG CHECK ====="
+          echo "===== CONFIG TARGET ====="
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -322,7 +441,7 @@ jobs:
           HASH=$(sha256sum /workdir/openwrt/.config | cut -d' ' -f1)
 
 
-          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> $GITHUB_OUTPUT
+          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> "$GITHUB_OUTPUT"
 
 
 
@@ -335,6 +454,7 @@ jobs:
 
 
         with:
+
 
           path: |
 
@@ -368,9 +488,6 @@ jobs:
           set -eux
 
 
-          test -d /workdir/openwrt
-
-
           make download -j$(nproc)
 
 
@@ -378,7 +495,6 @@ jobs:
 
 
           du -sh dl
-
 
 
 
@@ -395,24 +511,24 @@ jobs:
           set -eux
 
 
-          echo "=============================="
+          echo "================================"
 
-          echo "Building ${{ inputs.device }}"
+          echo " Build ${{ inputs.device }} "
 
-          echo "=============================="
+          echo "================================"
 
 
           make -j$(nproc) V=s
 
 
-          echo "success=true" >> $GITHUB_OUTPUT
+          echo "success=true" >> "$GITHUB_OUTPUT"
 
 
 
 
 
 
-      - name: Check output
+      - name: Check build output
 
         if: always()
 
@@ -423,7 +539,7 @@ jobs:
           set +e
 
 
-          echo "===== TARGET FILES ====="
+          echo "===== TARGET OUTPUT ====="
 
 
           if [ -d /workdir/openwrt/bin/targets ]; then
@@ -432,7 +548,7 @@ jobs:
 
           else
 
-            echo "No target output"
+            echo "No firmware output"
 
           fi
 
@@ -441,7 +557,7 @@ jobs:
           echo ""
 
 
-          echo "===== PACKAGE FILES ====="
+          echo "===== PACKAGES OUTPUT ====="
 
 
           if [ -d /workdir/openwrt/bin/packages ]; then
@@ -459,7 +575,7 @@ jobs:
           echo ""
 
 
-          echo "===== APK FILES ====="
+          echo "===== APK OUTPUT ====="
 
 
           if [ -d /workdir/openwrt/bin ]; then
@@ -470,7 +586,7 @@ jobs:
 
           else
 
-            echo "No bin directory"
+            echo "No apk output"
 
           fi
 
@@ -492,7 +608,7 @@ jobs:
           name: firmware-${{ inputs.device }}-${{ github.run_number }}
 
 
-          path: /workdir/openwrt/bin/targets/
+          path: /workdir/openwrt/bin/targets
 
 
           if-no-files-found: warn
@@ -520,9 +636,9 @@ jobs:
 
           path: |
 
-            /workdir/openwrt/bin/targets/
+            /workdir/openwrt/bin/targets
 
-            /workdir/openwrt/bin/packages/
+            /workdir/openwrt/bin/packages
 
 
           if-no-files-found: warn
@@ -535,7 +651,7 @@ jobs:
 
 
 
-      - name: Upload build information
+      - name: Upload build info
 
         if: always()
 
@@ -552,7 +668,7 @@ jobs:
 
             /workdir/openwrt/.config
 
-            /workdir/openwrt/bin/targets/
+            /workdir/openwrt/bin/targets
 
 
           if-no-files-found: warn
@@ -604,11 +720,11 @@ jobs:
 
         run: |
 
-          echo "=============================="
+          echo "================================"
 
           echo " OpenWrt Build Summary "
 
-          echo "=============================="
+          echo "================================"
 
 
           echo "Device: ${{ inputs.device }}"
@@ -621,6 +737,9 @@ jobs:
 
 
           echo "Commit: ${OPENWRT_COMMIT:-unknown}"
+
+
+          echo ""
 
 
           df -h
