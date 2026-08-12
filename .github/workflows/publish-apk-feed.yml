@@ -3,19 +3,6 @@ name: Publish OpenWrt APK Feed
 
 on:
 
-  workflow_run:
-
-    workflows:
-
-      - Build x86
-
-      - Build filogic
-
-    types:
-
-      - completed
-
-
   workflow_dispatch:
 
 
