@@ -1,7 +1,10 @@
 name: Build filogic
 
+
 permissions:
+
   contents: write
+
 
 
 on:
@@ -11,9 +14,11 @@ on:
     - cron: "0 2 */4 * *"
 
 
+
   workflow_dispatch:
 
     inputs:
+
 
       docker:
 
@@ -26,6 +31,9 @@ on:
         type: boolean
 
 
+
+
+
 concurrency:
 
   group: filogic-build
@@ -34,18 +42,30 @@ concurrency:
 
 
 
+
+
 jobs:
+
+
 
   build:
 
+
+
+    name: Build ${{ matrix.device }}
+
+
     strategy:
+
 
       fail-fast: false
 
 
       matrix:
 
+
         include:
+
 
 
           - device: GL-MT5000
@@ -59,6 +79,8 @@ jobs:
             workflow_name: GL-MT5000
 
             sonic_fullcone: "true"
+
+
 
 
 
@@ -76,10 +98,14 @@ jobs:
 
 
 
+
+
     uses: ./.github/workflows/_openwrt-build-device.yml
 
 
+
     with:
+
 
 
       device: ${{ matrix.device }}
