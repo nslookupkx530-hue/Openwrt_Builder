@@ -10,6 +10,8 @@ on:
 
       device:
 
+        description: Device name
+
         required: true
 
         type: string
@@ -17,6 +19,8 @@ on:
 
 
       repo_url:
+
+        description: OpenWrt source repository
 
         required: true
 
@@ -26,6 +30,8 @@ on:
 
       repo_branch:
 
+        description: OpenWrt source branch
+
         required: true
 
         type: string
@@ -34,6 +40,8 @@ on:
 
       config_file:
 
+        description: Build config file
+
         required: true
 
         type: string
@@ -41,6 +49,8 @@ on:
 
 
       workflow_name:
+
+        description: Workflow name
 
         required: false
 
@@ -52,6 +62,8 @@ on:
 
       install_automake_117:
 
+        description: Install automake compatibility
+
         required: false
 
         type: string
@@ -61,6 +73,8 @@ on:
 
 
       docker:
+
+        description: Enable docker packages
 
         required: false
 
@@ -72,6 +86,8 @@ on:
 
       sonic_fullcone:
 
+        description: Enable fullcone
+
         required: false
 
         type: string
@@ -82,6 +98,8 @@ on:
 
       release:
 
+        description: Create release
+
         required: false
 
         type: string
@@ -91,9 +109,13 @@ on:
 
 
 
+
 permissions:
 
+
   contents: write
+
+
 
 
 
@@ -103,11 +125,10 @@ env:
 
   TZ: Asia/Shanghai
 
-
   WORKDIR: /workdir
 
-
   OPENWRT_PATH: /workdir/openwrt
+
 
 
 
@@ -129,14 +150,11 @@ jobs:
 
 
 
-
     steps:
 
 
 
-
       - name: Checkout
-
 
         uses: actions/checkout@v4
 
@@ -144,24 +162,18 @@ jobs:
 
 
 
-
       - name: Free disk space
-
 
         shell: bash
 
-
         run: |
-
 
           set -eux
 
 
           sudo rm -rf /usr/share/dotnet || true
 
-
           sudo rm -rf /usr/local/lib/android || true
-
 
           sudo rm -rf /opt/ghc || true
 
@@ -176,14 +188,11 @@ jobs:
 
 
 
-      - name: Install dependencies
-
+      - name: Install build dependencies
 
         shell: bash
 
-
         run: |
-
 
           set -eux
 
@@ -191,32 +200,66 @@ jobs:
           sudo apt-get update
 
 
-          sudo apt-get install -y build-essential curl rsync unzip file python3 gawk gettext libncurses5-dev zlib1g-dev libssl-dev
+          sudo apt-get install -y \
+
+            build-essential \
+
+            gcc \
+
+            g++ \
+
+            make \
+
+            curl \
+
+            rsync \
+
+            unzip \
+
+            file \
+
+            python3 \
+
+            python3-distutils \
+
+            gawk \
+
+            gettext \
+
+            libncurses-dev \
+
+            zlib1g-dev \
+
+            libssl-dev \
+
+            wget \
+
+            git
 
 
 
 
 
 
-      - name: Prepare workdir
-
+      - name: Prepare work directory
 
         shell: bash
 
-
         run: |
-
 
           set -eux
 
 
-          sudo mkdir -p /workdir
+          sudo mkdir -p "${WORKDIR}"
 
 
-          sudo chown $USER:$USER /workdir
+          sudo chown -R "$USER:$USER" "${WORKDIR}"
 
 
-          sudo timedatectl set-timezone "$TZ"
+          sudo timedatectl set-timezone "${TZ}"
+
+
+
 
 
 
@@ -234,21 +277,44 @@ jobs:
           rm -rf openwrt
 
 
-          echo "Repository: ${{ inputs.repo_url }}"
+          echo "================================"
 
-          echo "Branch: ${{ inputs.repo_branch }}"
+          echo "Repository"
+
+          echo "${{ inputs.repo_url }}"
+
+          echo "Branch"
+
+          echo "${{ inputs.repo_branch }}"
+
+          echo "================================"
 
 
-          git clone --depth=1 --single-branch --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" openwrt
+
+          git clone \
+
+            --depth=1 \
+
+            --single-branch \
+
+            --branch "${{ inputs.repo_branch }}" \
+
+            "${{ inputs.repo_url }}" \
+
+            openwrt
 
 
-          test -f /workdir/openwrt/Makefile
+
+          test -f openwrt/Makefile
 
 
-          cd /workdir/openwrt
+
+          cd openwrt
+
 
 
           git log -1 --oneline
+
 
 
           echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -258,16 +324,13 @@ jobs:
 
 
 
-      - name: Verify source
+      - name: Verify OpenWrt source
 
         shell: bash
 
         run: |
 
           set -eux
-
-
-          test -d /workdir/openwrt
 
 
           test -f /workdir/openwrt/Makefile
@@ -301,7 +364,7 @@ jobs:
 
 
 
-      - name: Load config
+      - name: Load device config
 
         shell: bash
 
@@ -312,31 +375,30 @@ jobs:
           set -eux
 
 
-          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+          CONFIG_FILE="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
           echo "Using config:"
 
-          echo "$CONFIG"
+          echo "${CONFIG_FILE}"
 
 
-          test -f "$CONFIG"
+          test -f "${CONFIG_FILE}"
 
 
-          cp "$CONFIG" .config
+
+          cp "${CONFIG_FILE}" .config
 
 
-          echo "Target:"
+
+          echo "===== TARGET CONFIG ====="
 
 
           grep "^CONFIG_TARGET" .config || true
 
 
 
-
-
-
-      - name: Enable docker
+      - name: Enable Docker
 
         if: inputs.docker == 'true'
 
@@ -349,18 +411,25 @@ jobs:
           set -eux
 
 
-          echo "CONFIG_PACKAGE_dockerd=y" >> .config
-
-          echo "CONFIG_PACKAGE_docker=y" >> .config
-
-          echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
+          echo "Enable docker packages"
 
 
+          cat >> .config <<EOF
+
+CONFIG_PACKAGE_dockerd=y
+
+CONFIG_PACKAGE_docker=y
+
+CONFIG_PACKAGE_luci-app-dockerman=y
+
+EOF
 
 
 
 
-      - name: Enable fullcone
+
+
+      - name: Enable FullCone
 
         if: inputs.sonic_fullcone == 'true'
 
@@ -373,7 +442,17 @@ jobs:
           set -eux
 
 
+          echo "Enable fullcone packages"
+
+
+
+          grep -q "^CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
+
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
+
+
+
+          grep -q "^CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
 
           echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
@@ -396,7 +475,13 @@ jobs:
           sudo apt-get update
 
 
-          sudo apt-get install -y automake autoconf libtool
+          sudo apt-get install -y \
+
+            automake \
+
+            autoconf \
+
+            libtool
 
 
 
@@ -417,7 +502,12 @@ jobs:
           make defconfig
 
 
-          echo "===== CONFIG TARGET ====="
+
+          echo "=============================="
+
+          echo "Target config"
+
+          echo "=============================="
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -433,15 +523,32 @@ jobs:
 
         shell: bash
 
+        working-directory: /workdir/openwrt
+
         run: |
 
           set -eux
 
 
-          HASH=$(sha256sum /workdir/openwrt/.config | cut -d' ' -f1)
+
+          CONFIG_HASH=$(sha256sum .config | awk '{print $1}')
 
 
-          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> "$GITHUB_OUTPUT"
+          SOURCE_HASH=$(git rev-parse HEAD)
+
+
+
+          KEY="openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}"
+
+
+
+          echo "key=${KEY}" >> "$GITHUB_OUTPUT"
+
+
+
+          echo "Cache key: ${KEY}"
+
+
 
 
 
@@ -465,7 +572,9 @@ jobs:
             /workdir/openwrt/staging_dir
 
 
+
           key: ${{ steps.cache.outputs.key }}
+
 
 
           restore-keys: |
@@ -477,7 +586,7 @@ jobs:
 
 
 
-      - name: Download packages
+      - name: Download source packages
 
         shell: bash
 
@@ -488,13 +597,19 @@ jobs:
           set -eux
 
 
+
           make download -j$(nproc)
 
 
-          find dl -size -1024c -delete
+
+          find dl -size -1024c -delete || true
 
 
-          du -sh dl
+
+          du -sh dl || true
+
+
+
 
 
 
@@ -511,17 +626,43 @@ jobs:
           set -eux
 
 
-          echo "================================"
-
-          echo " Build ${{ inputs.device }} "
 
           echo "================================"
 
+          echo "Building: ${{ inputs.device }}"
 
-          make -j$(nproc) V=s
+          echo "================================"
+
+
+
+          make -j$(nproc) V=s 2>&1 | tee build.log
+
 
 
           echo "success=true" >> "$GITHUB_OUTPUT"
+
+
+
+      - name: Upload compile log
+
+        if: failure()
+
+        uses: actions/upload-artifact@v4
+
+
+        with:
+
+
+          name: compile-log-${{ inputs.device }}-${{ github.run_number }}
+
+
+          path: /workdir/openwrt/build.log
+
+
+          if-no-files-found: warn
+
+
+          retention-days: 30
 
 
 
@@ -539,54 +680,54 @@ jobs:
           set +e
 
 
-          echo "===== TARGET OUTPUT ====="
+          echo "================================"
+
+          echo " Firmware output "
+
+          echo "================================"
+
 
 
           if [ -d /workdir/openwrt/bin/targets ]; then
 
-            find /workdir/openwrt/bin/targets -type f
+
+            find /workdir/openwrt/bin/targets -type f | sort
+
 
           else
 
+
             echo "No firmware output"
 
+
           fi
+
+
 
 
 
           echo ""
 
 
-          echo "===== PACKAGES OUTPUT ====="
+          echo "================================"
+
+          echo " Packages output "
+
+          echo "================================"
+
 
 
           if [ -d /workdir/openwrt/bin/packages ]; then
 
-            find /workdir/openwrt/bin/packages -type f
+
+            find /workdir/openwrt/bin/packages -type f | sort
+
 
           else
+
 
             echo "No packages output"
 
-          fi
-
-
-
-          echo ""
-
-
-          echo "===== APK OUTPUT ====="
-
-
-          if [ -d /workdir/openwrt/bin ]; then
-
-            find /workdir/openwrt/bin -name "*.apk"
-
-            find /workdir/openwrt/bin -name "packages.adb"
-
-          else
-
-            echo "No apk output"
 
           fi
 
@@ -608,7 +749,10 @@ jobs:
           name: firmware-${{ inputs.device }}-${{ github.run_number }}
 
 
-          path: /workdir/openwrt/bin/targets
+          path: |
+
+            /workdir/openwrt/bin/targets/**
+
 
 
           if-no-files-found: warn
@@ -634,11 +778,13 @@ jobs:
           name: apk-feed-${{ inputs.device }}-${{ github.run_number }}
 
 
+
           path: |
 
-            /workdir/openwrt/bin/targets
+            /workdir/openwrt/bin/packages/**
 
-            /workdir/openwrt/bin/packages
+            /workdir/openwrt/bin/targets/**
+
 
 
           if-no-files-found: warn
@@ -651,7 +797,7 @@ jobs:
 
 
 
-      - name: Upload build info
+      - name: Upload build information
 
         if: always()
 
@@ -664,11 +810,13 @@ jobs:
           name: build-info-${{ inputs.device }}-${{ github.run_number }}
 
 
+
           path: |
 
             /workdir/openwrt/.config
 
-            /workdir/openwrt/bin/targets
+            /workdir/openwrt/build.log
+
 
 
           if-no-files-found: warn
@@ -688,13 +836,17 @@ jobs:
         uses: softprops/action-gh-release@v2
 
 
+
         with:
+
 
 
           tag_name: ${{ inputs.device }}-${{ github.run_number }}
 
 
+
           name: "${{ inputs.device }} Build ${{ github.run_number }}"
+
 
 
           files: |
@@ -702,7 +854,9 @@ jobs:
             /workdir/openwrt/bin/targets/**
 
 
+
         env:
+
 
 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -720,11 +874,13 @@ jobs:
 
         run: |
 
+
           echo "================================"
 
           echo " OpenWrt Build Summary "
 
           echo "================================"
+
 
 
           echo "Device: ${{ inputs.device }}"
@@ -737,6 +893,7 @@ jobs:
 
 
           echo "Commit: ${OPENWRT_COMMIT:-unknown}"
+
 
 
           echo ""
