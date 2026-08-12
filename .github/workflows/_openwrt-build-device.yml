@@ -17,7 +17,6 @@ on:
         type: string
 
 
-
       repo_url:
 
         description: OpenWrt source repository
@@ -27,25 +26,22 @@ on:
         type: string
 
 
-
       repo_branch:
 
-        description: OpenWrt source branch
+        description: OpenWrt branch
 
         required: true
 
         type: string
-
 
 
       config_file:
 
-        description: Build config file
+        description: OpenWrt config file
 
         required: true
 
         type: string
-
 
 
       workflow_name:
@@ -59,29 +55,26 @@ on:
         default: ""
 
 
-
       install_automake_117:
 
-        description: Install automake compatibility
+        description: Install automake tools
 
         required: false
 
         type: string
 
         default: "false"
-
 
 
       docker:
 
-        description: Enable docker packages
+        description: Enable docker
 
         required: false
 
         type: string
 
         default: "false"
-
 
 
       sonic_fullcone:
@@ -95,10 +88,9 @@ on:
         default: "false"
 
 
-
       release:
 
-        description: Create release
+        description: Enable release
 
         required: false
 
@@ -154,9 +146,10 @@ jobs:
 
 
 
-      - name: Checkout
+      - name: Checkout repository
 
         uses: actions/checkout@v4
+
 
 
 
@@ -188,7 +181,7 @@ jobs:
 
 
 
-      - name: Install build dependencies
+      - name: Install dependencies
 
         shell: bash
 
@@ -212,6 +205,10 @@ jobs:
 
             curl \
 
+            wget \
+
+            git \
+
             rsync \
 
             unzip \
@@ -219,8 +216,6 @@ jobs:
             file \
 
             python3 \
-
-            python3-distutils \
 
             gawk \
 
@@ -230,11 +225,7 @@ jobs:
 
             zlib1g-dev \
 
-            libssl-dev \
-
-            wget \
-
-            git
+            libssl-dev
 
 
 
@@ -312,7 +303,6 @@ jobs:
           cd openwrt
 
 
-
           git log -1 --oneline
 
 
@@ -336,7 +326,7 @@ jobs:
           test -f /workdir/openwrt/Makefile
 
 
-          echo "OpenWrt source OK"
+          echo "OpenWrt source verified"
 
 
 
@@ -364,7 +354,7 @@ jobs:
 
 
 
-      - name: Load device config
+      - name: Load config
 
         shell: bash
 
@@ -375,23 +365,25 @@ jobs:
           set -eux
 
 
-          CONFIG_FILE="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+          CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
+
 
 
           echo "Using config:"
 
-          echo "${CONFIG_FILE}"
-
-
-          test -f "${CONFIG_FILE}"
+          echo "${CONFIG}"
 
 
 
-          cp "${CONFIG_FILE}" .config
+          test -f "${CONFIG}"
 
 
 
-          echo "===== TARGET CONFIG ====="
+          cp "${CONFIG}" .config
+
+
+
+          echo "Target config:"
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -412,6 +404,7 @@ jobs:
 
 
           echo "Enable docker packages"
+
 
 
           cat >> .config <<EOF
@@ -442,17 +435,17 @@ EOF
           set -eux
 
 
-          echo "Enable fullcone packages"
+          echo "Enable fullcone"
 
 
 
-          grep -q "^CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
+          grep -qx "CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
 
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
 
 
-          grep -q "^CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
+          grep -qx "CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
 
           echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
@@ -488,7 +481,7 @@ EOF
 
 
 
-      - name: Defconfig
+      - name: Run defconfig
 
         shell: bash
 
@@ -505,7 +498,7 @@ EOF
 
           echo "=============================="
 
-          echo "Target config"
+          echo "TARGET CONFIG"
 
           echo "=============================="
 
@@ -530,7 +523,6 @@ EOF
           set -eux
 
 
-
           CONFIG_HASH=$(sha256sum .config | awk '{print $1}')
 
 
@@ -538,17 +530,15 @@ EOF
 
 
 
-          KEY="openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}"
+          CACHE_KEY="openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}"
 
 
 
-          echo "key=${KEY}" >> "$GITHUB_OUTPUT"
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
 
 
 
-          echo "Cache key: ${KEY}"
-
-
+          echo "Cache key: ${CACHE_KEY}"
 
 
 
@@ -558,7 +548,6 @@ EOF
       - name: Restore build cache
 
         uses: actions/cache@v4
-
 
         with:
 
@@ -586,7 +575,7 @@ EOF
 
 
 
-      - name: Download source packages
+      - name: Download packages
 
         shell: bash
 
@@ -595,7 +584,6 @@ EOF
         run: |
 
           set -eux
-
 
 
           make download -j$(nproc)
@@ -626,10 +614,9 @@ EOF
           set -eux
 
 
-
           echo "================================"
 
-          echo "Building: ${{ inputs.device }}"
+          echo "Building ${{ inputs.device }}"
 
           echo "================================"
 
@@ -649,18 +636,13 @@ EOF
 
         uses: actions/upload-artifact@v4
 
-
         with:
-
 
           name: compile-log-${{ inputs.device }}-${{ github.run_number }}
 
-
           path: /workdir/openwrt/build.log
 
-
           if-no-files-found: warn
-
 
           retention-days: 30
 
@@ -682,7 +664,7 @@ EOF
 
           echo "================================"
 
-          echo " Firmware output "
+          echo "Firmware output"
 
           echo "================================"
 
@@ -690,28 +672,23 @@ EOF
 
           if [ -d /workdir/openwrt/bin/targets ]; then
 
-
             find /workdir/openwrt/bin/targets -type f | sort
-
 
           else
 
-
             echo "No firmware output"
 
-
           fi
-
-
 
 
 
           echo ""
 
 
+
           echo "================================"
 
-          echo " Packages output "
+          echo "Package output"
 
           echo "================================"
 
@@ -719,15 +696,11 @@ EOF
 
           if [ -d /workdir/openwrt/bin/packages ]; then
 
-
             find /workdir/openwrt/bin/packages -type f | sort
-
 
           else
 
-
-            echo "No packages output"
-
+            echo "No package output"
 
           fi
 
@@ -736,7 +709,7 @@ EOF
 
 
 
-      - name: Upload firmware
+      - name: Upload firmware artifact
 
         if: steps.compile.outputs.success == 'true'
 
@@ -765,7 +738,7 @@ EOF
 
 
 
-      - name: Upload APK feed
+      - name: Upload APK feed artifact
 
         if: steps.compile.outputs.success == 'true'
 
@@ -776,7 +749,6 @@ EOF
 
 
           name: apk-feed-${{ inputs.device }}-${{ github.run_number }}
-
 
 
           path: |
@@ -810,7 +782,6 @@ EOF
           name: build-info-${{ inputs.device }}-${{ github.run_number }}
 
 
-
           path: |
 
             /workdir/openwrt/.config
@@ -829,43 +800,6 @@ EOF
 
 
 
-      - name: Create GitHub Release
-
-        if: steps.compile.outputs.success == 'true' && inputs.release == 'true'
-
-        uses: softprops/action-gh-release@v2
-
-
-
-        with:
-
-
-
-          tag_name: ${{ inputs.device }}-${{ github.run_number }}
-
-
-
-          name: "${{ inputs.device }} Build ${{ github.run_number }}"
-
-
-
-          files: |
-
-            /workdir/openwrt/bin/targets/**
-
-
-
-        env:
-
-
-
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-
-
-
-
       - name: Build summary
 
         if: always()
@@ -873,7 +807,6 @@ EOF
         shell: bash
 
         run: |
-
 
           echo "================================"
 
@@ -897,6 +830,9 @@ EOF
 
 
           echo ""
+
+
+          echo "Disk usage:"
 
 
           df -h
