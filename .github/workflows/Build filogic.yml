@@ -1,16 +1,6 @@
 name: Build filogic
 
 
-permissions:
-
-  contents: write
-
-  actions: write
-
-
-
-
-
 on:
 
 
@@ -18,6 +8,8 @@ on:
 
 
     - cron: "0 2 */4 * *"
+
+
 
 
 
@@ -57,7 +49,18 @@ concurrency:
 
 
 
+permissions:
+
+
+  contents: write
+
+
+
+
+
 jobs:
+
+
 
 
 
@@ -71,10 +74,15 @@ jobs:
       fail-fast: false
 
 
+
+
+
       matrix:
 
 
         include:
+
+
 
 
 
@@ -124,90 +132,60 @@ jobs:
 
 
 
+
+
     with:
+
+
 
 
 
       device: ${{ matrix.device }}
 
 
+
+
+
       repo_url: ${{ matrix.repo_url }}
+
+
+
 
 
       repo_branch: ${{ matrix.repo_branch }}
 
 
+
+
+
       config_file: ${{ matrix.config_file }}
+
+
+
 
 
       workflow_name: ${{ matrix.workflow_name }}
 
 
+
+
+
       install_automake_117: "true"
+
+
+
 
 
       sonic_fullcone: ${{ matrix.sonic_fullcone }}
 
 
+
+
+
       docker: ${{ inputs.docker }}
 
 
-      release: "true"
 
 
 
-
-
-
-
-  publish-feed:
-
-
-
-    name: Publish APK Feed
-
-
-
-    needs: build
-
-
-
-    runs-on: ubuntu-22.04
-
-
-
-    steps:
-
-
-
-      - name: Trigger Publish APK Feed
-
-
-
-        uses: actions/github-script@v7
-
-
-
-        with:
-
-
-
-          script: |
-
-
-            await github.rest.actions.createWorkflowDispatch({
-
-
-              owner: context.repo.owner,
-
-
-              repo: context.repo.repo,
-
-
-              workflow_id: 'publish-apk-feed.yml',
-
-
-              ref: 'main'
-
-
-            })
+      release: "false"
