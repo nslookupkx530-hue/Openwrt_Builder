@@ -3,7 +3,29 @@ name: Publish OpenWrt APK Feed
 
 on:
 
+
   workflow_dispatch:
+
+
+  workflow_run:
+
+
+    workflows:
+
+
+      - Build x86
+
+
+      - Build filogic
+
+
+      - Build ImmortalWrt x86_64
+
+
+    types:
+
+
+      - completed
 
 
 
@@ -11,21 +33,14 @@ on:
 
 permissions:
 
-  contents: read
+
+  contents: write
+
 
   pages: write
 
+
   id-token: write
-
-
-
-
-
-concurrency:
-
-  group: github-pages
-
-  cancel-in-progress: true
 
 
 
@@ -37,25 +52,24 @@ jobs:
   publish-apk-feed:
 
 
+
     name: Publish APK Feed
+
 
 
     if: >-
 
+
       github.event_name == 'workflow_dispatch' ||
 
+
       github.event.workflow_run.conclusion == 'success'
+
 
 
     runs-on: ubuntu-22.04
 
 
-
-    environment:
-
-      name: github-pages
-
-      url: ${{ steps.deployment.outputs.page_url }}
 
 
 
@@ -63,7 +77,10 @@ jobs:
 
 
 
+
+
       - name: Checkout
+
 
         uses: actions/checkout@v4
 
@@ -71,35 +88,37 @@ jobs:
 
 
 
-      - name: Setup Pages
-
-        uses: actions/configure-pages@v5
-
-
-
-
-
       - name: Prepare directories
+
 
         shell: bash
 
+
         run: |
 
-          set -eux
+
+          set -euxo pipefail
+
+
+
 
 
           rm -rf downloaded
 
+
           rm -rf public
+
+
+
 
 
           mkdir -p downloaded
 
 
-          mkdir -p public/packages/x86_64/targets/x86/64
 
 
-          mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
+
+          mkdir -p public/packages
 
 
 
@@ -107,13 +126,18 @@ jobs:
 
       - name: Download APK artifacts
 
+
         uses: actions/download-artifact@v4
+
 
         with:
 
-          pattern: apk-feed-*
+
+          pattern: "*apk*"
+
 
           path: downloaded
+
 
           merge-multiple: false
 
@@ -123,29 +147,65 @@ jobs:
 
       - name: Show downloaded artifacts
 
+
         shell: bash
 
+
         run: |
+
 
           set +e
 
 
+
+
+
           echo "=============================="
+
 
           echo "Downloaded artifacts"
 
+
           echo "=============================="
 
 
-          if [ -d downloaded ]; then
 
-            find downloaded -type f | sort
 
-          else
 
-            echo "No downloaded directory"
+          find downloaded -type f | sort || true
 
-          fi
+
+
+
+
+      - name: Create package directories
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          mkdir -p \
+
+
+            public/packages/x86_64/targets/x86/64
+
+
+
+
+
+          mkdir -p \
+
+
+            public/packages/aarch64_cortex-a53/targets/mediatek/filogic
 
 
 
@@ -153,94 +213,219 @@ jobs:
 
       - name: Collect x86 packages
 
+
         shell: bash
+
 
         run: |
 
-          set -eux
+
+          set -euxo pipefail
 
 
-          if [ -d downloaded ]; then
-
-            find downloaded -type f -path "*x86*" -exec cp {} public/packages/x86_64/targets/x86/64/ \;
-
-          fi
 
 
+
+          echo "========== x86 packages =========="
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            \(
+
+
+              -name "*.apk" \
+
+
+              -o -name "packages.adb"
+
+
+            \) \
+
+
+            | grep -E "x86_64|x86" \
+
+
+            | while read file
+
+
+              do
+
+
+                cp "$file" \
+
+
+                public/packages/x86_64/targets/x86/64/
+
+
+              done || true
 
 
 
       - name: Collect filogic packages
 
-        shell: bash
-
-        run: |
-
-          set -eux
-
-
-          if [ -d downloaded ]; then
-
-            find downloaded -type f -path "*filogic*" -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
-
-          fi
-
-
-
-
-
-      - name: Collect APK files
 
         shell: bash
 
+
         run: |
 
-          set -eux
 
-
-          if [ -d downloaded ]; then
-
-            find downloaded -type f -name "*.apk" -exec cp --parents {} public/packages/ \;
-
-          fi
+          set -euxo pipefail
 
 
 
 
 
-      - name: Collect packages database
+          echo "========== filogic packages =========="
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            \(
+
+
+              -name "*.apk" \
+
+
+              -o -name "packages.adb"
+
+
+            \) \
+
+
+            | grep -E "aarch64|filogic|mediatek" \
+
+
+            | while read file
+
+
+              do
+
+
+                cp "$file" \
+
+
+                public/packages/aarch64_cortex-a53/targets/mediatek/filogic/
+
+
+              done || true
+
+
+
+
+
+      - name: Collect all APK files
+
 
         shell: bash
 
+
         run: |
 
-          set -eux
 
-
-          if [ -d downloaded ]; then
-
-            find downloaded -type f -name "packages.adb" -exec cp --parents {} public/packages/ \;
-
-          fi
+          set -euxo pipefail
 
 
 
 
 
-      - name: Check final feed
+          echo "========== all apk files =========="
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            -name "*.apk" \
+
+
+            -exec cp --parents {} public/packages/ \;
+
+
+          true
+
+
+
+
+
+      - name: Collect all packages database
+
 
         shell: bash
 
+
         run: |
 
-          set +e
+
+          set -euxo pipefail
 
 
-          echo "=============================="
 
-          echo "Final feed"
 
-          echo "=============================="
+
+          echo "========== packages.adb =========="
+
+
+
+
+
+          find downloaded \
+
+
+            -type f \
+
+
+            -name "packages.adb" \
+
+
+            -exec cp --parents {} public/packages/ \;
+
+
+          true
+
+
+
+
+
+      - name: Generate package index
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "========== package tree =========="
+
+
+
 
 
           find public -type f | sort
@@ -251,9 +436,12 @@ jobs:
 
       - name: Upload Pages artifact
 
+
         uses: actions/upload-pages-artifact@v3
 
+
         with:
+
 
           path: public
 
@@ -261,8 +449,7 @@ jobs:
 
 
 
-      - name: Deploy Pages
+      - name: Deploy GitHub Pages
 
-        id: deployment
 
         uses: actions/deploy-pages@v4
