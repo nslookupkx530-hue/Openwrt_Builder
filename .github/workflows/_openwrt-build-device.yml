@@ -9,12 +9,16 @@ on:
 
       device:
 
+        description: Device name
+
         required: true
 
         type: string
 
 
       repo_url:
+
+        description: OpenWrt source repository
 
         required: true
 
@@ -23,6 +27,8 @@ on:
 
       repo_branch:
 
+        description: OpenWrt source branch
+
         required: true
 
         type: string
@@ -30,12 +36,16 @@ on:
 
       config_file:
 
+        description: Config file
+
         required: true
 
         type: string
 
 
       workflow_name:
+
+        description: Workflow name
 
         required: false
 
@@ -46,6 +56,8 @@ on:
 
       install_automake_117:
 
+        description: Install automake compatibility
+
         required: false
 
         type: string
@@ -54,6 +66,8 @@ on:
 
 
       docker:
+
+        description: Enable docker
 
         required: false
 
@@ -64,6 +78,8 @@ on:
 
       sonic_fullcone:
 
+        description: Enable fullcone
+
         required: false
 
         type: string
@@ -72,6 +88,8 @@ on:
 
 
       release:
+
+        description: Enable release
 
         required: false
 
@@ -167,39 +185,7 @@ jobs:
           sudo apt-get update
 
 
-          sudo apt-get install -y \
-
-            build-essential \
-
-            gcc \
-
-            g++ \
-
-            make \
-
-            git \
-
-            curl \
-
-            wget \
-
-            rsync \
-
-            unzip \
-
-            file \
-
-            python3 \
-
-            gawk \
-
-            gettext \
-
-            libncurses-dev \
-
-            zlib1g-dev \
-
-            libssl-dev
+          sudo apt-get install -y build-essential gcc g++ make git curl wget rsync unzip file python3 gawk gettext libncurses-dev zlib1g-dev libssl-dev
 
 
 
@@ -242,17 +228,7 @@ jobs:
           rm -rf openwrt
 
 
-          git clone \
-
-            --depth=1 \
-
-            --single-branch \
-
-            --branch "${{ inputs.repo_branch }}" \
-
-            "${{ inputs.repo_url }}" \
-
-            openwrt
+          git clone --depth=1 --single-branch --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" openwrt
 
 
 
@@ -274,7 +250,7 @@ jobs:
 
 
 
-      - name: Verify source
+      - name: Verify OpenWrt source
 
         shell: bash
 
@@ -328,6 +304,11 @@ jobs:
           CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
+          echo "Using config:"
+
+          echo "${CONFIG}"
+
+
           test -f "${CONFIG}"
 
 
@@ -335,7 +316,6 @@ jobs:
 
 
           grep "^CONFIG_TARGET" .config || true
-
 
 
       - name: Enable Docker
@@ -352,7 +332,6 @@ jobs:
 
 
           echo "Enable docker packages"
-
 
 
           echo "CONFIG_PACKAGE_dockerd=y" >> .config
@@ -379,8 +358,7 @@ jobs:
           set -eux
 
 
-          echo "Enable fullcone"
-
+          echo "Enable fullcone packages"
 
 
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
@@ -406,20 +384,14 @@ jobs:
           sudo apt-get update
 
 
-          sudo apt-get install -y \
-
-            automake \
-
-            autoconf \
-
-            libtool
+          sudo apt-get install -y automake autoconf libtool
 
 
 
 
 
 
-      - name: Defconfig
+      - name: Run defconfig
 
         shell: bash
 
@@ -431,7 +403,6 @@ jobs:
 
 
           make defconfig
-
 
 
           echo "=============================="
@@ -465,7 +436,6 @@ jobs:
 
 
           SOURCE_HASH=$(git rev-parse HEAD)
-
 
 
           echo "key=openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
@@ -519,9 +489,7 @@ jobs:
           make download -j$(nproc)
 
 
-
           find dl -size -1024c -delete || true
-
 
 
           du -sh dl || true
@@ -546,7 +514,7 @@ jobs:
 
           echo "================================"
 
-          echo "Build device: ${{ inputs.device }}"
+          echo "Building ${{ inputs.device }}"
 
           echo "================================"
 
@@ -555,9 +523,7 @@ jobs:
           make -j$(nproc) V=s 2>&1 | tee build.log
 
 
-
           echo "success=true" >> "$GITHUB_OUTPUT"
-
 
 
       - name: Upload compile log
@@ -568,11 +534,15 @@ jobs:
 
         with:
 
+
           name: compile-log-${{ inputs.device }}-${{ github.run_number }}
+
 
           path: /workdir/openwrt/build.log
 
+
           if-no-files-found: warn
+
 
           retention-days: 30
 
@@ -650,10 +620,7 @@ jobs:
           name: firmware-${{ inputs.device }}-${{ github.run_number }}
 
 
-          path: |
-
-            /workdir/openwrt/bin/targets/**
-
+          path: /workdir/openwrt/bin/targets/**
 
 
           if-no-files-found: warn
@@ -685,7 +652,6 @@ jobs:
             /workdir/openwrt/bin/targets/**
 
 
-
           if-no-files-found: warn
 
 
@@ -713,7 +679,6 @@ jobs:
             /workdir/openwrt/.config
 
             /workdir/openwrt/build.log
-
 
 
           if-no-files-found: warn
