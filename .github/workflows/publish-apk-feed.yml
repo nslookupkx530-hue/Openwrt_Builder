@@ -3,6 +3,7 @@ name: Publish OpenWrt APK Feed
 
 on:
 
+
   workflow_run:
 
     workflows:
@@ -16,7 +17,9 @@ on:
       - completed
 
 
+
   workflow_dispatch:
+
 
 
 
@@ -24,7 +27,7 @@ on:
 permissions:
 
 
-  contents: write
+  contents: read
 
   pages: write
 
@@ -34,9 +37,18 @@ permissions:
 
 
 
+concurrency:
+
+
+  group: pages
+
+  cancel-in-progress: true
+
+
+
+
 
 jobs:
-
 
 
   publish-apk-feed:
@@ -47,7 +59,11 @@ jobs:
 
 
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: >-
+
+      github.event_name == 'workflow_dispatch' ||
+
+      github.event.workflow_run.conclusion == 'success'
 
 
 
@@ -55,9 +71,18 @@ jobs:
 
 
 
+    environment:
+
+
+      name: github-pages
+
+      url: ${{ steps.deployment.outputs.page_url }}
+
 
 
     steps:
+
+
 
 
 
@@ -69,14 +94,23 @@ jobs:
 
 
 
+      - name: Setup Pages
 
-      - name: Prepare directory
+        uses: actions/configure-pages@v5
+
+
+
+
+
+      - name: Prepare directories
 
         shell: bash
 
         run: |
 
+
           set -eux
+
 
 
           rm -rf downloaded
@@ -84,10 +118,13 @@ jobs:
           rm -rf public
 
 
+
           mkdir -p downloaded
 
 
+
           mkdir -p public/packages/x86_64/targets/x86/64
+
 
 
           mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
@@ -96,10 +133,11 @@ jobs:
 
 
 
-
       - name: Download APK artifacts
 
+
         uses: actions/download-artifact@v4
+
 
         with:
 
@@ -116,29 +154,36 @@ jobs:
 
 
 
+      - name: Show artifacts
 
-      - name: Show downloaded artifacts
 
         shell: bash
 
+
         run: |
+
 
           set +e
 
 
-          echo "========== downloaded =========="
+
+          echo "=============================="
+
+          echo "Downloaded files"
+
+          echo "=============================="
+
 
 
           if [ -d downloaded ]; then
 
-            find downloaded -type f
+            find downloaded -type f | sort
 
           else
 
-            echo "No downloaded artifacts"
+            echo "No downloaded directory"
 
           fi
-
 
 
 
@@ -146,29 +191,30 @@ jobs:
 
       - name: Collect x86 packages
 
+
         shell: bash
+
 
         run: |
 
+
           set -eux
 
-
-          echo "========== x86 packages =========="
 
 
           if [ -d downloaded ]; then
 
 
-            find downloaded -path "*x86*" -type f -exec cp {} public/packages/x86_64/targets/x86/64/ \;
+            find downloaded \
 
+              -path "*x86*" \
 
-          else
+              -type f \
 
+              -exec cp {} public/packages/x86_64/targets/x86/64/ \;
 
-            echo "No x86 artifacts"
 
           fi
-
 
 
 
@@ -176,26 +222,28 @@ jobs:
 
       - name: Collect filogic packages
 
+
         shell: bash
+
 
         run: |
 
+
           set -eux
 
-
-          echo "========== filogic packages =========="
 
 
           if [ -d downloaded ]; then
 
 
-            find downloaded -path "*filogic*" -type f -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
+            find downloaded \
 
+              -path "*filogic*" \
 
-          else
+              -type f \
 
+              -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
 
-            echo "No filogic artifacts"
 
           fi
 
@@ -203,27 +251,30 @@ jobs:
 
 
 
+      - name: Collect APK files
 
-      - name: Collect all apk files
 
         shell: bash
 
+
         run: |
+
 
           set -eux
 
-
-          echo "========== apk files =========="
 
 
           if [ -d downloaded ]; then
 
 
-            find downloaded -name "*.apk" -exec cp {} public/packages/ \;
+            find downloaded \
+
+              -name "*.apk" \
+
+              -exec cp --parents {} public/packages/ \;
 
 
           fi
-
 
 
 
@@ -231,20 +282,25 @@ jobs:
 
       - name: Collect packages database
 
+
         shell: bash
+
 
         run: |
 
+
           set -eux
 
-
-          echo "========== packages.adb =========="
 
 
           if [ -d downloaded ]; then
 
 
-            find downloaded -name "packages.adb" -exec cp {} public/packages/ \;
+            find downloaded \
+
+              -name "packages.adb" \
+
+              -exec cp --parents {} public/packages/ \;
 
 
           fi
@@ -253,21 +309,28 @@ jobs:
 
 
 
+      - name: Check final feed
 
-      - name: Check feed
 
         shell: bash
 
+
         run: |
+
 
           set +e
 
 
-          echo "========== FINAL FEED =========="
+
+          echo "=============================="
+
+          echo "Final Pages content"
+
+          echo "=============================="
 
 
-          find public -type f
 
+          find public -type f | sort
 
 
 
@@ -275,7 +338,9 @@ jobs:
 
       - name: Upload Pages artifact
 
+
         uses: actions/upload-pages-artifact@v3
+
 
         with:
 
@@ -286,7 +351,10 @@ jobs:
 
 
 
+      - name: Deploy Pages
 
-      - name: Deploy GitHub Pages
+
+        id: deployment
+
 
         uses: actions/deploy-pages@v4
