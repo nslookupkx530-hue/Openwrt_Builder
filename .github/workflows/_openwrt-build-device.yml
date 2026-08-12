@@ -58,7 +58,7 @@ on:
       config_file:
 
 
-        description: OpenWrt config file
+        description: Config file path
 
 
         required: true
@@ -70,46 +70,10 @@ on:
 
 
 
-      workflow_name:
-
-
-        description: Workflow name
-
-
-        required: false
-
-
-        type: string
-
-
-        default: ""
-
-
-
-
-
-      install_automake_117:
-
-
-        description: Install automake tools
-
-
-        required: false
-
-
-        type: string
-
-
-        default: "false"
-
-
-
-
-
       docker:
 
 
-        description: Enable docker packages
+        description: Enable docker
 
 
         required: false
@@ -142,10 +106,10 @@ on:
 
 
 
-      release:
+      install_automake_117:
 
 
-        description: Enable release
+        description: Install automake
 
 
         required: false
@@ -262,7 +226,7 @@ jobs:
 
 
 
-      - name: Install dependencies
+      - name: Install build dependencies
 
 
         shell: bash
@@ -298,13 +262,13 @@ jobs:
             make \
 
 
+            git \
+
+
             curl \
 
 
             wget \
-
-
-            git \
 
 
             rsync \
@@ -337,7 +301,7 @@ jobs:
 
 
 
-      - name: Prepare work directory
+      - name: Prepare workspace
 
 
         shell: bash
@@ -394,33 +358,6 @@ jobs:
 
 
 
-          echo "=============================="
-
-
-          echo "Repository"
-
-
-          echo "${{ inputs.repo_url }}"
-
-
-
-
-
-          echo "Branch"
-
-
-          echo "${{ inputs.repo_branch }}"
-
-
-
-
-
-          echo "=============================="
-
-
-
-
-
           git clone \
 
 
@@ -442,19 +379,13 @@ jobs:
 
 
 
-          test -f openwrt/Makefile
-
-
-
-
-
           cd openwrt
 
 
 
 
 
-          git log -1 --oneline
+          test -f Makefile
 
 
 
@@ -464,7 +395,19 @@ jobs:
 
 
 
-      - name: Verify OpenWrt source
+
+
+          echo "=============================="
+
+
+          git log -1 --oneline
+
+
+          echo "=============================="
+
+
+
+      - name: Verify source
 
 
         shell: bash
@@ -479,13 +422,13 @@ jobs:
 
 
 
-          test -f /workdir/openwrt/Makefile
+          test -f "${OPENWRT_PATH}/Makefile"
 
 
 
 
 
-          echo "OpenWrt source verified"
+          echo "OpenWrt source OK"
 
 
 
@@ -497,7 +440,7 @@ jobs:
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -521,7 +464,7 @@ jobs:
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -545,7 +488,7 @@ jobs:
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -563,7 +506,7 @@ jobs:
 
 
 
-          echo "Using config:"
+          echo "Config file:"
 
 
           echo "${CONFIG}"
@@ -605,7 +548,7 @@ jobs:
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -617,25 +560,19 @@ jobs:
 
 
 
-          echo "Enable docker packages"
+          echo "Enable Docker packages"
 
 
 
 
 
-          cat >> .config <<'EOF'
+          echo "CONFIG_PACKAGE_dockerd=y" >> .config
 
 
-CONFIG_PACKAGE_dockerd=y
+          echo "CONFIG_PACKAGE_docker=y" >> .config
 
 
-CONFIG_PACKAGE_docker=y
-
-
-CONFIG_PACKAGE_luci-app-dockerman=y
-
-
-EOF
+          echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
 
 
 
@@ -650,7 +587,7 @@ EOF
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -662,7 +599,7 @@ EOF
 
 
 
-          echo "Enable fullcone"
+          echo "Enable FullCone"
 
 
 
@@ -725,13 +662,13 @@ EOF
 
 
 
-      - name: Run defconfig
+      - name: Defconfig
 
 
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -749,13 +686,7 @@ EOF
 
 
 
-          echo "=============================="
-
-
-          echo "TARGET CONFIG"
-
-
-          echo "=============================="
+          echo "===== FINAL TARGET ====="
 
 
 
@@ -776,7 +707,7 @@ EOF
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -800,24 +731,7 @@ EOF
 
 
 
-          CACHE_KEY="openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}"
-
-
-
-
-
-          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
-
-
-
-
-
-          echo "Cache key:"
-
-
-          echo "${CACHE_KEY}"
-
-
+          echo "key=openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
 
 
 
@@ -861,13 +775,15 @@ EOF
 
 
 
+
+
       - name: Download packages
 
 
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -891,12 +807,6 @@ EOF
 
 
 
-          du -sh dl || true
-
-
-
-
-
       - name: Compile firmware
 
 
@@ -906,7 +816,7 @@ EOF
         shell: bash
 
 
-        working-directory: /workdir/openwrt
+        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
@@ -921,7 +831,7 @@ EOF
           echo "=============================="
 
 
-          echo " Building ${{ inputs.device }} "
+          echo "Build ${{ inputs.device }}"
 
 
           echo "=============================="
@@ -930,7 +840,7 @@ EOF
 
 
 
-          make -j$(nproc) V=s
+          make -j$(nproc) V=s 2>&1 | tee build.log
 
 
 
@@ -972,12 +882,6 @@ EOF
 
 
 
-          if-no-files-found: warn
-
-
-
-
-
           retention-days: 30
 
 
@@ -1002,31 +906,19 @@ EOF
 
 
 
-          echo "=============================="
-
-
-          echo " Firmware output "
-
-
-          echo "=============================="
+          echo "===== Firmware ====="
 
 
 
 
 
-          if [ -d /workdir/openwrt/bin/targets ]; then
+          find /workdir/openwrt/bin/targets \
 
 
-            find /workdir/openwrt/bin/targets -type f | sort
+            -type f \
 
 
-          else
-
-
-            echo "No firmware output"
-
-
-          fi
+            | sort || true
 
 
 
@@ -1038,13 +930,7 @@ EOF
 
 
 
-          echo "=============================="
-
-
-          echo " APK output "
-
-
-          echo "=============================="
+          echo "===== APK ====="
 
 
 
@@ -1056,13 +942,13 @@ EOF
             -type f \
 
 
-            \(
+            \( \
 
 
               -name "*.apk" \
 
 
-              -o -name "packages.adb"
+              -o -name "packages.adb" \
 
 
             \) \
@@ -1258,12 +1144,6 @@ EOF
 
 
           echo ""
-
-
-
-
-
-          echo "Disk usage:"
 
 
 
