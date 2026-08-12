@@ -4,15 +4,6 @@ name: Build filogic
 on:
 
 
-  schedule:
-
-
-    - cron: "0 2 */4 * *"
-
-
-
-
-
   workflow_dispatch:
 
 
@@ -37,6 +28,15 @@ on:
 
 
 
+  schedule:
+
+
+    - cron: "0 2 */4 * *"
+
+
+
+
+
 concurrency:
 
 
@@ -52,7 +52,7 @@ concurrency:
 permissions:
 
 
-  contents: write
+  contents: read
 
 
 
@@ -65,6 +65,8 @@ jobs:
 
 
   build:
+
+
 
 
 
@@ -98,9 +100,6 @@ jobs:
             config_file: config/mt5000.config
 
 
-            workflow_name: GL-MT5000
-
-
             sonic_fullcone: "true"
 
 
@@ -117,9 +116,6 @@ jobs:
 
 
             config_file: config/be12pro.config
-
-
-            workflow_name: Tenda-BE12PRO
 
 
             sonic_fullcone: "false"
@@ -164,12 +160,6 @@ jobs:
 
 
 
-      workflow_name: ${{ matrix.workflow_name }}
-
-
-
-
-
       install_automake_117: "true"
 
 
@@ -183,9 +173,3 @@ jobs:
 
 
       docker: ${{ inputs.docker }}
-
-
-
-
-
-      release: "false"
