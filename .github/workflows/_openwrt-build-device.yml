@@ -28,7 +28,7 @@ on:
       repo_url:
 
 
-        description: OpenWrt source repository
+        description: OpenWrt repository
 
 
         required: true
@@ -58,7 +58,7 @@ on:
       config_file:
 
 
-        description: Config file path
+        description: Config file
 
 
         required: true
@@ -73,7 +73,7 @@ on:
       docker:
 
 
-        description: Enable docker
+        description: Enable docker packages
 
 
         required: false
@@ -109,7 +109,7 @@ on:
       install_automake_117:
 
 
-        description: Install automake
+        description: Install automake compatibility
 
 
         required: false
@@ -199,9 +199,6 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo rm -rf /usr/share/dotnet || true
 
 
@@ -211,13 +208,7 @@ jobs:
           sudo rm -rf /opt/ghc || true
 
 
-
-
-
           sudo docker image prune -af || true
-
-
-
 
 
           df -hT
@@ -226,7 +217,7 @@ jobs:
 
 
 
-      - name: Install build dependencies
+      - name: Install dependencies
 
 
         shell: bash
@@ -238,64 +229,10 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo apt-get update
 
 
-
-
-
-          sudo apt-get install -y \
-
-
-            build-essential \
-
-
-            gcc \
-
-
-            g++ \
-
-
-            make \
-
-
-            git \
-
-
-            curl \
-
-
-            wget \
-
-
-            rsync \
-
-
-            unzip \
-
-
-            file \
-
-
-            python3 \
-
-
-            gawk \
-
-
-            gettext \
-
-
-            libncurses-dev \
-
-
-            zlib1g-dev \
-
-
-            libssl-dev
+          sudo apt-get install -y build-essential gcc g++ make git curl wget rsync unzip file python3 gawk gettext libncurses-dev zlib1g-dev libssl-dev
 
 
 
@@ -313,19 +250,10 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo mkdir -p "${WORKDIR}"
 
 
-
-
-
           sudo chown -R "$USER:$USER" "${WORKDIR}"
-
-
-
 
 
           sudo timedatectl set-timezone "${TZ}"
@@ -349,61 +277,22 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           rm -rf openwrt
 
 
-
-
-
-          git clone \
-
-
-            --depth=1 \
-
-
-            --single-branch \
-
-
-            --branch "${{ inputs.repo_branch }}" \
-
-
-            "${{ inputs.repo_url }}" \
-
-
-            openwrt
-
-
-
+          git clone --depth=1 --single-branch --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" openwrt
 
 
           cd openwrt
 
 
-
-
-
           test -f Makefile
-
-
-
 
 
           echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
 
-
-
-
-          echo "=============================="
-
-
           git log -1 --oneline
-
-
-          echo "=============================="
 
 
 
@@ -419,13 +308,7 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           test -f "${OPENWRT_PATH}/Makefile"
-
-
-
 
 
           echo "OpenWrt source OK"
@@ -449,9 +332,6 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           ./scripts/feeds update -a
 
 
@@ -471,9 +351,6 @@ jobs:
 
 
           set -euxo pipefail
-
-
-
 
 
           ./scripts/feeds install -a
@@ -497,40 +374,16 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           CONFIG="${GITHUB_WORKSPACE}/${{ inputs.config_file }}"
 
 
-
-
-
-          echo "Config file:"
-
-
-          echo "${CONFIG}"
-
-
-
+          echo "Using config: ${CONFIG}"
 
 
           test -f "${CONFIG}"
 
 
-
-
-
           cp "${CONFIG}" .config
-
-
-
-
-
-          echo "===== TARGET CONFIG ====="
-
-
-
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -557,13 +410,7 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
-          echo "Enable Docker packages"
-
-
-
+          echo "Enable Docker"
 
 
           echo "CONFIG_PACKAGE_dockerd=y" >> .config
@@ -596,34 +443,19 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           echo "Enable FullCone"
 
 
+          grep -qx "CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
 
 
-
-          grep -qx "CONFIG_PACKAGE_kmod-nft-fullcone=y" .config || \
-
-
-          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config
-
-
-
-
-
-          grep -qx "CONFIG_PACKAGE_luci-app-fullconenat=y" .config || \
-
-
-          echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
+          grep -qx "CONFIG_PACKAGE_luci-app-fullconenat=y" .config || echo "CONFIG_PACKAGE_luci-app-fullconenat=y" >> .config
 
 
 
 
 
-      - name: Install automake compatibility
+      - name: Install automake
 
 
         if: inputs.install_automake_117 == 'true'
@@ -638,25 +470,10 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo apt-get update
 
 
-
-
-
-          sudo apt-get install -y \
-
-
-            automake \
-
-
-            autoconf \
-
-
-            libtool
+          sudo apt-get install -y automake autoconf libtool
 
 
 
@@ -677,19 +494,10 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           make defconfig
 
 
-
-
-
-          echo "===== FINAL TARGET ====="
-
-
-
+          echo "===== TARGET ====="
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -716,22 +524,10 @@ jobs:
           set -euxo pipefail
 
 
+          HASH=$(sha256sum .config | awk '{print $1}')
 
 
-
-          CONFIG_HASH=$(sha256sum .config | awk '{print $1}')
-
-
-
-
-
-          SOURCE_HASH=$(git rev-parse HEAD)
-
-
-
-
-
-          echo "key=openwrt-${{ inputs.device }}-${SOURCE_HASH}-${CONFIG_HASH}" >> "$GITHUB_OUTPUT"
+          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> "$GITHUB_OUTPUT"
 
 
 
@@ -792,16 +588,13 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           make download -j$(nproc)
 
 
-
-
-
           find dl -size -1024c -delete || true
+
+
+          du -sh dl || true
 
 
 
@@ -825,25 +618,10 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
-          echo "=============================="
-
-
-          echo "Build ${{ inputs.device }}"
-
-
-          echo "=============================="
-
-
-
+          echo "Building ${{ inputs.device }}"
 
 
           make -j$(nproc) V=s 2>&1 | tee build.log
-
-
-
 
 
           echo "success=true" >> "$GITHUB_OUTPUT"
@@ -873,13 +651,7 @@ jobs:
 
 
 
-          path: |
-
-
-            /workdir/openwrt/build.log
-
-
-
+          path: /workdir/openwrt/build.log
 
 
           retention-days: 30
@@ -903,58 +675,43 @@ jobs:
           set +e
 
 
-
-
-
           echo "===== Firmware ====="
 
 
+          if [ -d /workdir/openwrt/bin/targets ]; then
 
 
-
-          find /workdir/openwrt/bin/targets \
-
-
-            -type f \
+            find /workdir/openwrt/bin/targets -type f | sort
 
 
-            | sort || true
+          else
 
 
+            echo "No firmware output"
 
 
-
-          echo ""
-
-
-
-
-
-          echo "===== APK ====="
+          fi
 
 
 
 
 
-          find /workdir/openwrt/bin \
+          echo "===== Packages ====="
 
 
-            -type f \
+          if [ -d /workdir/openwrt/bin/packages ]; then
 
 
-            \( \
+            find /workdir/openwrt/bin/packages -type f | sort
 
 
-              -name "*.apk" \
+          else
 
 
-              -o -name "packages.adb" \
+            echo "No package output"
 
 
-            \) \
-
-
-            | sort || true
+          fi
 
 
 
@@ -981,19 +738,10 @@ jobs:
 
 
 
-          path: |
-
-
-            /workdir/openwrt/bin/targets/**
-
-
-
+          path: /workdir/openwrt/bin/targets/**
 
 
           if-no-files-found: warn
-
-
-
 
 
           retention-days: 30
@@ -1041,9 +789,6 @@ jobs:
           if-no-files-found: warn
 
 
-
-
-
           retention-days: 90
 
 
@@ -1086,9 +831,6 @@ jobs:
           if-no-files-found: warn
 
 
-
-
-
           retention-days: 30
 
 
@@ -1116,37 +858,19 @@ jobs:
           echo "================================"
 
 
-
-
-
           echo "Device: ${{ inputs.device }}"
-
-
-
 
 
           echo "Repository: ${{ inputs.repo_url }}"
 
 
-
-
-
           echo "Branch: ${{ inputs.repo_branch }}"
-
-
-
 
 
           echo "Commit: ${OPENWRT_COMMIT:-unknown}"
 
 
-
-
-
           echo ""
-
-
-
 
 
           df -hT
