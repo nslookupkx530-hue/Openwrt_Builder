@@ -1,246 +1,109 @@
-name: OpenWrt Publish Release
+name: Publish OpenWrt APK Feed
+
+on:
+  workflow_run:
+    workflows:
+      - Build x86
+      - Build filogic
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+
+  publish-apk-feed:
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    runs-on: ubuntu-22.04
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
 
 
-description: Merge firmware artifacts and create release
+    # 下载所有编译产生的 target packages
 
-
-
-inputs:
-
-
-  release-tag-prefix:
-
-    required: true
-
-    description: Release tag prefix
-
-
-  release-files:
-
-    required: false
-
-    description: Release files
-
-
-
-runs:
-
-
-  using: composite
-
-
-  steps:
-
-
-
-    - name: Prepare release directory
-
-      shell: bash
-
-      run: |
-
-        set -eux
-
-
-        rm -rf downloaded
-
-        mkdir -p downloaded
-
-
-        mkdir -p public
-
-
-        mkdir -p public/firmware
-
-
-        mkdir -p public/packages
-
-
-
-
-
-
-    - name: Download workflow artifacts
-
+    - name: Download x86 packages
       uses: actions/download-artifact@v4
-
       with:
-
-
+        pattern: target-packages-x86*
         path: downloaded
 
 
+    - name: Download filogic packages
+      uses: actions/download-artifact@v4
+      with:
+        pattern: target-packages-*
+        path: downloaded
+
+
+    - name: Show artifacts
+      run: |
+
+        echo "===== Artifact list ====="
+
+        find downloaded -type f | sort
 
 
 
+    # 创建 apk feed 目录
 
-    - name: Check downloaded artifacts
+    - name: Prepare APK repository
 
       shell: bash
 
       run: |
 
-        set +e
+        mkdir -p public/packages/x86_64/targets/x86/64
 
-
-        echo "=============================="
-
-        echo "Downloaded artifacts"
-
-        echo "=============================="
-
-
-        if [ -d downloaded ]; then
-
-          find downloaded -type f
-
-        else
-
-          echo "No downloaded directory"
-
-        fi
+        mkdir -p public/packages/aarch64_cortex-a53/targets/mediatek/filogic
 
 
 
+        echo "Copy x86 target packages"
+
+        find downloaded \
+        -path "*x86*" \
+        -type f \
+        -exec cp {} public/packages/x86_64/targets/x86/64/ \;
 
 
 
-    - name: Collect firmware
+        echo "Copy filogic target packages"
 
-      shell: bash
-
-      run: |
-
-        set -eux
-
-
-        if [ -d downloaded ]; then
-
-
-          echo "Collect firmware"
-
-
-          find downloaded -type f \( -name "*.bin" -o -name "*.img" -o -name "*.manifest" -o -name "*sha256sums" -o -name "*.buildinfo" \) -exec cp --parents {} public/firmware/ \;
-
-
-        else
-
-
-          echo "No artifacts"
-
-
-        fi
+        find downloaded \
+        -path "*filogic*" \
+        -type f \
+        -exec cp {} public/packages/aarch64_cortex-a53/targets/mediatek/filogic/ \;
 
 
 
+    # 检查目录
 
-
-
-    - name: Collect APK packages
-
-      shell: bash
+    - name: Check APK feed
 
       run: |
 
-        set -eux
-
-
-        echo "===== APK packages ====="
-
-
-        if [ -d downloaded ]; then
-
-
-          find downloaded -type f -name "*.apk" -exec cp --parents {} public/packages/ \;
-
-
-        else
-
-
-          echo "No apk source"
-
-
-        fi
+        tree public || true
 
 
 
+    # 发布 Pages
 
+    - name: Deploy GitHub Pages
 
-
-    - name: Collect packages adb
-
-      shell: bash
-
-      run: |
-
-        set -eux
-
-
-        echo "===== packages.adb ====="
-
-
-        if [ -d downloaded ]; then
-
-
-          find downloaded -type f -name "packages.adb" -exec cp --parents {} public/packages/ \;
-
-
-        else
-
-
-          echo "No adb files"
-
-
-        fi
-
-
-
-
-
-
-    - name: Show release files
-
-      shell: bash
-
-      run: |
-
-        set +e
-
-
-        echo "=============================="
-
-        echo "Release content"
-
-        echo "=============================="
-
-
-        find public -type f
-
-
-
-
-
-
-    - name: Create Release
-
-      uses: softprops/action-gh-release@v2
-
+      uses: peaceiris/actions-gh-pages@v4
 
       with:
 
+        github_token: ${{ secrets.GITHUB_TOKEN }}
 
-        tag_name: ${{ inputs.release-tag-prefix }}-${{ github.run_number }}
+        publish_dir: ./public
 
-
-        name: "${{ inputs.release-tag-prefix }} Build ${{ github.run_number }}"
-
-
-        files: |
-
-          public/**
-
-
-      env:
-
-
-        GITHUB_TOKEN: ${{ github.token }}
+        force_orphan: true
