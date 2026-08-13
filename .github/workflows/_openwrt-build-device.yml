@@ -113,7 +113,7 @@ on:
       release:
 
 
-        description: Create GitHub Release
+        description: Create GitHub release
 
 
         required: false
@@ -123,6 +123,15 @@ on:
 
 
         type: boolean
+
+
+
+
+
+permissions:
+
+
+  contents: write
 
 
 
@@ -155,15 +164,6 @@ jobs:
 
 
 
-    permissions:
-
-
-      contents: write
-
-
-
-
-
     steps:
 
 
@@ -189,9 +189,6 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo rm -rf /usr/share/dotnet || true
 
 
@@ -201,13 +198,7 @@ jobs:
           sudo rm -rf /opt/ghc || true
 
 
-
-
-
           sudo docker image prune -af || true
-
-
-
 
 
           df -hT
@@ -228,70 +219,10 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo apt-get update
 
 
-
-
-
-          sudo apt-get install -y \
-
-
-            build-essential \
-
-
-            clang \
-
-
-            flex \
-
-
-            bison \
-
-
-            gawk \
-
-
-            gcc \
-
-
-            g++ \
-
-
-            gettext \
-
-
-            git \
-
-
-            libncurses-dev \
-
-
-            libssl-dev \
-
-
-            python3 \
-
-
-            rsync \
-
-
-            unzip \
-
-
-            wget \
-
-
-            zstd \
-
-
-            curl \
-
-
-            dos2unix
+          sudo apt-get install -y build-essential clang flex bison gawk gcc g++ gettext git ibncurses-dev libssl-dev python3 rsync unzip wget zstd curl dos2unix
 
 
 
@@ -315,25 +246,13 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           sudo mkdir -p /workdir
-
-
-
 
 
           sudo chown -R "${USER}:${USER}" /workdir
 
 
-
-
-
           rm -rf /workdir/openwrt
-
-
-
 
 
           ls -la /workdir
@@ -342,73 +261,38 @@ jobs:
 
       - name: Clone OpenWrt source
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
-
-
-
 
 
           cd /workdir
 
 
-
-
-
           echo "=============================="
-
 
           echo "Clone source"
 
-
           echo "=============================="
 
 
-
-
-
           git clone \
-
-
             --depth=1 \
-
-
             --branch "${{ inputs.repo_branch }}" \
-
-
             "${{ inputs.repo_url }}" \
-
-
             openwrt
-
-
 
 
 
           if [ ! -f "/workdir/openwrt/Makefile" ]; then
 
-
-
-
-
             echo "OpenWrt source clone failed"
-
 
             exit 1
 
-
-
-
-
           fi
-
-
 
 
 
@@ -416,24 +300,15 @@ jobs:
 
 
 
-
-
           echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
 
 
 
-
-
           echo "=============================="
 
-
-          echo "Source information"
-
+          echo "Source"
 
           echo "=============================="
-
-
-
 
 
           git log -1 --oneline
@@ -442,63 +317,19 @@ jobs:
 
 
 
-      - name: Check OpenWrt source
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          cd /workdir/openwrt
-
-
-
-
-
-          test -f Makefile
-
-
-
-
-
-          echo "OpenWrt source OK"
-
-
-
-
-
       - name: Update feeds
 
-
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
 
-
-
-
           cd /workdir/openwrt
-
-
-
 
 
           ./scripts/feeds update -a
-
-
 
 
 
@@ -506,69 +337,31 @@ jobs:
 
 
 
-
-
           for feed in feeds/*; do
-
-
-
-
 
             if [ -d "${feed}/.git" ]; then
 
-
-
-
-
               name=$(basename "${feed}")
 
+              (
 
+                cd "${feed}"
 
+                git rev-parse HEAD > "/workdir/openwrt/.github-feed-lock/${name}.commit"
 
-
-              cd "${feed}"
-
-
-
-
-
-              git rev-parse HEAD \
-
-
-                > "/workdir/openwrt/.github-feed-lock/${name}.commit"
-
-
-
-
-
-              cd /workdir/openwrt
-
-
-
-
+              )
 
             fi
-
-
-
-
 
           done
 
 
 
-
-
           echo "=============================="
-
 
           echo "Feed lock"
 
-
           echo "=============================="
-
-
-
 
 
           cat .github-feed-lock/* || true
@@ -579,23 +372,14 @@ jobs:
 
       - name: Install feeds
 
-
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
 
-
-
-
           cd /workdir/openwrt
-
-
-
 
 
           ./scripts/feeds install -a
@@ -606,22 +390,14 @@ jobs:
 
       - name: Load device config
 
-
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
 
-
-
-
           cd /workdir/openwrt
-
-
 
 
 
@@ -629,35 +405,19 @@ jobs:
 
 
 
-
-
-          echo "Config:"
-
+          echo "Config file:"
 
           echo "${CONFIG}"
 
 
 
-
-
           if [ ! -f "${CONFIG}" ]; then
-
-
-
-
 
             echo "Config file not found"
 
-
             exit 1
 
-
-
-
-
           fi
-
-
 
 
 
@@ -665,18 +425,11 @@ jobs:
 
 
 
-
-
           echo "=============================="
-
 
           echo "Target config"
 
-
           echo "=============================="
-
-
-
 
 
           grep "^CONFIG_TARGET" .config || true
@@ -687,39 +440,22 @@ jobs:
 
       - name: Enable docker packages
 
-
         if: inputs.docker == true
-
 
         shell: bash
 
-
         run: |
 
-
           set -euxo pipefail
-
-
-
 
 
           cd /workdir/openwrt
 
 
 
-
-
           if [ -f "${GITHUB_WORKSPACE}/config/docker.config" ]; then
 
-
-
-
-
             cat "${GITHUB_WORKSPACE}/config/docker.config" >> .config
-
-
-
-
 
           fi
 
@@ -729,22 +465,14 @@ jobs:
 
       - name: Generate config
 
-
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
 
-
-
-
           cd /workdir/openwrt
-
-
 
 
 
@@ -752,69 +480,41 @@ jobs:
 
 
 
-
-
           echo "=============================="
-
 
           echo "Final target"
 
-
           echo "=============================="
-
-
-
 
 
           grep "^CONFIG_TARGET.*=y" .config || true
 
 
 
-      - name: Generate cache key
 
+
+      - name: Generate cache key
 
         id: cache-key
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
-
-
-
 
 
           cd /workdir/openwrt
 
 
 
-
-
           HASH=$(sha256sum \
-
-
             .config \
-
-
             feeds.conf.default \
-
-
             .github-feed-lock/* \
-
-
             2>/dev/null \
-
-
             | sha256sum \
-
-
             | cut -d' ' -f1)
-
-
 
 
 
@@ -826,37 +526,22 @@ jobs:
 
       - name: Restore download cache
 
-
         uses: actions/cache@v4
-
 
         with:
 
 
+          path: |
 
+            /workdir/openwrt/dl
 
 
           key: ${{ steps.cache-key.outputs.key }}
 
 
-
-
-
           restore-keys: |
 
-
             openwrt-${{ inputs.device }}-
-
-
-
-
-
-          path: |
-
-
-            /workdir/openwrt/dl
-
-
 
 
 
@@ -872,10 +557,19 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           cd /workdir/openwrt
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Download packages"
+
+
+          echo "=============================="
 
 
 
@@ -914,9 +608,6 @@ jobs:
           set -euxo pipefail
 
 
-
-
-
           cd /workdir/openwrt
 
 
@@ -926,7 +617,7 @@ jobs:
           echo "=============================="
 
 
-          echo " Start Build "
+          echo "Start build"
 
 
           echo "=============================="
@@ -947,7 +638,7 @@ jobs:
 
 
 
-      - name: Check build output
+      - name: Check firmware output
 
 
         if: always()
@@ -962,9 +653,6 @@ jobs:
           set +e
 
 
-
-
-
           cd /workdir/openwrt
 
 
@@ -974,7 +662,7 @@ jobs:
           echo "=============================="
 
 
-          echo "Firmware"
+          echo "Firmware files"
 
 
           echo "=============================="
@@ -983,7 +671,7 @@ jobs:
 
 
 
-          if [ -d bin/targets ]; then
+          if [ -d "bin/targets" ]; then
 
 
 
@@ -991,12 +679,9 @@ jobs:
 
             find bin/targets \
 
-
               -maxdepth 5 \
 
-
               -type f \
-
 
               | sort
 
@@ -1010,7 +695,7 @@ jobs:
 
 
 
-            echo "No firmware directory"
+            echo "No firmware output"
 
 
 
@@ -1031,7 +716,7 @@ jobs:
           echo "=============================="
 
 
-          echo "APK Feed"
+          echo "APK Feed files"
 
 
           echo "=============================="
@@ -1042,21 +727,15 @@ jobs:
 
           find bin \
 
-
             -type f \
-
 
             \( \
 
-
               -name "*.apk" \
-
 
               -o -name "packages.adb" \
 
-
             \) \
-
 
             | sort || true
 
