@@ -3,16 +3,21 @@ name: OpenWrt Build Device
 
 on:
 
+
   workflow_call:
+
 
     inputs:
 
 
       device:
 
+
         description: Device name
 
+
         required: true
+
 
         type: string
 
@@ -20,9 +25,12 @@ on:
 
       repo_url:
 
+
         description: OpenWrt source repository
 
+
         required: true
+
 
         type: string
 
@@ -30,9 +38,12 @@ on:
 
       repo_branch:
 
+
         description: OpenWrt source branch
 
+
         required: true
+
 
         type: string
 
@@ -40,9 +51,12 @@ on:
 
       config_file:
 
+
         description: Device config file
 
+
         required: true
+
 
         type: string
 
@@ -50,11 +64,15 @@ on:
 
       install_automake_117:
 
+
         description: Install automake
+
 
         required: false
 
+
         default: "false"
+
 
         type: string
 
@@ -62,11 +80,15 @@ on:
 
       sonic_fullcone:
 
+
         description: Enable sonic fullcone
+
 
         required: false
 
+
         default: "false"
+
 
         type: string
 
@@ -74,11 +96,15 @@ on:
 
       docker:
 
+
         description: Enable docker packages
+
 
         required: false
 
+
         default: false
+
 
         type: boolean
 
@@ -86,11 +112,15 @@ on:
 
       release:
 
-        description: Create GitHub release
+
+        description: Create GitHub Release
+
 
         required: false
 
+
         default: false
+
 
         type: boolean
 
@@ -102,9 +132,6 @@ env:
 
 
   TZ: Asia/Shanghai
-
-
-  OPENWRT_PATH: /workdir/openwrt
 
 
 
@@ -167,13 +194,19 @@ jobs:
 
           sudo rm -rf /usr/share/dotnet || true
 
+
           sudo rm -rf /usr/local/lib/android || true
+
 
           sudo rm -rf /opt/ghc || true
 
 
 
+
+
           sudo docker image prune -af || true
+
+
 
 
 
@@ -206,39 +239,57 @@ jobs:
 
           sudo apt-get install -y \
 
+
             build-essential \
+
 
             clang \
 
+
             flex \
+
 
             bison \
 
+
             gawk \
+
 
             gcc \
 
+
             g++ \
+
 
             gettext \
 
+
             git \
+
 
             libncurses-dev \
 
+
             libssl-dev \
+
 
             python3 \
 
+
             rsync \
+
 
             unzip \
 
+
             wget \
+
 
             zstd \
 
+
             curl \
+
 
             dos2unix
 
@@ -270,13 +321,22 @@ jobs:
           sudo mkdir -p /workdir
 
 
-          sudo chown "${USER}:${USER}" /workdir
+
+
+
+          sudo chown -R "${USER}:${USER}" /workdir
 
 
 
 
 
-          rm -rf "${OPENWRT_PATH}"
+          rm -rf /workdir/openwrt
+
+
+
+
+
+          ls -la /workdir
 
 
 
@@ -284,9 +344,6 @@ jobs:
 
 
         shell: bash
-
-
-        working-directory: /workdir
 
 
         run: |
@@ -298,45 +355,7 @@ jobs:
 
 
 
-          rm -rf openwrt
-
-
-
-
-
-          git clone \
-
-            --depth=1 \
-
-            --branch "${{ inputs.repo_branch }}" \
-
-            "${{ inputs.repo_url }}" \
-
-            openwrt
-
-
-
-
-
-          test -f openwrt/Makefile
-
-
-
-
-
-          cd openwrt
-
-
-
-
-
-          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
-
-
-
-
-
-          echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+          cd /workdir
 
 
 
@@ -345,7 +364,70 @@ jobs:
           echo "=============================="
 
 
-          echo "Source"
+          echo "Clone source"
+
+
+          echo "=============================="
+
+
+
+
+
+          git clone \
+
+
+            --depth=1 \
+
+
+            --branch "${{ inputs.repo_branch }}" \
+
+
+            "${{ inputs.repo_url }}" \
+
+
+            openwrt
+
+
+
+
+
+          if [ ! -f "/workdir/openwrt/Makefile" ]; then
+
+
+
+
+
+            echo "OpenWrt source clone failed"
+
+
+            exit 1
+
+
+
+
+
+          fi
+
+
+
+
+
+          cd /workdir/openwrt
+
+
+
+
+
+          echo "OPENWRT_COMMIT=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Source information"
 
 
           echo "=============================="
@@ -360,19 +442,55 @@ jobs:
 
 
 
-      - name: Update feeds
+      - name: Check OpenWrt source
 
 
         shell: bash
-
-
-        working-directory: ${{ env.OPENWRT_PATH }}
 
 
         run: |
 
 
           set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
+
+
+
+
+
+          test -f Makefile
+
+
+
+
+
+          echo "OpenWrt source OK"
+
+
+
+
+
+      - name: Update feeds
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -408,13 +526,22 @@ jobs:
 
 
 
-              (
+              cd "${feed}"
 
-                cd "${feed}"
 
-                git rev-parse HEAD > "../..//.github-feed-lock/${name}.commit"
 
-              )
+
+
+              git rev-parse HEAD \
+
+
+                > "/workdir/openwrt/.github-feed-lock/${name}.commit"
+
+
+
+
+
+              cd /workdir/openwrt
 
 
 
@@ -456,13 +583,16 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
           set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -480,13 +610,16 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
           set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -498,7 +631,7 @@ jobs:
 
 
 
-          echo "Config file:"
+          echo "Config:"
 
 
           echo "${CONFIG}"
@@ -513,7 +646,7 @@ jobs:
 
 
 
-            echo "Config file missing"
+            echo "Config file not found"
 
 
             exit 1
@@ -552,7 +685,7 @@ jobs:
 
 
 
-      - name: Enable docker
+      - name: Enable docker packages
 
 
         if: inputs.docker == true
@@ -561,13 +694,16 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
           set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -597,13 +733,16 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
           set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -631,8 +770,6 @@ jobs:
 
 
 
-
-
       - name: Generate cache key
 
 
@@ -651,17 +788,29 @@ jobs:
 
 
 
+          cd /workdir/openwrt
+
+
+
+
+
           HASH=$(sha256sum \
 
-            "${OPENWRT_PATH}/.config" \
 
-            "${OPENWRT_PATH}/feeds.conf.default" \
+            .config \
 
-            ${OPENWRT_PATH}/.github-feed-lock/* \
+
+            feeds.conf.default \
+
+
+            .github-feed-lock/* \
+
 
             2>/dev/null \
 
+
             | sha256sum \
+
 
             | cut -d' ' -f1)
 
@@ -669,7 +818,7 @@ jobs:
 
 
 
-          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> $GITHUB_OUTPUT
+          echo "key=openwrt-${{ inputs.device }}-${HASH}" >> "${GITHUB_OUTPUT}"
 
 
 
@@ -709,19 +858,24 @@ jobs:
 
 
 
+
+
       - name: Download packages
 
 
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
           set -euxo pipefail
+
+
+
+
+
+          cd /workdir/openwrt
 
 
 
@@ -734,18 +888,6 @@ jobs:
 
 
           find dl -size -1024c -delete
-
-
-
-
-
-          echo "=============================="
-
-
-          echo "Download cache size"
-
-
-          echo "=============================="
 
 
 
@@ -766,9 +908,6 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
@@ -778,10 +917,16 @@ jobs:
 
 
 
+          cd /workdir/openwrt
+
+
+
+
+
           echo "=============================="
 
 
-          echo " Start OpenWrt Build "
+          echo " Start Build "
 
 
           echo "=============================="
@@ -796,7 +941,7 @@ jobs:
 
 
 
-          echo "compile=success" >> $GITHUB_OUTPUT
+          echo "compile=success" >> "${GITHUB_OUTPUT}"
 
 
 
@@ -811,9 +956,6 @@ jobs:
         shell: bash
 
 
-        working-directory: ${{ env.OPENWRT_PATH }}
-
-
         run: |
 
 
@@ -823,10 +965,16 @@ jobs:
 
 
 
+          cd /workdir/openwrt
+
+
+
+
+
           echo "=============================="
 
 
-          echo " Firmware output "
+          echo "Firmware"
 
 
           echo "=============================="
@@ -843,9 +991,12 @@ jobs:
 
             find bin/targets \
 
+
               -maxdepth 5 \
 
+
               -type f \
+
 
               | sort
 
@@ -859,7 +1010,7 @@ jobs:
 
 
 
-            echo "No firmware output"
+            echo "No firmware directory"
 
 
 
@@ -880,7 +1031,7 @@ jobs:
           echo "=============================="
 
 
-          echo " APK Feed files "
+          echo "APK Feed"
 
 
           echo "=============================="
@@ -891,15 +1042,21 @@ jobs:
 
           find bin \
 
+
             -type f \
+
 
             \( \
 
+
               -name "*.apk" \
+
 
               -o -name "packages.adb" \
 
+
             \) \
+
 
             | sort || true
 
@@ -965,10 +1122,6 @@ jobs:
 
 
           name: ${{ inputs.device }}-apk-feed-${{ github.run_number }}
-
-
-
-
 
 
 
@@ -1184,32 +1337,7 @@ jobs:
 
 
 
-          echo "Target:"
-
-
-
-
-
-          grep "^CONFIG_TARGET.*=y" \
-
-            "${OPENWRT_PATH}/.config" \
-
-            || true
-
-
-
-
-
-          echo ""
-
-
-
-
-
           echo "Disk usage:"
-
-
-
 
 
           df -hT
