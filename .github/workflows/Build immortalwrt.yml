@@ -1,4 +1,4 @@
-name: Build immortalWrt x86_64
+name: Build ImmortalWrt x86_64
 
 
 on:
@@ -28,19 +28,22 @@ on:
 
 
 
-      tag2:
+  schedule:
 
 
-        description: Branch or Tag
+    - cron: "0 2 1 * *"
 
 
-        required: false
 
 
-        default: master
+
+concurrency:
 
 
-        type: string
+  group: immortalwrt-x86_64-build
+
+
+  cancel-in-progress: true
 
 
 
@@ -49,7 +52,7 @@ on:
 permissions:
 
 
-  contents: read
+  contents: write
 
 
 
@@ -59,10 +62,41 @@ jobs:
 
 
 
-
-
   build:
 
+
+
+    strategy:
+
+
+      fail-fast: false
+
+
+
+
+
+      matrix:
+
+
+        include:
+
+
+
+
+
+          - device: x86_64
+
+
+            repo_url: https://github.com/immortalwrt/immortalwrt.git
+
+
+            repo_branch: master
+
+
+            config_file: config/immortalwrt.config
+
+
+            sonic_fullcone: "false"
 
 
 
@@ -70,49 +104,28 @@ jobs:
     uses: ./.github/workflows/_openwrt-build-device.yml
 
 
-
-
-
     with:
 
 
+      device: ${{ matrix.device }}
 
 
-
-      device: immortalwrt-x86_64
-
+      repo_url: ${{ matrix.repo_url }}
 
 
+      repo_branch: ${{ matrix.repo_branch }}
 
 
-      repo_url: https://github.com/immortalwrt/immortalwrt.git
+      config_file: ${{ matrix.config_file }}
 
 
+      install_automake_117: "true"
 
 
-
-      repo_branch: ${{ inputs.tag2 }}
-
+      sonic_fullcone: ${{ matrix.sonic_fullcone }}
 
 
+      docker: ${{ inputs.docker }}
 
 
-      config_file: config/immortalwrt.config
-
-
-
-
-
-      docker: ${{ inputs.docker && 'true' || 'false' }}
-
-
-
-
-
-      sonic_fullcone: "false"
-
-
-
-
-
-      install_automake_117: "false"
+      release: true
