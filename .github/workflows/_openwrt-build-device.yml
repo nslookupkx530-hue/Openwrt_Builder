@@ -549,13 +549,6 @@ jobs:
             /workdir/openwrt/dl
 
 
-            /workdir/openwrt/build_dir
-
-
-            /workdir/openwrt/staging_dir
-
-
-
 
 
           key: ${{ steps.cache.outputs.key }}
