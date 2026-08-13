@@ -191,14 +191,10 @@ jobs:
 
 
           git clone \
-
             --branch gh-pages \
-
             --single-branch \
-
             https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git \
-
-           gh-pages || mkdir -p gh-pages
+            gh-pages || mkdir -p gh-pages
 
 
 
@@ -213,7 +209,7 @@ jobs:
           echo "=============================="
 
 
-          find gh-pages -maxdepth 2 -type d | sort || true
+          find gh-pages -maxdepth 2 -type d -print | sort || true
 
 
 
@@ -310,9 +306,7 @@ jobs:
 
 
           cp -rf gh-pages/latest/. \
-
             "gh-pages/archive/${FEED_VERSION}/" \
-
             || true
 
 
@@ -489,8 +483,6 @@ jobs:
 
 
           git commit \
-
-
             -m "Update OpenWrt APK feed ${FEED_VERSION}"
 
 
