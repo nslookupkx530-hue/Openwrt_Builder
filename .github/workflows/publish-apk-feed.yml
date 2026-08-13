@@ -1,10 +1,7 @@
-name: Publish OpenWrt APK Feed
+name: OpenWrt Publish Feed
 
 
 on:
-
-
-  workflow_dispatch:
 
 
   workflow_run:
@@ -13,13 +10,8 @@ on:
     workflows:
 
 
-      - Build x86
-
-
       - Build filogic
-
-
-      - Build ImmortalWrt x86_64
+      - Build immortalWrt x86_64
 
 
     types:
@@ -37,33 +29,18 @@ permissions:
   contents: write
 
 
-  pages: write
-
-
-  id-token: write
-
-
 
 
 
 jobs:
 
 
-  publish-apk-feed:
+
+  publish:
 
 
 
-    name: Publish APK Feed
-
-
-
-    if: >-
-
-
-      github.event_name == 'workflow_dispatch' ||
-
-
-      github.event.workflow_run.conclusion == 'success'
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
 
 
@@ -77,9 +54,7 @@ jobs:
 
 
 
-
-
-      - name: Checkout
+      - name: Checkout repository
 
 
         uses: actions/checkout@v4
@@ -88,43 +63,7 @@ jobs:
 
 
 
-      - name: Prepare directories
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          rm -rf downloaded
-
-
-          rm -rf public
-
-
-
-
-
-          mkdir -p downloaded
-
-
-
-
-
-          mkdir -p public/packages
-
-
-
-
-
-      - name: Download APK artifacts
+      - name: Download build artifacts
 
 
         uses: actions/download-artifact@v4
@@ -133,19 +72,19 @@ jobs:
         with:
 
 
-          pattern: "*apk*"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
+          run-id: ${{ github.event.workflow_run.id }}
 
 
           path: downloaded
 
 
-          merge-multiple: false
 
 
 
-
-
-      - name: Show downloaded artifacts
+      - name: Check artifacts
 
 
         shell: bash
@@ -157,9 +96,6 @@ jobs:
           set +e
 
 
-
-
-
           echo "=============================="
 
 
@@ -169,49 +105,25 @@ jobs:
           echo "=============================="
 
 
+          if [ -d downloaded ]; then
 
 
-
-          find downloaded -type f | sort || true
-
+            find downloaded -type f | sort
 
 
+          else
 
 
-      - name: Create package directories
+            echo "No artifacts found"
 
 
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
+          fi
 
 
 
 
 
-          mkdir -p \
-
-
-            public/packages/x86_64/targets/x86/64
-
-
-
-
-
-          mkdir -p \
-
-
-            public/packages/aarch64_cortex-a53/targets/mediatek/filogic
-
-
-
-
-
-      - name: Collect x86 packages
+      - name: Prepare version information
 
 
         shell: bash
@@ -226,110 +138,230 @@ jobs:
 
 
 
-          echo "========== x86 packages =========="
+          DATE=$(date +%Y-%m-%d)
+
+
+          RUN_ID="${{ github.event.workflow_run.id }}"
 
 
 
 
 
-          find downloaded \
+          echo "FEED_DATE=${DATE}" >> $GITHUB_ENV
 
 
-            -type f \
+          echo "FEED_VERSION=${DATE}-${RUN_ID}" >> $GITHUB_ENV
 
 
-            \(
 
+
+
+          echo "=============================="
+
+
+          echo "Feed version"
+
+
+          echo "${DATE}-${RUN_ID}"
+
+
+          echo "=============================="
+
+
+
+      - name: Prepare gh-pages workspace
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          rm -rf gh-pages
+
+
+
+
+
+          git clone \
+
+            --branch gh-pages \
+
+            --single-branch \
+
+            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git \
+
+            gh-pages \
+
+            || mkdir -p gh-pages
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Existing gh-pages"
+
+
+          echo "=============================="
+
+
+          find gh-pages -maxdepth 2 -type d | sort || true
+
+
+
+
+
+      - name: Create feed directories
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          mkdir -p gh-pages/latest
+
+
+
+
+
+          mkdir -p "gh-pages/archive/${FEED_VERSION}"
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Create version"
+
+
+          echo "${FEED_VERSION}"
+
+
+          echo "=============================="
+
+
+
+
+
+      - name: Copy APK feed files
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Collect APK files"
+
+
+          echo "=============================="
+
+
+          if [ -d downloaded ]; then
+
+
+
+
+
+            find downloaded \
+
+              -type f \
 
               -name "*.apk" \
 
-
-              -o -name "packages.adb"
-
-
-            \) \
-
-
-            | grep -E "x86_64|x86" \
-
-
-            | while read file
-
-
-              do
-
-
-                cp "$file" \
-
-
-                public/packages/x86_64/targets/x86/64/
-
-
-              done || true
-
-
-
-      - name: Collect filogic packages
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
+              -exec cp -f {} gh-pages/latest/ \;
 
 
 
 
 
-          echo "========== filogic packages =========="
+            find downloaded \
+
+              -type f \
+
+              -name "packages.adb" \
+
+              -exec cp -f {} gh-pages/latest/ \;
 
 
 
 
 
-          find downloaded \
-
-
-            -type f \
-
-
-            \(
-
-
-              -name "*.apk" \
-
-
-              -o -name "packages.adb"
-
-
-            \) \
-
-
-            | grep -E "aarch64|filogic|mediatek" \
-
-
-            | while read file
-
-
-              do
-
-
-                cp "$file" \
-
-
-                public/packages/aarch64_cortex-a53/targets/mediatek/filogic/
-
-
-              done || true
+          fi
 
 
 
 
 
-      - name: Collect all APK files
+          cp -rf gh-pages/latest/. \
+
+            "gh-pages/archive/${FEED_VERSION}/" \
+
+            || true
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Latest feed"
+
+
+          echo "=============================="
+
+
+          find gh-pages/latest -type f | sort || true
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Archive feed"
+
+
+          echo "=============================="
+
+
+          find "gh-pages/archive/${FEED_VERSION}" -type f | sort || true
+
+
+
+      - name: Generate feed index
 
 
         shell: bash
@@ -344,34 +376,91 @@ jobs:
 
 
 
-          echo "========== all apk files =========="
+          cat > gh-pages/index.html <<EOF
+
+
+          <!DOCTYPE html>
+
+
+          <html>
+
+
+          <head>
+
+
+          <meta charset="utf-8">
+
+
+          <title>OpenWrt APK Feed</title>
+
+
+          </head>
+
+
+          <body>
+
+
+          <h1>OpenWrt APK Feed</h1>
+
+
+          <h2>Latest</h2>
+
+
+          <ul>
+
+
+          <li><a href="latest/">latest feed</a></li>
+
+
+          </ul>
+
+
+          <h2>Archive</h2>
+
+
+          <ul>
+
+
+          <li><a href="archive/${FEED_VERSION}/">${FEED_VERSION}</a></li>
+
+
+          </ul>
+
+
+          </body>
+
+
+          </html>
+
+
+          EOF
 
 
 
 
 
-          find downloaded \
+          echo "=============================="
 
 
-            -type f \
+          echo "Feed index"
 
 
-            -name "*.apk" \
+          echo "=============================="
 
 
-            -exec cp --parents {} public/packages/ \;
-
-
-          true
+          cat gh-pages/index.html
 
 
 
 
 
-      - name: Collect all packages database
+      - name: Commit and publish gh-pages
 
 
         shell: bash
+
+
+        working-directory: gh-pages
 
 
         run: |
@@ -383,31 +472,55 @@ jobs:
 
 
 
-          echo "========== packages.adb =========="
+          git config user.name "github-actions"
+
+
+          git config user.email "github-actions@github.com"
 
 
 
 
 
-          find downloaded \
-
-
-            -type f \
-
-
-            -name "packages.adb" \
-
-
-            -exec cp --parents {} public/packages/ \;
-
-
-          true
+          git add .
 
 
 
 
 
-      - name: Generate package index
+          if git diff --cached --quiet; then
+
+
+            echo "No changes"
+
+
+            exit 0
+
+
+          fi
+
+
+
+
+
+          git commit \
+
+
+            -m "Update OpenWrt APK feed ${FEED_VERSION}"
+
+
+
+
+
+          git push origin gh-pages
+
+
+
+
+
+      - name: Publish summary
+
+
+        if: always()
 
 
         shell: bash
@@ -416,40 +529,55 @@ jobs:
         run: |
 
 
-          set -euxo pipefail
+          echo "================================"
+
+
+          echo " OpenWrt APK Feed Publish "
+
+
+          echo "================================"
 
 
 
 
 
-          echo "========== package tree =========="
+          echo "Source workflow:"
+
+
+          echo "${{ github.event.workflow_run.name }}"
 
 
 
 
 
-          find public -type f | sort
+          echo ""
+
+
+          echo "Feed version:"
+
+
+          echo "${FEED_VERSION}"
 
 
 
 
 
-      - name: Upload Pages artifact
+          echo ""
 
 
-        uses: actions/upload-pages-artifact@v3
+          echo "Latest feed:"
 
 
-        with:
-
-
-          path: public
+          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/latest/"
 
 
 
 
 
-      - name: Deploy GitHub Pages
+          echo ""
 
 
-        uses: actions/deploy-pages@v4
+          echo "Archive feed:"
+
+
+          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/archive/${FEED_VERSION}/"
