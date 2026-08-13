@@ -198,9 +198,7 @@ jobs:
 
             https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git \
 
-            gh-pages \
-
-            || mkdir -p gh-pages
+           gh-pages || mkdir -p gh-pages
 
 
 
@@ -293,25 +291,13 @@ jobs:
 
 
 
-            find downloaded \
-
-              -type f \
-
-              -name "*.apk" \
-
-              -exec cp -f {} gh-pages/latest/ \;
+            find downloaded -type f -name "*.apk" -exec cp -f {} gh-pages/latest/ \;
 
 
 
 
 
-            find downloaded \
-
-              -type f \
-
-              -name "packages.adb" \
-
-              -exec cp -f {} gh-pages/latest/ \;
+            find downloaded -type f -name "packages.adb" -exec cp -f {} gh-pages/latest/ \;
 
 
 
