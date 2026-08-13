@@ -31,7 +31,7 @@ on:
   schedule:
 
 
-    - cron: "0 2 1 * *"
+    - cron: "0 2 */4 * *"
 
 
 
@@ -52,7 +52,7 @@ concurrency:
 permissions:
 
 
-  contents: read
+  contents: write
 
 
 
@@ -62,11 +62,7 @@ jobs:
 
 
 
-
-
   build:
-
-
 
 
 
@@ -123,53 +119,31 @@ jobs:
 
 
 
-
     uses: ./.github/workflows/_openwrt-build-device.yml
-
-
-
 
 
     with:
 
 
-
-
-
       device: ${{ matrix.device }}
-
-
-
 
 
       repo_url: ${{ matrix.repo_url }}
 
 
-
-
-
       repo_branch: ${{ matrix.repo_branch }}
-
-
-
 
 
       config_file: ${{ matrix.config_file }}
 
 
-
-
-
       install_automake_117: "true"
-
-
-
 
 
       sonic_fullcone: ${{ matrix.sonic_fullcone }}
 
 
-
-
-
       docker: ${{ inputs.docker }}
+
+
+      release: true
