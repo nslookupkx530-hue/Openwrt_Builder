@@ -4,25 +4,19 @@ name: OpenWrt Publish Feed
 on:
 
 
-  workflow_dispatch:
-
-
-
-
-
   workflow_run:
 
 
     workflows:
 
 
-      - Build x86
-
-
       - Build filogic
 
 
-      - Build ImmortalWrt x86_64
+      - Build immortalWrt x86_64
+
+
+
 
 
     types:
@@ -40,15 +34,6 @@ permissions:
   contents: write
 
 
-  actions: write
-
-
-  pages: write
-
-
-  id-token: write
-
-
 
 
 
@@ -58,21 +43,15 @@ jobs:
 
 
 
-  collect-feed:
+  publish:
 
 
 
-    name: Collect OpenWrt APK Feed
 
 
-
-    if: >-
-
-
-      github.event_name == 'workflow_dispatch' ||
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
 
-      github.event.workflow_run.conclusion == 'success'
 
 
 
@@ -88,7 +67,7 @@ jobs:
 
 
 
-      - name: Checkout
+      - name: Checkout repository
 
 
         uses: actions/checkout@v4
@@ -97,28 +76,31 @@ jobs:
 
 
 
-      - name: Download all build artifacts
+      - name: Download build artifacts
 
 
         uses: actions/download-artifact@v4
 
 
+
+
+
         with:
-
-
-          pattern: "*apk*"
 
 
           path: downloaded
 
 
-          merge-multiple: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
+          run-id: ${{ github.event.workflow_run.id }}
 
 
 
 
 
-      - name: Show artifacts
+      - name: Check downloaded artifacts
 
 
         shell: bash
@@ -145,52 +127,25 @@ jobs:
 
 
 
-          find downloaded -type f | sort
+          if [ -d downloaded ]; then
+
+
+            find downloaded -type f | sort
+
+
+          else
+
+
+            echo "No downloaded directory"
+
+
+          fi
 
 
 
 
 
-      - name: Prepare feed workspace
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          rm -rf feed
-
-
-
-
-
-          mkdir -p feed
-
-
-
-
-
-          mkdir -p feed/packages/x86_64/targets/x86/64
-
-
-
-
-
-          mkdir -p feed/packages/aarch64_cortex-a53/targets/mediatek/filogic
-
-
-
-
-
-      - name: Collect x86 packages
+      - name: Prepare APK feed
 
 
         shell: bash
@@ -205,172 +160,13 @@ jobs:
 
 
 
-          echo "========== x86 =========="
+          rm -rf publish-feed
 
 
 
 
 
-          find downloaded \
-
-
-            -type f \
-
-
-            \(
-
-
-              -name "*.apk" \
-
-
-              -o -name "packages.adb"
-
-
-            \) \
-
-
-            | grep -E "x86|x86_64" \
-
-
-            | while read file
-
-
-              do
-
-
-                cp "$file" \
-
-
-                feed/packages/x86_64/targets/x86/64/
-
-
-              done || true
-
-
-
-
-
-      - name: Collect filogic packages
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          echo "========== filogic =========="
-
-
-
-
-
-          find downloaded \
-
-
-            -type f \
-
-
-            \(
-
-
-              -name "*.apk" \
-
-
-              -o -name "packages.adb"
-
-
-            \) \
-
-
-            | grep -E "aarch64|filogic|mediatek" \
-
-
-            | while read file
-
-
-              do
-
-
-                cp "$file" \
-
-
-                feed/packages/aarch64_cortex-a53/targets/mediatek/filogic/
-
-
-              done || true
-
-
-
-
-
-      - name: Copy all package files
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          find downloaded \
-
-
-            -type f \
-
-
-            -name "*.apk" \
-
-
-            -exec cp --parents {} feed/packages/ \;
-
-
-          true
-
-
-
-
-
-          find downloaded \
-
-
-            -type f \
-
-
-            -name "packages.adb" \
-
-
-            -exec cp --parents {} feed/packages/ \;
-
-
-          true
-
-
-
-
-
-      - name: Check final feed
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set +e
+          mkdir -p publish-feed
 
 
 
@@ -379,7 +175,7 @@ jobs:
           echo "=============================="
 
 
-          echo "FINAL FEED"
+          echo "Copy APK files"
 
 
           echo "=============================="
@@ -388,58 +184,227 @@ jobs:
 
 
 
-          find feed -type f | sort
+          if [ -d downloaded ]; then
+
+
+            find downloaded -type f -name "*.apk" -exec cp {} publish-feed/ \;
+
+
+          fi
 
 
 
 
 
-      - name: Upload merged feed
+          if [ -d downloaded ]; then
 
 
-        uses: actions/upload-artifact@v4
+            find downloaded -type f -name "packages.adb" -exec cp {} publish-feed/ \;
+
+
+          fi
+
+
+
+
+
+          echo "Feed files:"
+
+
+
+
+
+          find publish-feed -type f | sort || true
+
+
+
+      - name: Generate APK index
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          cd publish-feed
+
+
+
+
+
+          if command -v apk; then
+
+
+            echo "apk tool exists"
+
+
+          else
+
+
+            echo "apk tool not found"
+
+
+          fi
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Feed content"
+
+
+          echo "=============================="
+
+
+
+
+
+          ls -lah
+
+
+
+
+
+      - name: Prepare Pages directory
+
+
+        shell: bash
+
+
+        run: |
+
+
+          set -euxo pipefail
+
+
+
+
+
+          mkdir -p pages
+
+
+
+
+
+          cp -r publish-feed/* pages/ || true
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Pages content"
+
+
+          echo "=============================="
+
+
+
+
+
+          find pages -type f | sort || true
+
+
+
+
+
+      - name: Publish APK feed to gh-pages
+
+
+        uses: peaceiris/actions-gh-pages@v4
+
+
+
 
 
         with:
 
 
-          name: merged-openwrt-apk-feed
-
-
-          path: feed
-
-
-          retention-days: 30
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
 
 
 
 
-      - name: Call publish workflow
+          publish_dir: pages
 
 
-        uses: actions/github-script@v7
 
 
-        with:
+
+          publish_branch: gh-pages
 
 
-          script: |
 
 
-            await github.rest.actions.createWorkflowDispatch({
+
+          force_orphan: false
 
 
-              owner: context.repo.owner,
 
 
-              repo: context.repo.repo,
+
+      - name: Publish summary
 
 
-              workflow_id: "publish-apk-feed.yml",
+        if: always()
 
 
-              ref: "main"
+        shell: bash
 
 
-            })
+        run: |
+
+
+          echo "================================"
+
+
+          echo " OpenWrt APK Feed Publish "
+
+
+          echo "================================"
+
+
+
+
+
+          echo "Source workflow:"
+
+
+          echo "${{ github.event.workflow_run.name }}"
+
+
+
+
+
+          echo "Run ID:"
+
+
+          echo "${{ github.event.workflow_run.id }}"
+
+
+
+
+
+          echo ""
+
+
+
+
+
+          echo "Published branch:"
+
+
+          echo "gh-pages"
