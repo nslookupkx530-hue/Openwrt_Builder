@@ -28,6 +28,24 @@ on:
 
 
 
+      release:
+
+
+        description: Create GitHub release
+
+
+        required: false
+
+
+        default: false
+
+
+        type: boolean
+
+
+
+
+
   schedule:
 
 
@@ -118,8 +136,10 @@ jobs:
 
 
 
-
     uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+
 
 
     with:
@@ -128,22 +148,43 @@ jobs:
       device: ${{ matrix.device }}
 
 
+
+
+
       repo_url: ${{ matrix.repo_url }}
+
+
+
 
 
       repo_branch: ${{ matrix.repo_branch }}
 
 
+
+
+
       config_file: ${{ matrix.config_file }}
+
+
+
 
 
       install_automake_117: "true"
 
 
+
+
+
       sonic_fullcone: ${{ matrix.sonic_fullcone }}
+
+
+
 
 
       docker: ${{ inputs.docker }}
 
 
-      release: true
+
+
+
+      release: ${{ inputs.release }}
