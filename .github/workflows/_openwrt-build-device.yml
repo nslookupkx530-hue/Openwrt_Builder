@@ -12,9 +12,7 @@ on:
 
       device:
 
-
         required: true
-
 
         type: string
 
@@ -22,9 +20,7 @@ on:
 
       repo_url:
 
-
         required: true
-
 
         type: string
 
@@ -32,9 +28,7 @@ on:
 
       repo_branch:
 
-
         required: true
-
 
         type: string
 
@@ -42,9 +36,7 @@ on:
 
       config_file:
 
-
         required: true
-
 
         type: string
 
@@ -52,14 +44,41 @@ on:
 
       sonic_fullcone:
 
-
         required: false
-
 
         type: string
 
+        default: "false"
+
+
+
+      install_automake_117:
+
+        required: false
+
+        type: string
 
         default: "false"
+
+
+
+      docker:
+
+        required: false
+
+        type: boolean
+
+        default: false
+
+
+
+      release:
+
+        required: false
+
+        type: boolean
+
+        default: false
 
 
 
@@ -68,9 +87,7 @@ on:
 jobs:
 
 
-
   build:
-
 
 
     name: Build ${{ inputs.device }}
@@ -85,9 +102,7 @@ jobs:
     steps:
 
 
-
       - name: Checkout builder repository
-
 
         uses: actions/checkout@v4
 
@@ -97,18 +112,13 @@ jobs:
 
       - name: Install dependencies
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
 
-
           sudo apt-get update
-
 
           sudo apt-get install -y build-essential clang flex bison gawk gcc g++ gettext git libncurses-dev libssl-dev python3 rsync unzip wget zstd curl dos2unix
 
@@ -116,23 +126,31 @@ jobs:
 
 
 
-      - name: Clone OpenWrt source
+      - name: Install automake 1.17
 
+        if: ${{ inputs.install_automake_117 == 'true' }}
 
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
+          sudo apt-get install -y automake
+
+
+
+      - name: Clone OpenWrt source
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
 
           rm -rf /workdir
 
-
           mkdir -p /workdir
-
 
           git clone --depth=1 --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" /workdir/openwrt
 
@@ -142,49 +160,52 @@ jobs:
 
       - name: Prepare config
 
-
         shell: bash
-
 
         env:
 
-
           CONFIG_FILE: ${{ inputs.config_file }}
-
 
         run: |
 
-
           set -euxo pipefail
-
 
           cd /workdir/openwrt
 
 
+          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
+
+
           echo "Using config:"
 
+          echo "${CONFIG_PATH}"
 
-          echo "${{ github.workspace }}/${CONFIG_FILE}"
+
+          if [ ! -f "${CONFIG_PATH}" ]; then
+
+            echo "Config file not found"
+
+            exit 1
+
+          fi
 
 
-          cp "${{ github.workspace }}/${CONFIG_FILE}" .config
+          cp "${CONFIG_PATH}" .config
 
 
           make defconfig V=s
 
 
 
-      - name: Update feeds
 
+
+      - name: Update feeds
 
         shell: bash
 
-
         run: |
 
-
           set -euxo pipefail
-
 
           cd /workdir/openwrt
 
@@ -192,7 +213,7 @@ jobs:
           ./scripts/feeds update -a
 
 
-          ./scripts/feeds install -a
+          ./scripts/feeds install -a -f
 
 
 
@@ -200,18 +221,13 @@ jobs:
 
       - name: Enable sonic fullcone
 
-
         if: ${{ inputs.sonic_fullcone == 'true' }}
-
 
         shell: bash
 
-
         run: |
 
-
           set -euxo pipefail
-
 
           cd /workdir/openwrt
 
@@ -219,29 +235,19 @@ jobs:
           echo "Enable sonic fullcone"
 
 
-          grep -q "CONFIG_PACKAGE_smartdns" .config || true
-
-
-          echo "CONFIG_PACKAGE_luci-app-ssr-plus=y" >> .config || true
-
-
-          make defconfig
+          make defconfig V=s
 
 
 
 
 
-      - name: Prepare build
-
+      - name: Prepare build directory
 
         shell: bash
 
-
         run: |
 
-
           set -euxo pipefail
-
 
           cd /workdir/openwrt
 
@@ -253,22 +259,15 @@ jobs:
 
 
 
-
-
       - name: Build firmware
-
 
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
-
           cd /workdir/openwrt
-
 
           make -j$(nproc) V=s
 
@@ -276,45 +275,13 @@ jobs:
 
 
 
-      - name: Check build output
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-          cd /workdir/openwrt
-
-
-          echo "=============================="
-
-
-          echo "Build output"
-
-
-          echo "=============================="
-
-
-          find bin -type f | sort
-
-
-
       - name: Collect firmware
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
-
 
           cd /workdir/openwrt
 
@@ -325,28 +292,27 @@ jobs:
           find bin/targets -type f \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) -exec cp -f {} output/firmware/ \; || true
 
 
+          echo "Firmware files:"
+
+
+          find output/firmware -type f | sort
+
+
 
 
 
       - name: Collect APK feed
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
-
 
           cd /workdir/openwrt
 
 
           mkdir -p output/apk-feed
-
-
-
 
 
           find bin/packages -type f -name "*.apk" -exec cp -f {} output/apk-feed/ \; || true
@@ -355,10 +321,7 @@ jobs:
           find bin/packages -type f -name "packages.adb" -exec cp -f {} output/apk-feed/ \; || true
 
 
-
-
-
-          echo "APK files:"
+          echo "APK feed files:"
 
 
           find output/apk-feed -type f | sort
@@ -367,34 +330,22 @@ jobs:
 
 
 
-      - name: Create artifact directory
-
+      - name: Prepare artifact
 
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
 
-
-
-
           mkdir -p artifact/${{ inputs.device }}
-
-
-
 
 
           cp -rf output/firmware artifact/${{ inputs.device }}/ || true
 
 
           cp -rf output/apk-feed artifact/${{ inputs.device }}/ || true
-
-
-
 
 
           echo "Artifact content:"
@@ -408,18 +359,13 @@ jobs:
 
       - name: Upload firmware artifact
 
-
         uses: actions/upload-artifact@v4
-
 
         with:
 
-
           name: ${{ inputs.device }}-firmware-${{ github.run_id }}
 
-
           path: artifact/${{ inputs.device }}/firmware
-
 
           if-no-files-found: ignore
 
@@ -429,17 +375,12 @@ jobs:
 
       - name: Upload APK feed artifact
 
-
         uses: actions/upload-artifact@v4
-
 
         with:
 
-
           name: ${{ inputs.device }}-apk-feed-${{ github.run_id }}
 
-
           path: artifact/${{ inputs.device }}/apk-feed
-
 
           if-no-files-found: ignore
