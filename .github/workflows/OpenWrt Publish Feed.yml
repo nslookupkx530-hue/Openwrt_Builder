@@ -12,7 +12,7 @@ on:
 
       - Build filogic
 
-      - Build immortalwrt x86_64
+      - Build immortalwrt
 
 
     types:
@@ -85,7 +85,7 @@ jobs:
 
 
 
-      - name: Check downloaded artifacts
+      - name: Check artifacts
 
 
         shell: bash
@@ -97,6 +97,9 @@ jobs:
           set -euxo pipefail
 
 
+
+
+
           echo "=============================="
 
 
@@ -106,10 +109,31 @@ jobs:
           echo "=============================="
 
 
-          ls -lah downloaded || true
 
 
-          find downloaded -maxdepth 2 -type d | sort || true
+
+          if [ ! -d downloaded ]; then
+
+
+            echo "No artifacts downloaded"
+
+
+            exit 1
+
+
+          fi
+
+
+
+
+
+          ls -lah downloaded
+
+
+
+
+
+          find downloaded -maxdepth 2 -type d | sort
 
 
 
@@ -130,6 +154,12 @@ jobs:
 
 
 
+          DEVICE="unknown"
+
+
+
+
+
           echo "=============================="
 
 
@@ -142,31 +172,31 @@ jobs:
 
 
 
-          DEVICE="unknown"
-
-
-
-
-
           if ls downloaded | grep -q "GL-MT5000"; then
 
 
             DEVICE="GL-MT5000"
 
 
+          fi
 
 
 
-          elif ls downloaded | grep -q "Tenda-BE12PRO"; then
+
+
+          if ls downloaded | grep -q "Tenda-BE12PRO"; then
 
 
             DEVICE="Tenda-BE12PRO"
 
 
+          fi
 
 
 
-          elif ls downloaded | grep -q "x86_64"; then
+
+
+          if ls downloaded | grep -q "x86_64"; then
 
 
             DEVICE="x86_64"
@@ -181,7 +211,7 @@ jobs:
           if [ "${DEVICE}" = "unknown" ]; then
 
 
-            echo "Cannot detect device"
+            echo "Cannot detect device from artifacts"
 
 
             exit 1
@@ -199,7 +229,7 @@ jobs:
 
 
 
-          echo "Detected device:"
+          echo "Detected:"
 
 
           echo "${DEVICE}"
@@ -263,6 +293,7 @@ jobs:
 
 
 
+
       - name: Prepare gh-pages workspace
 
 
@@ -284,12 +315,7 @@ jobs:
 
 
 
-          git clone \
-            --branch gh-pages \
-            --single-branch \
-            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git \
-            gh-pages \
-            || mkdir -p gh-pages
+          git clone --branch gh-pages --single-branch "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages || mkdir -p gh-pages
 
 
 
@@ -298,7 +324,7 @@ jobs:
           echo "=============================="
 
 
-          echo "Existing gh-pages"
+          echo "Existing directories"
 
 
           echo "=============================="
@@ -352,19 +378,7 @@ jobs:
 
 
 
-          echo "=============================="
-
-
-          echo "Directory"
-
-
-          echo "=============================="
-
-
-
-
-
-          echo "Latest:"
+          echo "Latest path:"
 
 
           echo "${LATEST_PATH}"
@@ -373,7 +387,7 @@ jobs:
 
 
 
-          echo "Archive:"
+          echo "Archive path:"
 
 
           echo "${ARCHIVE_PATH}"
@@ -409,7 +423,7 @@ jobs:
           echo "=============================="
 
 
-          echo "Copy APK files"
+          echo "Copy APK"
 
 
           echo "=============================="
@@ -418,37 +432,64 @@ jobs:
 
 
 
-          find downloaded \
-            -type f \
-            -name "*.apk" \
-            -exec cp -f {} "${LATEST_PATH}/" \;
+          APK_COUNT=$(find downloaded -type f -name "*.apk" | wc -l)
 
 
 
 
 
-          find downloaded \
-            -type f \
-            -name "packages.adb" \
-            -exec cp -f {} "${LATEST_PATH}/" \;
+          ADB_COUNT=$(find downloaded -type f -name "packages.adb" | wc -l)
 
 
 
 
 
-          echo "=============================="
+          echo "APK count:"
 
 
-          echo "Sync archive"
-
-
-          echo "=============================="
+          echo "${APK_COUNT}"
 
 
 
 
 
-          cp -rf "${LATEST_PATH}/." "${ARCHIVE_PATH}/" || true
+          echo "ADB count:"
+
+
+          echo "${ADB_COUNT}"
+
+
+
+
+
+          if [ "${APK_COUNT}" -eq 0 ] && [ "${ADB_COUNT}" -eq 0 ]; then
+
+
+            echo "No APK feed files found"
+
+
+            exit 1
+
+
+          fi
+
+
+
+
+
+          find downloaded -type f -name "*.apk" -exec cp -f {} "${LATEST_PATH}/" \;
+
+
+
+
+
+          find downloaded -type f -name "packages.adb" -exec cp -f {} "${LATEST_PATH}/" \;
+
+
+
+
+
+          cp -rf "${LATEST_PATH}/." "${ARCHIVE_PATH}/"
 
 
 
@@ -466,9 +507,7 @@ jobs:
 
 
 
-          find "${LATEST_PATH}" \
-            -type f \
-            | sort || true
+          find "${LATEST_PATH}" -type f | sort || true
 
 
 
@@ -486,9 +525,7 @@ jobs:
 
 
 
-          find "${ARCHIVE_PATH}" \
-            -type f \
-            | sort || true
+          find "${ARCHIVE_PATH}" -type f | sort || true
 
 
 
@@ -529,7 +566,7 @@ jobs:
 
 
 
-<h2>Latest Feed</h2>
+<h2>Latest</h2>
 
 
 
@@ -630,10 +667,7 @@ EOF
 
 
 
-                find "${DEVICE_DIR}" \
-                  -maxdepth 1 \
-                  -type f \
-                  -printf "<li>%f</li>\n"
+                find "${DEVICE_DIR}" -maxdepth 1 -type f -printf "<li>%f</li>\n"
 
 
 
@@ -683,9 +717,6 @@ EOF
           git config user.name "github-actions"
 
 
-
-
-
           git config user.email "github-actions@github.com"
 
 
@@ -713,9 +744,7 @@ EOF
 
 
 
-          git commit \
-
-            -m "Update OpenWrt APK feed ${VERSION} ${DEVICE}"
+          git commit -m "Update OpenWrt APK feed ${VERSION} ${DEVICE}"
 
 
 
