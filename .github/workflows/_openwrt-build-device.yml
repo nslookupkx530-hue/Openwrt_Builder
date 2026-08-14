@@ -405,26 +405,23 @@ jobs:
 
       - name: Install feeds
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
-
-
-
-
 
           cd /workdir/openwrt
 
+          ./scripts/feeds install -a -f
 
+          echo "=============================="
 
+          echo "Feed install finished"
 
+          echo "=============================="
 
-          ./scripts/feeds install -a
+          ./scripts/feeds list | sort
 
 
 
