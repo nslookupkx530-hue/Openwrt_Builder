@@ -85,7 +85,7 @@ jobs:
 
 
 
-      - name: Check artifacts
+      - name: Check downloaded artifacts
 
 
         shell: bash
@@ -103,7 +103,7 @@ jobs:
           echo "=============================="
 
 
-          echo "Downloaded artifacts"
+          echo "Artifacts"
 
 
           echo "=============================="
@@ -115,19 +115,13 @@ jobs:
           if [ ! -d downloaded ]; then
 
 
-            echo "No artifacts downloaded"
+            echo "Artifact directory missing"
 
 
             exit 1
 
 
           fi
-
-
-
-
-
-          ls -lah downloaded
 
 
 
@@ -160,49 +154,52 @@ jobs:
 
 
 
-          echo "=============================="
+          for item in downloaded/*
 
 
-          echo "Detect device"
+          do
 
 
-          echo "=============================="
-
-
-
-
-
-          if ls downloaded | grep -q "GL-MT5000"; then
-
-
-            DEVICE="GL-MT5000"
-
-
-          fi
+            NAME=$(basename "${item}")
 
 
 
 
 
-          if ls downloaded | grep -q "Tenda-BE12PRO"; then
+            if [[ "${NAME}" == *"GL-MT5000"* ]]; then
 
 
-            DEVICE="Tenda-BE12PRO"
+              DEVICE="GL-MT5000"
 
 
-          fi
+            fi
 
 
 
 
 
-          if ls downloaded | grep -q "x86_64"; then
+            if [[ "${NAME}" == *"Tenda-BE12PRO"* ]]; then
 
 
-            DEVICE="x86_64"
+              DEVICE="Tenda-BE12PRO"
 
 
-          fi
+            fi
+
+
+
+
+
+            if [[ "${NAME}" == *"x86_64"* ]]; then
+
+
+              DEVICE="x86_64"
+
+
+            fi
+
+
+          done
 
 
 
@@ -211,7 +208,7 @@ jobs:
           if [ "${DEVICE}" = "unknown" ]; then
 
 
-            echo "Cannot detect device from artifacts"
+            echo "Cannot detect device"
 
 
             exit 1
@@ -229,12 +226,10 @@ jobs:
 
 
 
-          echo "Detected:"
+          echo "Detected device:"
 
 
           echo "${DEVICE}"
-
-
 
 
 
@@ -294,6 +289,7 @@ jobs:
 
 
 
+
       - name: Prepare gh-pages workspace
 
 
@@ -315,31 +311,130 @@ jobs:
 
 
 
-          git clone --branch gh-pages --single-branch "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages || mkdir -p gh-pages
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
 
 
 
 
-          echo "=============================="
+          if git ls-remote --heads "${REPO_URL}" gh-pages | grep -q gh-pages;
 
 
-          echo "Existing directories"
-
-
-          echo "=============================="
+          then
 
 
 
 
 
-          if [ -d gh-pages ]; then
+            echo "gh-pages exists"
 
 
-            find gh-pages -maxdepth 3 -type d | sort || true
+
+
+
+            git clone --branch gh-pages --single-branch "${REPO_URL}" gh-pages
+
+
+
+
+
+          else
+
+
+
+
+
+            echo "Creating gh-pages branch"
+
+
+
+
+
+            mkdir gh-pages
+
+
+
+
+
+            cd gh-pages
+
+
+
+
+
+            git init -b gh-pages
+
+
+
+
+
+            git remote add origin "${REPO_URL}"
+
+
+
+
+
+            echo "# OpenWrt APK Feed" > README.md
+
+
+
+
+
+            git add README.md
+
+
+
+
+
+            git commit -m "Initialize gh-pages"
+
+
+
+
+
+            git push origin gh-pages
+
+
+
+
+
+            cd ..
+
+
+
 
 
           fi
+
+
+
+
+
+          echo "=============================="
+
+
+          echo "Current gh-pages"
+
+
+          echo "=============================="
+
+
+
+
+
+          cd gh-pages
+
+
+
+
+
+          git branch
+
+
+
+
+
+          cd ..
 
 
 
@@ -378,7 +473,7 @@ jobs:
 
 
 
-          echo "Latest path:"
+          echo "Latest:"
 
 
           echo "${LATEST_PATH}"
@@ -387,7 +482,7 @@ jobs:
 
 
 
-          echo "Archive path:"
+          echo "Archive:"
 
 
           echo "${ARCHIVE_PATH}"
@@ -420,22 +515,7 @@ jobs:
 
 
 
-          echo "=============================="
-
-
-          echo "Copy APK"
-
-
-          echo "=============================="
-
-
-
-
-
           APK_COUNT=$(find downloaded -type f -name "*.apk" | wc -l)
-
-
-
 
 
           ADB_COUNT=$(find downloaded -type f -name "packages.adb" | wc -l)
@@ -444,7 +524,7 @@ jobs:
 
 
 
-          echo "APK count:"
+          echo "APK:"
 
 
           echo "${APK_COUNT}"
@@ -453,7 +533,7 @@ jobs:
 
 
 
-          echo "ADB count:"
+          echo "packages.adb:"
 
 
           echo "${ADB_COUNT}"
@@ -462,10 +542,13 @@ jobs:
 
 
 
-          if [ "${APK_COUNT}" -eq 0 ] && [ "${ADB_COUNT}" -eq 0 ]; then
+          if [ "${APK_COUNT}" -eq 0 ] && [ "${ADB_COUNT}" -eq 0 ];
 
 
-            echo "No APK feed files found"
+          then
+
+
+            echo "No feed files found"
 
 
             exit 1
@@ -498,7 +581,7 @@ jobs:
           echo "=============================="
 
 
-          echo "Latest feed"
+          echo "Latest files"
 
 
           echo "=============================="
@@ -507,7 +590,7 @@ jobs:
 
 
 
-          find "${LATEST_PATH}" -type f | sort || true
+          find "${LATEST_PATH}" -type f | sort
 
 
 
@@ -516,7 +599,7 @@ jobs:
           echo "=============================="
 
 
-          echo "Archive feed"
+          echo "Archive files"
 
 
           echo "=============================="
@@ -525,7 +608,7 @@ jobs:
 
 
 
-          find "${ARCHIVE_PATH}" -type f | sort || true
+          find "${ARCHIVE_PATH}" -type f | sort
 
 
 
@@ -566,7 +649,7 @@ jobs:
 
 
 
-<h2>Latest</h2>
+<h2>Latest Feed</h2>
 
 
 
@@ -590,13 +673,7 @@ jobs:
 
 
 
-<ul>
-
-
-<li><a href="archive/">Archive Versions</a></li>
-
-
-</ul>
+<a href="archive/">Archive Versions</a>
 
 
 
@@ -628,7 +705,11 @@ EOF
 
           for device in GL-MT5000 Tenda-BE12PRO x86_64
 
+
           do
+
+
+
 
 
             DEVICE_DIR="gh-pages/latest/${device}"
@@ -637,7 +718,10 @@ EOF
 
 
 
-            if [ -d "${DEVICE_DIR}" ]; then
+            if [ -d "${DEVICE_DIR}" ];
+
+
+            then
 
 
 
@@ -667,7 +751,13 @@ EOF
 
 
 
-                find "${DEVICE_DIR}" -maxdepth 1 -type f -printf "<li>%f</li>\n"
+                find "${DEVICE_DIR}" \
+
+                  -maxdepth 1 \
+
+                  -type f \
+
+                  -printf "<li>%f</li>\n"
 
 
 
@@ -688,6 +778,9 @@ EOF
 
 
             fi
+
+
+
 
 
           done
@@ -723,13 +816,25 @@ EOF
 
 
 
+          echo "Current branch:"
+
+
+          git branch
+
+
+
+
+
           git add .
 
 
 
 
 
-          if git diff --cached --quiet; then
+          if git diff --cached --quiet;
+
+
+          then
 
 
             echo "No changes"
