@@ -539,27 +539,12 @@ jobs:
 
 
       - name: Generate config
-
-
         shell: bash
-
-
         run: |
-
-
           set -euxo pipefail
-
-
-
-
-
           cd /workdir/openwrt
-
-
-
-
-
-          make defconfig
+          cp "${CONFIG_FILE}" .config
+          make defconfig V=s
 
 
 
