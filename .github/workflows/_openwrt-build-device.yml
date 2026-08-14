@@ -540,6 +540,8 @@ jobs:
 
       - name: Generate config
         shell: bash
+        env:
+          CONFIG_FILE: ${{ inputs.config_file }}
         run: |
           set -euxo pipefail
           cd /workdir/openwrt
