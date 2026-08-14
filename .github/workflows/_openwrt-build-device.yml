@@ -272,7 +272,7 @@ jobs:
           cd "${{ github.workspace }}/openwrt"
 
 
-          make -j$(nproc) V=s WERROR=0
+          make -j$(nproc) V=s CONFIG_WERROR=n
 
 
 
