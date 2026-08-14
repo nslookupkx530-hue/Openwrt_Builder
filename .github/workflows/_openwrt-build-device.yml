@@ -272,7 +272,15 @@ jobs:
           cd "${{ github.workspace }}/openwrt"
 
 
-          make -j$(nproc) V=s CONFIG_WERROR=n
+          export MAKEFLAGS="-j$(nproc)"
+
+          export HOSTCFLAGS="-Wno-error"
+
+          export HOSTCXXFLAGS="-Wno-error"
+
+          export HOSTLDFLAGS=""
+
+          make V=s
 
 
 
