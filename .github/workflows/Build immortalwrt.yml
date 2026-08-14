@@ -1,4 +1,4 @@
-name: Build ImmortalWrt x86_64
+name: Build immortalwrt
 
 
 on:
@@ -28,6 +28,24 @@ on:
 
 
 
+      release:
+
+
+        description: Create GitHub release
+
+
+        required: false
+
+
+        default: false
+
+
+        type: boolean
+
+
+
+
+
   schedule:
 
 
@@ -40,7 +58,7 @@ on:
 concurrency:
 
 
-  group: immortalwrt-x86_64-build
+  group: immortalwrt-build
 
 
   cancel-in-progress: true
@@ -90,18 +108,19 @@ jobs:
             repo_url: https://github.com/immortalwrt/immortalwrt.git
 
 
-            repo_branch: master
+            repo_branch: openwrt-25.12
 
 
-            config_file: config/immortalwrt.config
+            config_file: config/x86_64.config
 
-
-            sonic_fullcone: "false"
 
 
 
 
     uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+
 
 
     with:
@@ -119,13 +138,31 @@ jobs:
       config_file: ${{ matrix.config_file }}
 
 
-      install_automake_117: "true"
+      install_automake_117: "false"
 
 
-      sonic_fullcone: ${{ matrix.sonic_fullcone }}
+      sonic_fullcone: "false"
 
 
       docker: ${{ inputs.docker }}
 
 
-      release: true
+      release: ${{ inputs.release }}
+
+
+
+# Build immortalwrt.yml FINAL DEVICE FEED 2/2
+
+# 
+# 注意：
+# 实际编译流程全部由：
+#
+# .github/workflows/_openwrt-build-device.yml
+#
+# 负责
+#
+# 本文件只负责：
+# 1. 定义设备
+# 2. 提供源码
+# 3. 调用 reusable workflow
+#
