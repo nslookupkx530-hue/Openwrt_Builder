@@ -1,6 +1,5 @@
 name: OpenWrt Build Device
 
-
 on:
 
   workflow_call:
@@ -8,70 +7,35 @@ on:
     inputs:
 
       device:
-
         required: true
-
         type: string
-
 
       repo_url:
-
         required: true
-
         type: string
-
 
       repo_branch:
-
         required: true
-
         type: string
-
 
       config_file:
-
         required: true
-
         type: string
-
 
       sonic_fullcone:
-
         required: false
-
         type: string
-
         default: "false"
-
-
-      install_automake_117:
-
-        required: false
-
-        type: string
-
-        default: "false"
-
 
       docker:
-
         required: false
-
         type: boolean
-
         default: false
-
 
       release:
-
         required: false
-
         type: boolean
-
         default: false
-
-
-
 
 
 jobs:
@@ -91,9 +55,6 @@ jobs:
         uses: actions/checkout@v4
 
 
-
-
-
       - name: Install dependencies
 
         shell: bash
@@ -105,25 +66,6 @@ jobs:
           sudo apt-get update
 
           sudo apt-get install -y build-essential clang flex bison gawk gcc g++ gettext git libncurses-dev libssl-dev python3 rsync unzip wget zstd curl dos2unix
-
-
-
-
-
-      - name: Install automake 1.17
-
-        if: ${{ inputs.install_automake_117 == 'true' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          sudo apt-get install -y automake
-
-
-
 
 
       - name: Clone OpenWrt source
@@ -140,11 +82,7 @@ jobs:
 
           git clone --depth=1 --branch "${{ inputs.repo_branch }}" "${{ inputs.repo_url }}" "${SOURCE_DIR}"
 
-
-          echo "OpenWrt source:"
-
           ls -la "${SOURCE_DIR}"
-
 
 
       - name: Prepare config
@@ -159,26 +97,13 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
-
 
           CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
 
-
-          echo "Source directory:"
-
-          echo "${SOURCE_DIR}"
-
-
-          echo "Config file:"
-
-          echo "${CONFIG_PATH}"
-
-
           if [ ! -f "${CONFIG_PATH}" ]; then
 
-            echo "Config file does not exist"
+            echo "Missing config: ${CONFIG_PATH}"
 
             exit 1
 
@@ -187,14 +112,9 @@ jobs:
 
           cd "${SOURCE_DIR}"
 
-
           cp "${CONFIG_PATH}" .config
 
-
           make defconfig V=s
-
-
-
 
 
       - name: Update feeds
@@ -205,17 +125,11 @@ jobs:
 
           set -euxo pipefail
 
-
           cd "${{ github.workspace }}/openwrt"
-
 
           ./scripts/feeds update -a
 
-
           ./scripts/feeds install -a -f
-
-
-
 
 
       - name: Enable sonic fullcone
@@ -228,17 +142,11 @@ jobs:
 
           set -euxo pipefail
 
-
           cd "${{ github.workspace }}/openwrt"
-
 
           echo "Enable sonic fullcone"
 
-
           make defconfig V=s
-
-
-
 
 
       - name: Prepare build download
@@ -249,15 +157,11 @@ jobs:
 
           set -euxo pipefail
 
-
           cd "${{ github.workspace }}/openwrt"
-
 
           mkdir -p dl
 
-
           make download -j$(nproc)
-
 
 
       - name: Build firmware
@@ -268,9 +172,7 @@ jobs:
 
           set -euxo pipefail
 
-
           cd "${{ github.workspace }}/openwrt"
-
 
           export MAKEFLAGS="-j$(nproc)"
 
@@ -283,9 +185,6 @@ jobs:
           make V=s
 
 
-
-
-
       - name: Collect firmware
 
         shell: bash
@@ -294,23 +193,13 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
-
 
           mkdir -p "${SOURCE_DIR}/output/firmware"
 
-
           find "${SOURCE_DIR}/bin/targets" -type f \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) -exec cp -f {} "${SOURCE_DIR}/output/firmware/" \; || true
 
-
-          echo "Firmware files:"
-
-
           find "${SOURCE_DIR}/output/firmware" -type f | sort
-
-
-
 
 
       - name: Collect APK feed
@@ -321,26 +210,15 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
-
 
           mkdir -p "${SOURCE_DIR}/output/apk-feed"
 
-
           find "${SOURCE_DIR}/bin/packages" -type f -name "*.apk" -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
-
 
           find "${SOURCE_DIR}/bin/packages" -type f -name "packages.adb" -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
 
-
-          echo "APK feed files:"
-
-
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
-
-
-
 
 
       - name: Prepare artifact
@@ -351,23 +229,13 @@ jobs:
 
           set -euxo pipefail
 
-
           mkdir -p artifact/${{ inputs.device }}
-
 
           cp -rf "${{ github.workspace }}/openwrt/output/firmware" artifact/${{ inputs.device }}/ || true
 
-
           cp -rf "${{ github.workspace }}/openwrt/output/apk-feed" artifact/${{ inputs.device }}/ || true
 
-
-          echo "Artifact files:"
-
-
           find artifact -type f | sort
-
-
-
 
 
       - name: Upload firmware artifact
@@ -381,9 +249,6 @@ jobs:
           path: artifact/${{ inputs.device }}/firmware
 
           if-no-files-found: ignore
-
-
-
 
 
       - name: Upload APK feed artifact
