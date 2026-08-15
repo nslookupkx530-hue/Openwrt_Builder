@@ -1,0 +1,143 @@
+name: Create Release
+
+
+on:
+
+  workflow_run:
+
+    workflows:
+
+      - Build filogic
+
+      - Build immortalwrt
+
+    types:
+
+      - completed
+
+
+permissions:
+
+  contents: write
+
+
+jobs:
+
+
+  release:
+
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+
+    runs-on: ubuntu-22.04
+
+
+    steps:
+
+
+      - name: Checkout repository
+
+        uses: actions/checkout@v4
+
+
+      - name: Download firmware artifacts
+
+        uses: actions/download-artifact@v4
+
+        with:
+
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+          run-id: ${{ github.event.workflow_run.id }}
+
+          path: artifacts
+
+
+      - name: Check firmware files
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          echo "=============================="
+
+          echo "Firmware artifacts"
+
+          echo "=============================="
+
+          find artifacts -type f | sort
+
+
+      - name: Prepare release information
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          DATE=$(date +%Y-%m-%d)
+
+          RUN_ID="${{ github.event.workflow_run.id }}"
+
+          TAG="OpenWrt-${DATE}-${RUN_ID}"
+
+          echo "TAG=${TAG}" >> "${GITHUB_ENV}"
+
+          echo "Release tag: ${TAG}"
+
+
+      - name: Collect release files
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          mkdir -p release
+
+
+          find artifacts -type f \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) -exec cp -f {} release/ \;
+
+
+          echo "Release files:"
+
+          find release -type f | sort
+
+
+      - name: Create GitHub Release
+
+        uses: softprops/action-gh-release@v2
+
+        with:
+
+          tag_name: ${{ env.TAG }}
+
+          name: ${{ env.TAG }}
+
+          body: |
+
+            OpenWrt automated build release
+
+
+            Build workflow:
+
+            ${{ github.event.workflow_run.name }}
+
+
+            Run ID:
+
+            ${{ github.event.workflow_run.id }}
+
+
+          files: |
+
+            release/*
+
+        env:
+
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
