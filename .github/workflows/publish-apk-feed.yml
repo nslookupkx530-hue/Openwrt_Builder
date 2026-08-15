@@ -12,9 +12,9 @@ on:
 
        - Build GL-MT5000
 
-      - Build Tenda-BE12PRO 
+       - Build Tenda-BE12PRO 
 
-      - Build immortalwrt
+       - Build immortalwrt
 
 
     types:
