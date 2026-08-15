@@ -1,0 +1,68 @@
+name: Build GL-MT5000
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+
+      docker:
+
+        description: Enable docker packages
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+      release:
+
+        description: Create GitHub release
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+
+  schedule:
+
+    - cron: "0 2 1 1,4,7,10 *"
+
+
+concurrency:
+
+  group: GL-MT5000-build
+
+  cancel-in-progress: true
+
+
+permissions:
+
+  contents: write
+
+
+jobs:
+
+  build:
+
+    uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+    with:
+
+      device: GL-MT5000
+
+      repo_url: https://github.com/m0eak/fanchmwrt.git
+
+      repo_branch: mt5000
+
+      config_file: config/mt5000.config
+
+      sonic_fullcone: "true"
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
