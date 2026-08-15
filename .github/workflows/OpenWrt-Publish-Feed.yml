@@ -35,10 +35,17 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+
           echo "=============================="
           echo "Downloaded artifacts"
           echo "=============================="
-          find downloaded -type f | sort || true
+
+          if [ -d downloaded ]; then
+            find downloaded -type f | sort
+          else
+            echo "No artifacts found"
+            exit 1
+          fi
 
       - name: Prepare version
         shell: bash
@@ -83,6 +90,8 @@ jobs:
           mkdir -p gh-pages/latest
           mkdir -p "gh-pages/archive/${VERSION}"
 
+          FOUND=false
+
           for artifact in downloaded/*; do
 
             [ -d "${artifact}" ] || continue
@@ -90,6 +99,8 @@ jobs:
             NAME=$(basename "${artifact}")
 
             if [[ "${NAME}" == *"-apk-feed-"* ]]; then
+
+              FOUND=true
 
               DEVICE="${NAME%-apk-feed-*}"
 
@@ -111,6 +122,11 @@ jobs:
 
           done
 
+          if [ "${FOUND}" = false ]; then
+            echo "No apk feed artifact found"
+            exit 1
+          fi
+
       - name: Generate index
         shell: bash
         run: |
@@ -123,13 +139,9 @@ jobs:
 <meta charset="utf-8">
 <title>OpenWrt APK Feed</title>
 </head>
-
 <body>
-
 <h1>OpenWrt APK Feed</h1>
-
 <h2>Latest</h2>
-
 <ul>
 EOF
 
@@ -143,18 +155,15 @@ EOF
 
           done
 
-
           cat >> gh-pages/index.html <<EOF
 </ul>
 
 <h2>Archive</h2>
-
 <a href="archive/">Archive Versions</a>
 
 </body>
 </html>
 EOF
-
 
       - name: Generate device index
         shell: bash
@@ -168,12 +177,11 @@ EOF
             DEVICE=$(basename "${dir}")
 
             {
-
               echo "<!DOCTYPE html>"
               echo "<html>"
               echo "<head>"
               echo "<meta charset=\"utf-8\">"
-              echo "<title>${DEVICE}</title>"
+              echo "<title>${DEVICE} APK Feed</title>"
               echo "</head>"
               echo "<body>"
               echo "<h1>${DEVICE} APK Feed</h1>"
@@ -189,7 +197,6 @@ EOF
 
           done
 
-
       - name: Commit gh-pages
         shell: bash
         working-directory: gh-pages
@@ -197,7 +204,6 @@ EOF
           set -euxo pipefail
 
           git config user.name "github-actions"
-
           git config user.email "github-actions@github.com"
 
           git add .
@@ -211,12 +217,15 @@ EOF
 
           git push origin gh-pages
 
-
       - name: Summary
         if: always()
+        shell: bash
         run: |
           echo "=============================="
           echo "OpenWrt Publish Feed"
           echo "=============================="
+          echo "Source:"
+          echo "${{ github.event.workflow_run.name }}"
+          echo ""
           echo "Version:"
           echo "${VERSION}"
