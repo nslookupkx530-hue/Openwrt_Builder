@@ -1,6 +1,8 @@
 name: OpenWrt Publish Feed
 
 on:
+  workflow_dispatch:
+
   workflow_run:
     workflows:
       - Build GL-MT5000
