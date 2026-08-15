@@ -1,0 +1,68 @@
+name: Build Tenda-BE12PRO
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+
+      docker:
+
+        description: Enable docker packages
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+      release:
+
+        description: Create GitHub release
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+
+  schedule:
+
+    - cron: "0 2 1 1,4,7,10 *"
+
+
+concurrency:
+
+  group: Tenda-BE12PRO-build
+
+  cancel-in-progress: true
+
+
+permissions:
+
+  contents: write
+
+
+jobs:
+
+  build:
+
+    uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+    with:
+
+      device: Tenda-BE12PRO
+
+      repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
+
+      repo_branch: 25.12-dev-wifi7
+
+      config_file: config/be12pro.config
+
+      sonic_fullcone: "false"
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
