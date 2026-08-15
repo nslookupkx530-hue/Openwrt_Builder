@@ -3,6 +3,14 @@ name: OpenWrt Publish Feed
 on:
   workflow_dispatch:
 
+  workflow_run:
+    workflows:
+      - Build GL-MT5000
+      - Build Tenda-BE12PRO
+      - Build immortalwrt
+    types:
+      - completed
+
 jobs:
   test:
     runs-on: ubuntu-22.04
