@@ -262,7 +262,7 @@ jobs:
 
           path: artifact/${{ inputs.device }}/firmware
 
-          if-no-files-found: ignore
+          if-no-files-found: error
 
 
       - name: Upload APK feed artifact
@@ -275,4 +275,4 @@ jobs:
 
           path: artifact/${{ inputs.device }}/apk-feed
 
-          if-no-files-found: ignore
+          if-no-files-found: error
