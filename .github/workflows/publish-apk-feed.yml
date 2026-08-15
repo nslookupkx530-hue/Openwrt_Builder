@@ -10,8 +10,11 @@ on:
     workflows:
 
 
-      - Build filogic
-      - Build immortalWrt x86_64
+       - Build GL-MT5000
+
+      - Build Tenda-BE12PRO 
+
+      - Build immortalwrt
 
 
     types:
