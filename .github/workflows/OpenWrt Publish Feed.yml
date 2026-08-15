@@ -7,7 +7,9 @@ on:
 
     workflows:
 
-      - Build filogic
+      - Build GL-MT5000
+
+      - Build Tenda-BE12PRO 
 
       - Build immortalwrt
 
