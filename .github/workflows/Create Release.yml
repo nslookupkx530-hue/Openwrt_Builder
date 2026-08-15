@@ -1,14 +1,13 @@
 name: Create Release
 
-
 on:
 
   workflow_run:
 
     workflows:
 
-      - Build filogic
-
+      - Build GL-MT5000
+      - Build Tenda-BE12PRO
       - Build immortalwrt
 
     types:
@@ -23,12 +22,9 @@ permissions:
 
 jobs:
 
-
   release:
 
-
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
 
     runs-on: ubuntu-22.04
 
@@ -54,6 +50,61 @@ jobs:
           path: artifacts
 
 
+
+      - name: Detect device
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          DEVICE="unknown"
+
+
+          for item in artifacts/*
+
+          do
+
+            NAME=$(basename "${item}")
+
+
+            if [[ "${NAME}" == *"GL-MT5000"* ]]; then
+
+              DEVICE="GL-MT5000"
+
+            fi
+
+
+            if [[ "${NAME}" == *"Tenda-BE12PRO"* ]]; then
+
+              DEVICE="Tenda-BE12PRO"
+
+            fi
+
+
+            if [[ "${NAME}" == *"x86_64"* ]]; then
+
+              DEVICE="x86_64"
+
+            fi
+
+          done
+
+
+          if [ "${DEVICE}" = "unknown" ]; then
+
+            echo "Device detection failed"
+
+            exit 1
+
+          fi
+
+
+          echo "DEVICE=${DEVICE}" >> "${GITHUB_ENV}"
+
+
       - name: Check firmware files
 
         shell: bash
@@ -62,13 +113,13 @@ jobs:
 
           set -euxo pipefail
 
-          echo "=============================="
 
-          echo "Firmware artifacts"
+          echo "Device: ${DEVICE}"
 
-          echo "=============================="
+          echo "Artifacts:"
 
           find artifacts -type f | sort
+
 
 
       - name: Prepare release information
@@ -79,15 +130,20 @@ jobs:
 
           set -euxo pipefail
 
+
           DATE=$(date +%Y-%m-%d)
 
           RUN_ID="${{ github.event.workflow_run.id }}"
 
-          TAG="OpenWrt-${DATE}-${RUN_ID}"
+
+          TAG="${DEVICE}-${DATE}-${RUN_ID}"
+
 
           echo "TAG=${TAG}" >> "${GITHUB_ENV}"
 
+
           echo "Release tag: ${TAG}"
+
 
 
       - name: Collect release files
@@ -98,6 +154,7 @@ jobs:
 
           set -euxo pipefail
 
+
           mkdir -p release
 
 
@@ -107,6 +164,7 @@ jobs:
           echo "Release files:"
 
           find release -type f | sort
+
 
 
       - name: Create GitHub Release
@@ -124,6 +182,11 @@ jobs:
             OpenWrt automated build release
 
 
+            Device:
+
+            ${{ env.DEVICE }}
+
+
             Build workflow:
 
             ${{ github.event.workflow_run.name }}
@@ -137,6 +200,7 @@ jobs:
           files: |
 
             release/*
+
 
         env:
 
