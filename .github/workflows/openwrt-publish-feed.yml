@@ -11,26 +11,51 @@ on:
     types:
       - completed
 
+
 permissions:
   contents: write
   actions: read
 
+
 jobs:
   test:
+
     runs-on: ubuntu-22.04
 
     steps:
+
+      - name: Show event
+        run: |
+          echo "Event:"
+          echo "${{ github.event_name }}"
+
+          echo "Workflow:"
+          echo "${{ github.event.workflow_run.name }}"
+
+          echo "Run ID:"
+          echo "${{ github.event.workflow_run.id }}"
+
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Test artifact
+
+      - name: Download artifact
+
+        if: github.event_name == 'workflow_run'
+
         uses: actions/download-artifact@v4
+
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
           path: downloaded
 
+
       - name: Check
+
         run: |
+
           ls -la
+
           find downloaded -type f || true
