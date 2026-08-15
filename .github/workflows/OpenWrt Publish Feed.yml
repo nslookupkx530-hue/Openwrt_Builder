@@ -3,197 +3,178 @@ name: OpenWrt Publish Feed
 
 on:
 
-
   workflow_run:
 
-
     workflows:
-
 
       - Build filogic
 
       - Build immortalwrt
 
-
     types:
-
 
       - completed
 
 
-
-
-
 permissions:
 
-
   contents: write
-
-
-
 
 
 jobs:
 
 
-
   publish:
-
 
 
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
 
-
     runs-on: ubuntu-22.04
-
-
-
 
 
     steps:
 
 
-
       - name: Checkout repository
-
 
         uses: actions/checkout@v4
 
 
-
-
-
       - name: Download build artifacts
-
 
         uses: actions/download-artifact@v4
 
-
         with:
-
 
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-
           run-id: ${{ github.event.workflow_run.id }}
-
 
           path: downloaded
 
 
-
-
-
       - name: Check downloaded artifacts
-
 
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
-
-
-
-
           echo "=============================="
-
 
           echo "Artifacts"
 
-
           echo "=============================="
-
-
-
-
-
-          if [ ! -d downloaded ]; then
-
-
-            echo "Artifact directory missing"
-
-
-            exit 1
-
-
-          fi
-
-
-
-
 
           find downloaded -maxdepth 2 -type d | sort
 
 
-
-
-
-      - name: Detect device
-
+      - name: Prepare version
 
         shell: bash
 
+        run: |
+
+          set -euxo pipefail
+
+          DATE=$(date +%Y-%m-%d)
+
+          RUN_ID="${{ github.event.workflow_run.id }}"
+
+          VERSION="${DATE}-${RUN_ID}"
+
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+
+          echo "VERSION=${VERSION}"
+
+
+      - name: Prepare gh-pages workspace
+
+        shell: bash
 
         run: |
 
+          set -euxo pipefail
+
+          rm -rf gh-pages
+
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+          if git ls-remote --heads "${REPO_URL}" gh-pages | grep -q gh-pages; then
+
+            git clone --branch gh-pages --single-branch "${REPO_URL}" gh-pages
+
+          else
+
+            mkdir gh-pages
+
+            cd gh-pages
+
+            git init -b gh-pages
+
+            git remote add origin "${REPO_URL}"
+
+            echo "# OpenWrt APK Feed" > README.md
+
+            git add README.md
+
+            git commit -m "Initialize gh-pages"
+
+            git push origin gh-pages
+
+            cd ..
+
+          fi
+
+
+      - name: Publish APK feeds
+
+        shell: bash
+
+        run: |
 
           set -euxo pipefail
 
 
+          for artifact in downloaded/*; do
 
 
-
-          DEVICE="unknown"
-
+            NAME=$(basename "${artifact}")
 
 
+            if [[ "${NAME}" == *"-apk-feed-"* ]]; then
 
 
-          for item in downloaded/*
+              DEVICE="${NAME%-apk-feed-*}"
 
 
-          do
+              echo "Publishing device: ${DEVICE}"
 
 
-            NAME=$(basename "${item}")
+              LATEST_PATH="gh-pages/latest/${DEVICE}"
+
+              ARCHIVE_PATH="gh-pages/archive/${VERSION}/${DEVICE}"
 
 
+              mkdir -p "${LATEST_PATH}"
+
+              mkdir -p "${ARCHIVE_PATH}"
 
 
-
-            if [[ "${NAME}" == *"GL-MT5000"* ]]; then
-
-
-              DEVICE="GL-MT5000"
+              find "${artifact}" -type f -name "*.apk" -exec cp -f {} "${LATEST_PATH}/" \;
 
 
-            fi
+              find "${artifact}" -type f -name "packages.adb" -exec cp -f {} "${LATEST_PATH}/" \;
 
 
+              cp -rf "${LATEST_PATH}/." "${ARCHIVE_PATH}/"
 
 
+              echo "Latest files:"
 
-            if [[ "${NAME}" == *"Tenda-BE12PRO"* ]]; then
-
-
-              DEVICE="Tenda-BE12PRO"
-
-
-            fi
-
-
-
-
-
-            if [[ "${NAME}" == *"x86_64"* ]]; then
-
-
-              DEVICE="x86_64"
+              find "${LATEST_PATH}" -type f | sort
 
 
             fi
@@ -202,429 +183,13 @@ jobs:
           done
 
 
-
-
-
-          if [ "${DEVICE}" = "unknown" ]; then
-
-
-            echo "Cannot detect device"
-
-
-            exit 1
-
-
-          fi
-
-
-
-
-
-          echo "DEVICE=${DEVICE}" >> "${GITHUB_ENV}"
-
-
-
-
-
-          echo "Detected device:"
-
-
-          echo "${DEVICE}"
-
-
-
-      - name: Prepare version
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          DATE=$(date +%Y-%m-%d)
-
-
-          RUN_ID="${{ github.event.workflow_run.id }}"
-
-
-
-
-
-          VERSION="${DATE}-${RUN_ID}"
-
-
-
-
-
-          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
-
-
-
-
-
-          echo "=============================="
-
-
-          echo "Version"
-
-
-          echo "${VERSION}"
-
-
-          echo "Device"
-
-
-          echo "${DEVICE}"
-
-
-          echo "=============================="
-
-
-
-
-
-      - name: Prepare gh-pages workspace
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          rm -rf gh-pages
-
-
-
-
-
-          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-
-
-
-
-
-          if git ls-remote --heads "${REPO_URL}" gh-pages | grep -q gh-pages;
-
-
-          then
-
-
-
-
-
-            echo "gh-pages exists"
-
-
-
-
-
-            git clone --branch gh-pages --single-branch "${REPO_URL}" gh-pages
-
-
-
-
-
-          else
-
-
-
-
-
-            echo "Creating gh-pages branch"
-
-
-
-
-
-            mkdir gh-pages
-
-
-
-
-
-            cd gh-pages
-
-
-
-
-
-            git init -b gh-pages
-
-
-
-
-
-            git remote add origin "${REPO_URL}"
-
-
-
-
-
-            echo "# OpenWrt APK Feed" > README.md
-
-
-
-
-
-            git add README.md
-
-
-
-
-
-            git commit -m "Initialize gh-pages"
-
-
-
-
-
-            git push origin gh-pages
-
-
-
-
-
-            cd ..
-
-
-
-
-
-          fi
-
-
-
-
-
-          echo "=============================="
-
-
-          echo "Current gh-pages"
-
-
-          echo "=============================="
-
-
-
-
-
-          cd gh-pages
-
-
-
-
-
-          git branch
-
-
-
-
-
-          cd ..
-
-
-
-
-
-      - name: Create device directories
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          LATEST_PATH="gh-pages/latest/${DEVICE}"
-
-
-          ARCHIVE_PATH="gh-pages/archive/${VERSION}/${DEVICE}"
-
-
-
-
-
-          mkdir -p "${LATEST_PATH}"
-
-
-          mkdir -p "${ARCHIVE_PATH}"
-
-
-
-
-
-          echo "Latest:"
-
-
-          echo "${LATEST_PATH}"
-
-
-
-
-
-          echo "Archive:"
-
-
-          echo "${ARCHIVE_PATH}"
-
-
-
-
-
-      - name: Copy APK feed files
-
-
-        shell: bash
-
-
-        run: |
-
-
-          set -euxo pipefail
-
-
-
-
-
-          LATEST_PATH="gh-pages/latest/${DEVICE}"
-
-
-          ARCHIVE_PATH="gh-pages/archive/${VERSION}/${DEVICE}"
-
-
-
-
-
-          APK_COUNT=$(find downloaded -type f -name "*.apk" | wc -l)
-
-
-          ADB_COUNT=$(find downloaded -type f -name "packages.adb" | wc -l)
-
-
-
-
-
-          echo "APK:"
-
-
-          echo "${APK_COUNT}"
-
-
-
-
-
-          echo "packages.adb:"
-
-
-          echo "${ADB_COUNT}"
-
-
-
-
-
-          if [ "${APK_COUNT}" -eq 0 ] && [ "${ADB_COUNT}" -eq 0 ];
-
-
-          then
-
-
-            echo "No feed files found"
-
-
-            exit 1
-
-
-          fi
-
-
-
-
-
-          find downloaded -type f -name "*.apk" -exec cp -f {} "${LATEST_PATH}/" \;
-
-
-
-
-
-          find downloaded -type f -name "packages.adb" -exec cp -f {} "${LATEST_PATH}/" \;
-
-
-
-
-
-          cp -rf "${LATEST_PATH}/." "${ARCHIVE_PATH}/"
-
-
-
-
-
-          echo "=============================="
-
-
-          echo "Latest files"
-
-
-          echo "=============================="
-
-
-
-
-
-          find "${LATEST_PATH}" -type f | sort
-
-
-
-
-
-          echo "=============================="
-
-
-          echo "Archive files"
-
-
-          echo "=============================="
-
-
-
-
-
-          find "${ARCHIVE_PATH}" -type f | sort
-
-
-
       - name: Generate main index
 
-
         shell: bash
-
 
         run: |
 
-
           set -euxo pipefail
-
-
-
 
 
           cat > gh-pages/index.html <<'EOF'
@@ -641,296 +206,137 @@ jobs:
 
 </head>
 
-
 <body>
-
 
 <h1>OpenWrt APK Feed</h1>
 
-
-
 <h2>Latest Feed</h2>
-
-
 
 <ul>
 
-
 <li><a href="latest/GL-MT5000/">GL-MT5000</a></li>
-
 
 <li><a href="latest/Tenda-BE12PRO/">Tenda-BE12PRO</a></li>
 
-
 <li><a href="latest/x86_64/">x86_64</a></li>
-
 
 </ul>
 
-
-
 <h2>Archive</h2>
-
-
 
 <a href="archive/">Archive Versions</a>
 
-
-
 </body>
-
 
 </html>
 
 EOF
 
 
-
-
-
       - name: Generate device index
-
 
         shell: bash
 
-
         run: |
-
 
           set -euxo pipefail
 
 
+          for DEVICE_DIR in gh-pages/latest/*; do
 
 
-
-          for device in GL-MT5000 Tenda-BE12PRO x86_64
-
-
-          do
+            [ -d "${DEVICE_DIR}" ] || continue
 
 
+            DEVICE=$(basename "${DEVICE_DIR}")
 
 
-
-            DEVICE_DIR="gh-pages/latest/${device}"
-
+            {
 
 
+              echo "<!DOCTYPE html>"
+
+              echo "<html>"
+
+              echo "<head>"
+
+              echo "<meta charset=\"utf-8\">"
+
+              echo "<title>${DEVICE} APK Feed</title>"
+
+              echo "</head>"
+
+              echo "<body>"
+
+              echo "<h1>${DEVICE} APK Feed</h1>"
+
+              echo "<ul>"
 
 
-            if [ -d "${DEVICE_DIR}" ];
+              find "${DEVICE_DIR}" -maxdepth 1 -type f -printf "<li>%f</li>\n"
 
 
-            then
+              echo "</ul>"
+
+              echo "</body>"
+
+              echo "</html>"
 
 
-
-
-
-              {
-
-                echo "<!DOCTYPE html>"
-
-                echo "<html>"
-
-                echo "<head>"
-
-                echo "<meta charset=\"utf-8\">"
-
-                echo "<title>${device} APK Feed</title>"
-
-                echo "</head>"
-
-                echo "<body>"
-
-                echo "<h1>${device} APK Feed</h1>"
-
-                echo "<ul>"
-
-
-
-
-
-                find "${DEVICE_DIR}" \
-
-                  -maxdepth 1 \
-
-                  -type f \
-
-                  -printf "<li>%f</li>\n"
-
-
-
-
-
-                echo "</ul>"
-
-                echo "</body>"
-
-                echo "</html>"
-
-
-
-              } > "${DEVICE_DIR}/index.html"
-
-
-
-
-
-            fi
-
-
-
+            } > "${DEVICE_DIR}/index.html"
 
 
           done
 
 
-
-
-
       - name: Commit and push gh-pages
-
 
         shell: bash
 
-
         working-directory: gh-pages
 
-
         run: |
-
 
           set -euxo pipefail
 
 
-
-
-
           git config user.name "github-actions"
 
-
           git config user.email "github-actions@github.com"
-
-
-
-
-
-          echo "Current branch:"
-
-
-          git branch
-
-
-
 
 
           git add .
 
 
-
-
-
-          if git diff --cached --quiet;
-
-
-          then
-
+          if git diff --cached --quiet; then
 
             echo "No changes"
 
-
             exit 0
-
 
           fi
 
 
-
-
-
-          git commit -m "Update OpenWrt APK feed ${VERSION} ${DEVICE}"
-
-
-
+          git commit -m "Update OpenWrt APK feed ${VERSION}"
 
 
           git push origin gh-pages
 
 
-
-
-
       - name: Publish summary
-
 
         if: always()
 
-
         shell: bash
-
 
         run: |
 
-
           echo "================================"
-
 
           echo " OpenWrt APK Feed Publish "
 
-
           echo "================================"
-
-
-
-
-
-          echo "Device:"
-
-
-          echo "${DEVICE}"
-
-
-
-
-
-          echo ""
-
-
-
-
 
           echo "Version:"
 
-
           echo "${VERSION}"
-
-
-
-
-
-          echo ""
-
-
-
-
-
-          echo "Latest URL:"
-
-
-          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/latest/${DEVICE}/"
-
-
-
-
-
-          echo ""
-
-
-
-
-
-          echo "Archive URL:"
-
-
-          echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/archive/${VERSION}/${DEVICE}/"
