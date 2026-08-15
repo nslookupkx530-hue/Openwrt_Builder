@@ -1,4 +1,4 @@
-name: Test Workflow
+name: OpenWrt Publish Feed
 
 on:
   workflow_dispatch:
