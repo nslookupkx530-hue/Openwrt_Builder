@@ -56,7 +56,32 @@ jobs:
           path: downloaded
 
 
+      - name: Check artifact
 
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          echo "=============================="
+          
+          echo "Downloaded artifacts"
+
+          echo "=============================="
+
+          if [ -d downloaded ]; then
+
+            find downloaded -maxdepth 3 -type f | sort
+
+          else
+
+            echo "No artifact found"
+
+          fi
+
+    
+     
       - name: Create or prepare gh-pages branch
 
         shell: bash
