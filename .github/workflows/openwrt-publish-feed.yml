@@ -27,9 +27,7 @@ jobs:
   publish:
 
 
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 
 
     runs-on: ubuntu-22.04
@@ -53,9 +51,7 @@ jobs:
         with:
 
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-          repository: ${{ github.repository }}
-
+          
           run-id: ${{ github.event.workflow_run.id }}
 
           path: downloaded
