@@ -1,6 +1,8 @@
 name: OpenWrt Publish Feed
 
+
 on:
+
   workflow_dispatch:
 
   workflow_run:
@@ -13,17 +15,21 @@ on:
 
 
 permissions:
+
   contents: write
+
   actions: read
 
 
 jobs:
 
+
   publish:
 
-   if: |
-    github.event_name == 'workflow_dispatch' ||
-    github.event.workflow_run.conclusion == 'success'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
 
     runs-on: ubuntu-22.04
 
