@@ -28,14 +28,10 @@ jobs:
 
     steps:
 
-      - name: Test
-        run: |
-          echo "OpenWrt Publish Feed OK"
-          echo "${{ github.event.workflow_run.name }}"
-
 
       - name: Checkout
         uses: actions/checkout@v4
+
 
       - name: Download artifact
 
@@ -50,3 +46,41 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
           path: downloaded
+
+
+
+      - name: Create gh-pages
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+
+          if git ls-remote --heads "${REPO_URL}" gh-pages | grep -q gh-pages; then
+
+            echo "gh-pages already exists"
+
+          else
+
+            mkdir gh-pages
+
+            cd gh-pages
+
+            git init -b gh-pages
+
+            git remote add origin "${REPO_URL}"
+
+            echo "OpenWrt APK Feed" > README.md
+
+            git add README.md
+
+            git commit -m "Create gh-pages"
+
+            git push origin gh-pages
+
+          fi
