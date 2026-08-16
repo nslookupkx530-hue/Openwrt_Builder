@@ -1,6 +1,8 @@
 name: OpenWrt Publish Feed
 
+
 on:
+
   workflow_dispatch:
 
   workflow_run:
@@ -12,17 +14,86 @@ on:
       - completed
 
 
+permissions:
+
+  contents: write
+
+  actions: read
+
+
 jobs:
+
+
   publish:
+
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
 
     runs-on: ubuntu-22.04
 
+
     steps:
 
-      - name: Test
-        run: echo "OK"
 
-permissions:
-  contents: write
-  actions: read
+      - name: Checkout
+        uses: actions/checkout@v4
 
+
+      - name: Download artifact
+
+        if: github.event_name == 'workflow_run'
+
+        uses: actions/download-artifact@v4
+
+        with:
+
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+          run-id: ${{ github.event.workflow_run.id }}
+
+          path: downloaded
+
+
+
+      - name: Create or prepare gh-pages branch
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+
+          if git ls-remote --heads "${REPO_URL}" gh-pages | grep -q gh-pages; then
+
+            echo "gh-pages already exists"
+
+          else
+
+            mkdir gh-pages
+
+            cd gh-pages
+
+            git init -b gh-pages
+
+            git config user.name "github-actions"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            git remote add origin "${REPO_URL}"
+
+            echo "# OpenWrt APK Feed" > README.md
+
+            git add README.md
+
+            git commit -m "Create gh-pages"
+
+            git push origin gh-pages
+
+            cd ..
+
+          fi
