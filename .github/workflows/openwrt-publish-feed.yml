@@ -161,12 +161,6 @@ jobs:
 
               DEVICE="${NAME%-apk-feed-*}"
 
-              echo "Checking ${NAME}"
-
-            if [[ "${NAME}" == *"-apk-feed-"* ]]; then
-
-              DEVICE="${NAME%-apk-feed-*}"
-
               echo "Publishing ${DEVICE}"
 
               LATEST="gh-pages/latest/${DEVICE}"
