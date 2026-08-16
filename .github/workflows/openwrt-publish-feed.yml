@@ -11,6 +11,7 @@ on:
     types:
       - completed
 
+
 permissions:
   contents: write
   actions: read
@@ -31,3 +32,7 @@ jobs:
         run: |
           echo "OpenWrt Publish Feed OK"
           echo "${{ github.event.workflow_run.name }}"
+
+
+      - name: Checkout
+        uses: actions/checkout@v4
