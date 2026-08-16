@@ -80,7 +80,23 @@ jobs:
 
           fi
 
-    
+
+      - name: Prepare version
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            VERSION="$(date +%Y-%m-%d)-${{ github.event.workflow_run.id }}"
+          else
+            VERSION="$(date +%Y-%m-%d)-${{ github.run_id }}"
+          fi
+
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+
+          echo "Feed version:"
+          echo "${VERSION}"
+  
      
       - name: Create or prepare gh-pages branch
 
