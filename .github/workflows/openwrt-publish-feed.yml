@@ -1,74 +1,61 @@
-jobs:
-  publish:
+name: OpenWrt Publish Feed
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+on:
+  workflow_dispatch:
+
+  workflow_run:
+    workflows:
+      - Build GL-MT5000
+      - Build Tenda-BE12PRO
+      - Build immortalwrt
+    types:
+      - completed
+
+
+permissions:
+  contents: write
+  actions: read
+
+
+jobs:
+  test:
 
     runs-on: ubuntu-22.04
 
     steps:
 
-      - name: Checkout repository
+      - name: Show event
+        run: |
+          echo "Event:"
+          echo "${{ github.event_name }}"
+
+          echo "Workflow:"
+          echo "${{ github.event.workflow_run.name }}"
+
+          echo "Run ID:"
+          echo "${{ github.event.workflow_run.id }}"
+
+
+      - name: Checkout
         uses: actions/checkout@v4
 
 
-      - name: Download artifacts
+      - name: Download artifact
+
+        if: github.event_name == 'workflow_run'
 
         uses: actions/download-artifact@v4
 
         with:
-
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
           run-id: ${{ github.event.workflow_run.id }}
-
           path: downloaded
 
 
-      - name: Check artifacts
-
-        shell: bash
+      - name: Check
 
         run: |
 
-          set -euxo pipefail
+          ls -la
 
-          echo "Artifacts:"
-
-          find downloaded -type f | sort || true
-
-
-      - name: Create gh-pages
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-
-
-          if git ls-remote --heads "${REPO_URL}" gh-pages | grep -q gh-pages; then
-
-            echo "gh-pages exists"
-
-          else
-
-            echo "Create gh-pages"
-
-            git clone "${REPO_URL}" repo
-
-            cd repo
-
-            git checkout --orphan gh-pages
-
-            echo "# OpenWrt Feed" > README.md
-
-            git add README.md
-
-            git commit -m "Create gh-pages"
-
-            git push origin gh-pages
-
-          fi
+          find downloaded -type f || true
