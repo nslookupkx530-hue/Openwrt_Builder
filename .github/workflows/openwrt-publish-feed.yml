@@ -221,6 +221,53 @@ jobs:
           EOF
 
 
+      - name: Generate device index
+        
+        shell: bash        
+        
+        run: |
+        
+          set -euxo pipefail
+
+
+          for dir in gh-pages/latest/*; do
+
+            [ -d "${dir}" ] || continue
+
+            DEVICE=$(basename "${dir}")
+
+
+            {
+
+             echo "<!DOCTYPE html>"
+             echo "<html>"
+             echo "<head>"
+             echo "<meta charset=\"utf-8\">"
+             echo "<title>${DEVICE} APK Feed</title>"
+             echo "</head>"
+
+             echo "<body>"
+
+             echo "<h1>${DEVICE} APK Feed</h1>"
+
+             echo "<ul>"
+
+
+             find "${dir}" -maxdepth 1 -type f -printf "<li>%f</li>\n"
+
+
+             echo "</ul>"
+
+             echo "</body>"
+
+             echo "</html>"
+
+            } > "${dir}/index.html"  
+             
+    
+          done
+
+
       - name: Commit gh-pages
         shell: bash
         working-directory: gh-pages
