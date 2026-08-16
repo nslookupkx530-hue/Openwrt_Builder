@@ -149,6 +149,7 @@ jobs:
           set -euxo pipefail
 
           mkdir -p gh-pages/latest
+          mkdir -p "gh-pages/archive/${VERSION}"
 
           for artifact in downloaded/*; do
 
@@ -156,7 +157,11 @@ jobs:
 
             NAME=$(basename "${artifact}")
 
-            echo "Checking ${NAME}"
+            if [[ "${NAME}" == *"-apk-feed-"* ]]; then
+
+              DEVICE="${NAME%-apk-feed-*}"
+
+              echo "Checking ${NAME}"
 
             if [[ "${NAME}" == *"-apk-feed-"* ]]; then
 
@@ -164,11 +169,17 @@ jobs:
 
               echo "Publishing ${DEVICE}"
 
-              mkdir -p "gh-pages/latest/${DEVICE}"
+              LATEST="gh-pages/latest/${DEVICE}"
+              ARCHIVE="gh-pages/archive/${VERSION}/${DEVICE}"
 
-              find "${artifact}" -type f -name "*.apk" -exec cp -f {} "gh-pages/latest/${DEVICE}/" \;
+              mkdir -p "${LATEST}"
+              mkdir -p "${ARCHIVE}"
 
-              find "${artifact}" -type f -name "packages.adb" -exec cp -f {} "gh-pages/latest/${DEVICE}/" \;
+              find "${artifact}" -type f -name "*.apk" -exec cp -f {} "${LATEST}/" \;
+
+              find "${artifact}" -type f -name "packages.adb" -exec cp -f {} "${LATEST}/" \;
+
+              cp -rf "${LATEST}/." "${ARCHIVE}/"
 
             fi
 
