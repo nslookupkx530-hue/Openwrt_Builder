@@ -308,6 +308,49 @@ jobs:
           } > gh-pages/archive/index.html 
              
 
+      - name: Generate archive version index
+        
+        shell: bash        
+        
+        run: |
+        
+          set -euxo pipefail
+
+
+          for version in gh-pages/archive/*; do
+
+            [ -d "${version}" ] || continue
+
+            {
+             echo "<!DOCTYPE html>"
+             echo "<html>"
+             echo "<head>"
+             echo "<meta charset=\"utf-8\">"
+             echo "<title>OpenWrt Archive</title>"
+             echo "</head>"
+             echo "<body>"
+             echo "<h1>OpenWrt APK Archive</h1>"
+             echo "<ul>"
+
+             for device in "${version}"/*; do
+
+               [ -d "${device}" ] || continue
+
+               DEVICE=$(basename "${device}")
+
+               echo "<li><a href=\"${DEVICE}/\">${DEVICE}</a></li>"
+
+             done
+
+
+             echo "</ul>"
+             echo "</body>"
+             echo "</html>"
+
+           } > "${version}/index.html"
+
+          done
+
 
       - name: Commit gh-pages
         shell: bash
