@@ -286,9 +286,9 @@ jobs:
             echo "<meta charset=\"utf-8\">"
             echo "<title>Archive</title>"
             echo "</head>"
-            echo "<h1>${DEVICE} APK Feed</h1>"
+            echo "<body>"
+            echo "<h1>OpenWrt APK Feed Archive</h1>"
             echo "<ul>"
-
 
             for dir in gh-pages/archive/*; do
 
