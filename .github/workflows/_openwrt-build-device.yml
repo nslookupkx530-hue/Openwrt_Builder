@@ -106,15 +106,11 @@ jobs:
 
         run: |
 
-          cd openwrt
+          set -euxo pipefail
 
-          find package feeds -name "*luci*" | head -50
+          cd "${{ github.workspace }}/openwrt"
 
-          echo "===== Check luci-base ====="
-
-          ls -la feeds/luci/collections  || true
-
-          ls -la feeds/luci/modules/luci-base || true
+          find feeds -path "*luci*" -print | sed -n '1,50p'
          
 
       - name: Prepare config
