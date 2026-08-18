@@ -98,7 +98,24 @@ jobs:
           ./scripts/feeds update -a
 
           ./scripts/feeds install -a -f
-          
+
+
+      - name: Check luci packages
+
+        shell: bash
+
+        run: |
+
+          cd openwrt
+
+          find package feeds -name "*luci*" | head -50
+
+          echo "===== Check luci-base ====="
+
+          ls -la feeds/luci/collections  || true
+
+          ls -la feeds/luci/modules/luci-base || true
+         
 
       - name: Prepare config
 
