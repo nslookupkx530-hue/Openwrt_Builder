@@ -62,13 +62,13 @@ jobs:
         include:
 
 
-          - device: x86_64
+          - device: immortalwrt
 
             repo_url: https://github.com/immortalwrt/immortalwrt.git
 
             repo_branch: openwrt-25.12
 
-            config_file: config/x86_64.config
+            config_file: config/immortalwrt.config
 
 
     uses: ./.github/workflows/_openwrt-build-device.yml
