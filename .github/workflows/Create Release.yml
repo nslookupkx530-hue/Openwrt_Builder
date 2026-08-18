@@ -84,9 +84,9 @@ jobs:
             fi
 
 
-            if [[ "${NAME}" == *"x86_64"* ]]; then
+            if [[ "${NAME}" == *"immortalwrt"* ]]; then
 
-              DEVICE="x86_64"
+              DEVICE="immortalwrt"
 
             fi
 
