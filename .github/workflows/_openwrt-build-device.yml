@@ -85,6 +85,21 @@ jobs:
           ls -la "${SOURCE_DIR}"
 
 
+      - name: Update feeds
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          ./scripts/feeds update -a
+
+          ./scripts/feeds install -a -f
+          
+
       - name: Prepare config
 
         shell: bash
@@ -115,21 +130,6 @@ jobs:
           cp "${CONFIG_PATH}" .config
 
           make defconfig V=s
-
-
-      - name: Update feeds
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          ./scripts/feeds update -a
-
-          ./scripts/feeds install -a -f
 
 
       - name: Enable sonic fullcone
