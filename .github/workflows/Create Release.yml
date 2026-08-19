@@ -169,6 +169,41 @@ jobs:
           find release -type f | sort
 
 
+      - name: Generate release README
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          cat <<'EOF' > release/README.md
+
+OpenWrt automated build release
+
+
+Device:
+
+EOF
+
+
+          echo "${DEVICE}" >> release/README.md
+
+          cat <<EOF >> release/README.md
+
+
+Build workflow:
+
+${{ github.event.workflow_run.name }}
+
+
+Run ID:
+
+${{ github.event.workflow_run.id }}
+
+EOF
+
 
       - name: Create GitHub Release
 
