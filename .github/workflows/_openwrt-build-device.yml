@@ -285,15 +285,9 @@ jobs:
 
           mkdir -p release
 
-          echo "" > release/luci-package-list.md
+          echo "#### ${{ inputs.device }}" > release/${{ inputs.device }}-luci.md
 
-          echo "## LuCI package list" >> release/luci-package-list.md
-
-          echo "" >> release/luci-package-list.md
-
-          echo "#### ${{ inputs.device }}" >> release/luci-package-list.md
-
-          echo "" >> release/luci-package-list.md
+          echo "" >> release/${{ inputs.device }}-luci.md
 
           grep "^CONFIG_PACKAGE_luci" \
           openwrt/.config \
@@ -302,9 +296,9 @@ jobs:
           | sed 's/=y//' \
           | sed 's/_/\\_/g' \
           | sed 's/^/- /' \
-          >> release/luci-package-list.md
+          >> release/${{ inputs.device }}-luci.md
 
-          cat release/luci-package-list.md
+          cat release/${{ inputs.device }}-luci.md
 
 
       - name: Prepare artifact
