@@ -180,12 +180,12 @@ jobs:
 
           cat <<'EOF' > release/README.md
 
-OpenWrt automated build release
+          OpenWrt automated build release
 
 
-Device:
+          Device:
 
-EOF
+          EOF
 
 
           echo "${DEVICE}" >> release/README.md
@@ -193,16 +193,16 @@ EOF
           cat <<EOF >> release/README.md
 
 
-Build workflow:
+          Build workflow:
 
-${{ github.event.workflow_run.name }}
+          ${{ github.event.workflow_run.name }}
 
 
-Run ID:
+          Run ID:
 
-${{ github.event.workflow_run.id }}
+          ${{ github.event.workflow_run.id }}
 
-EOF
+          EOF
 
 
       - name: Create GitHub Release
