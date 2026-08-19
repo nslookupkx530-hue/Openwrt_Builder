@@ -275,21 +275,35 @@ jobs:
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
 
 
-      - name: Generate LuCI package list
+      - name: Generate Release README
 
         shell: bash
 
         run: |
 
-          set -euxo pipefail
-
           mkdir -p release
 
-          echo "" > release/luci-package-list.md
+          cat > release/README.md <<EOF
 
-          echo "#### ${{ inputs.device }}" >> release/luci-package-list.md
+          OpenWrt automated build release
 
-          echo "" >> release/luci-package-list.md
+          Device:
+
+          ${{ inputs.device }}
+
+          Build workflow:
+
+          ${{ github.workflow }}
+
+          Run ID:
+
+          ${{ github.run_id }}
+
+          LuCI package list
+
+          #### ${{ inputs.device }}
+
+          EOF
 
           grep "^CONFIG_PACKAGE_luci" \
           openwrt/.config \
@@ -298,9 +312,11 @@ jobs:
           | sed 's/=y//' \
           | sed 's/_/\\_/g' \
           | sed 's/^/- /' \
-          >> release/luci-package-list.md
+          >> release/README.md
 
-          cat release/luci-package-list.md
+          echo "========== Release README =========="
+
+          cat release/README.md
 
 
       - name: Prepare artifact
