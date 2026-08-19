@@ -347,3 +347,16 @@ jobs:
           path: artifact/${{ inputs.device }}/apk-feed
 
           if-no-files-found: error
+
+
+      - name: Upload release info artifact
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: ${{ inputs.device }}-release-info-${{ github.run_id }}
+
+          path: release/${{ inputs.device }}-luci.md
+
+          if-no-files-found: error
