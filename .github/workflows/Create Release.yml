@@ -161,7 +161,8 @@ jobs:
           find artifacts -type f \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) -exec cp -f {} release/ \;
 
 
-          find artifacts -name "luci-package-list.md" -exec cp -f {} release/luci-package-list.md \;
+          find artifacts -name "luci-package-list.md" \
+          -exec cp -f {} release/${DEVICE}-luci.md \;
 
 
           echo "Release files:"
@@ -203,6 +204,28 @@ jobs:
           ${{ github.event.workflow_run.id }}
 
           EOF
+
+
+      - name: Collect release README
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          mkdir -p release
+
+
+          echo "# OpenWrt automated build release" > release/README.md
+
+          echo "" >> release/README.md
+
+
+          cat artifacts/*release-info*/*.md \
+          >> release/README.md
+
+          cat release/README.md
 
 
       - name: Create GitHub Release
