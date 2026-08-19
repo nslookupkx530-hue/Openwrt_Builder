@@ -275,6 +275,34 @@ jobs:
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
 
 
+      - name: Generate LuCI package list
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          mkdir -p release
+
+          echo "" > release/luci-package-list.md
+
+          echo "#### ${{ inputs.device }}" >> release/luci-package-list.md
+
+          echo "" >> release/luci-package-list.md
+
+          grep "^CONFIG_PACKAGE_luci" \
+          openwrt/.config \
+          | grep "=y" \
+          | sed 's/CONFIG_PACKAGE_//' \
+          | sed 's/=y//' \
+          | sed 's/_/\\_/g' \
+          | sed 's/^/- /' \
+          >> release/luci-package-list.md
+
+          cat release/luci-package-list.md
+
+
       - name: Prepare artifact
 
         shell: bash
