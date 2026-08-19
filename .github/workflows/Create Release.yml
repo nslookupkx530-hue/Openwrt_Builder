@@ -161,6 +161,9 @@ jobs:
           find artifacts -type f \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) -exec cp -f {} release/ \;
 
 
+          find artifacts -name "luci-package-list.md" -exec cp -f {} release/luci-package-list.md \;
+
+
           echo "Release files:"
 
           find release -type f | sort
@@ -177,25 +180,7 @@ jobs:
 
           name: ${{ env.TAG }}
 
-          body: |
-
-            OpenWrt automated build release
-
-
-            Device:
-
-            ${{ env.DEVICE }}
-
-
-            Build workflow:
-
-            ${{ github.event.workflow_run.name }}
-
-
-            Run ID:
-
-            ${{ github.event.workflow_run.id }}
-
+          body_path: release/README.md
 
           files: |
 
