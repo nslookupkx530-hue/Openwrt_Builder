@@ -7,6 +7,16 @@ on:
 
     inputs:
 
+      version:
+
+        description: ImmortalWrt version/tag
+
+        required: false
+
+        default: v25.12.1
+
+        type: string
+      
       docker:
 
         description: Enable docker packages
@@ -66,7 +76,7 @@ jobs:
 
             repo_url: https://github.com/immortalwrt/immortalwrt.git
 
-            repo_branch: openwrt-25.12
+            repo_branch: ${{ inputs.version || 'v25.12.1' }}
 
             config_file: config/immortalwrt.config
 
