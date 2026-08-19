@@ -145,6 +145,33 @@ jobs:
           make defconfig V=s
 
 
+      - name: Apply device files
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          FILE_DIR="${{ github.workspace }}/files/${{ inputs.device }}"
+
+          if [ -d "${FILE_DIR}" ]; then
+
+            cp -rf "${FILE_DIR}/." "${SOURCE_DIR}/files/"
+
+            echo "Applied files for ${{ inputs.device }}"
+
+            find "${SOURCE_DIR}/files" -type f
+
+          else
+            
+            echo "No custom files for ${{ inputs.device }}"
+
+          fi
+
+
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
