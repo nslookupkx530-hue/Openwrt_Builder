@@ -275,35 +275,25 @@ jobs:
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
 
 
-      - name: Generate Release README
+      - name: Generate LuCI package list
 
         shell: bash
 
         run: |
 
+          set -euxo pipefail
+
           mkdir -p release
 
-          cat > release/README.md <<EOF
+          echo "" > release/luci-package-list.md
 
-          OpenWrt automated build release
+          echo "## LuCI package list" >> release/luci-package-list.md
 
-          Device:
+          echo "" >> release/luci-package-list.md
 
-          ${{ inputs.device }}
+          echo "#### ${{ inputs.device }}" >> release/luci-package-list.md
 
-          Build workflow:
-
-          ${{ github.workflow }}
-
-          Run ID:
-
-          ${{ github.run_id }}
-
-          LuCI package list
-
-          #### ${{ inputs.device }}
-
-          EOF
+          echo "" >> release/luci-package-list.md
 
           grep "^CONFIG_PACKAGE_luci" \
           openwrt/.config \
@@ -312,11 +302,9 @@ jobs:
           | sed 's/=y//' \
           | sed 's/_/\\_/g' \
           | sed 's/^/- /' \
-          >> release/README.md
+          >> release/luci-package-list.md
 
-          echo "========== Release README =========="
-
-          cat release/README.md
+          cat release/luci-package-list.md
 
 
       - name: Prepare artifact
@@ -329,9 +317,14 @@ jobs:
 
           mkdir -p artifact/${{ inputs.device }}
 
-          cp -rf "${{ github.workspace }}/openwrt/output/firmware" artifact/${{ inputs.device }}/ || true
+          cp -rf openwrt/output/firmware \
+          artifact/${{ inputs.device }}/ || true
 
-          cp -rf "${{ github.workspace }}/openwrt/output/apk-feed" artifact/${{ inputs.device }}/ || true
+          cp -rf openwrt/output/apk-feed \
+          artifact/${{ inputs.device }}/ || true
+
+          cp -f release/luci-package-list.md \
+          artifact/${{ inputs.device }}/ || true
 
           find artifact -type f | sort
 
