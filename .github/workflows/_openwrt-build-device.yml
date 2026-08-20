@@ -163,13 +163,26 @@ jobs:
 
             echo "Applied files for ${{ inputs.device }}"
 
-            find "${SOURCE_DIR}/files" -type f
 
-          else
-            
-            echo "No custom files for ${{ inputs.device }}"
+            # 保证 uci-defaults 脚本可执行
+            if [ -d "${SOURCE_DIR}/files/etc/uci-defaults" ]; then
+
+            chmod 755 "${SOURCE_DIR}/files/etc/uci-defaults/"*
+
+            echo "uci-defaults permissions fixed"
+
+            ls -la "${SOURCE_DIR}/files/etc/uci-defaults/"
 
           fi
+
+          echo "Applied files list:"
+          find "${SOURCE_DIR}/files" -type f
+
+        else
+            
+          echo "No custom files for ${{ inputs.device }}"
+
+        fi
 
 
       - name: Enable sonic fullcone
@@ -202,6 +215,17 @@ jobs:
           mkdir -p dl
 
           make download -j$(nproc)
+
+
+      - name: Check uci-defaults
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          find openwrt/files/etc/uci-defaults -type f -exec ls -l {} \; || true
 
 
       - name: Build firmware
