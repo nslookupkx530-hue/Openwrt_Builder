@@ -318,7 +318,7 @@ jobs:
           cp -rf openwrt/output/apk-feed \
           artifact/${{ inputs.device }}/ || true
 
-          cp -f release/luci-package-list.md \
+          cp -f release/${{ inputs.device }}-luci.md \
           artifact/${{ inputs.device }}/ || true
 
           find artifact -type f | sort
