@@ -292,6 +292,7 @@ jobs:
           grep "^CONFIG_PACKAGE_luci" \
           openwrt/.config \
           | grep "=y" \
+          | grep "zh-cn" \
           | sed 's/CONFIG_PACKAGE_//' \
           | sed 's/=y//' \
           | sed 's/_/\\_/g' \
