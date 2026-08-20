@@ -1,14 +1,11 @@
 #!/bin/sh
 
-uci batch <<EOF
+uci -q batch <<'EOF'
 set network.lan.proto='static'
 set network.lan.ipaddr='192.168.100.1'
 set network.lan.netmask='255.255.255.0'
 EOF
 
 uci commit network
-
-/etc/init.d/network restart
-/etc/init.d/dnsmasq restart
 
 exit 0
