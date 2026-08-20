@@ -175,8 +175,8 @@ jobs:
 
           fi
 
-          echo "Applied files list:"
-          find "${SOURCE_DIR}/files" -type f
+            echo "Applied files list:"
+            find "${SOURCE_DIR}/files" -type f
 
           else
             
