@@ -178,11 +178,11 @@ jobs:
           echo "Applied files list:"
           find "${SOURCE_DIR}/files" -type f
 
-        else
+          else
             
-          echo "No custom files for ${{ inputs.device }}"
+            echo "No custom files for ${{ inputs.device }}"
 
-        fi
+          fi
 
 
       - name: Enable sonic fullcone
