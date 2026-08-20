@@ -1,0 +1,17 @@
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'eth0'
+
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.30.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+
+config interface 'wan'
+	option device 'eth1'
+	option proto 'dhcp'
