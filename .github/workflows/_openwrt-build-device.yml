@@ -164,8 +164,8 @@ jobs:
             echo "Applied files for ${{ inputs.device }}"
 
 
-            # 保证 uci-defaults 脚本可执行
-            if [ -d "${SOURCE_DIR}/files/etc/uci-defaults" ]; then
+          # 保证 uci-defaults 脚本可执行
+          if [ -d "${SOURCE_DIR}/files/etc/uci-defaults" ]; then
 
             chmod 755 "${SOURCE_DIR}/files/etc/uci-defaults/"*
 
