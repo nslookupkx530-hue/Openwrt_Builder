@@ -185,6 +185,15 @@ jobs:
           fi
 
 
+      - name: Check custom files
+
+        shell: bash
+
+        run: |
+
+          find openwrt/files -type f | sort
+
+
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
