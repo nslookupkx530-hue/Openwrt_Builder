@@ -199,31 +199,9 @@ jobs:
           EOF
 
 
-          cat artifacts/*luci*/*.md >> release/README.md || true
+          cat artifacts/*release-info*/*.md >> release/README.md
 
           echo "" >> release/README.md
-
-          cat release/README.md
-
-
-      - name: Collect release README
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          mkdir -p release
-
-
-          echo "# OpenWrt automated build release" > release/README.md
-
-          echo "" >> release/README.md
-
-
-          cat artifacts/*release-info*/*.md \
-          >> release/README.md
 
           cat release/README.md
 
