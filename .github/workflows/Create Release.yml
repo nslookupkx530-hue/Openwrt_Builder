@@ -181,7 +181,7 @@ jobs:
           mkdir -p release
 
 
-          cat <<'EOF' > release/README.md
+          cat > release/README.md <<EOF
 
           OpenWrt automated build release
 
@@ -202,8 +202,6 @@ jobs:
           cat artifacts/*luci*/*.md >> release/README.md || true
 
           echo "" >> release/README.md
-
-          echo "Generated at $(date)" >> release/README.md
 
           cat release/README.md
 
