@@ -85,6 +85,21 @@ jobs:
           ls -la "${SOURCE_DIR}"
 
 
+      - name: Check source version
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd openwrt
+
+          git describe --tags || true
+          git branch
+          git log -1
+
+
       - name: Update feeds
 
         shell: bash
