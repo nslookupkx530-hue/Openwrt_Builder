@@ -95,10 +95,7 @@ jobs:
 
           cd "${{ github.workspace }}/openwrt"
 
-          rm -rf \
-            staging_dir \
-            build_dir \
-            tmp
+          rm -rf staging_dir build_dir tmp
 
           mkdir -p dl
 
