@@ -85,6 +85,24 @@ jobs:
           ls -la "${SOURCE_DIR}"
 
 
+      - name: Clean build environment
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          rm -rf \
+            staging_dir \
+            build_dir \
+            tmp
+
+          mkdir -p dl
+
+
       - name: Check source version
 
         shell: bash
@@ -224,24 +242,6 @@ jobs:
           echo "Enable sonic fullcone"
 
           make defconfig V=s
-
-
-      - name: Clean build environment
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          rm -rf \
-            staging_dir \
-            build_dir \
-            tmp
-
-          mkdir -p dl
 
 
       - name: Prepare build download
