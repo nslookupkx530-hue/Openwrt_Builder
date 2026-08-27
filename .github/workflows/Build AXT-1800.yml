@@ -53,11 +53,11 @@ jobs:
 
     with:
 
-      device: GL-MT5000
+      device: AXT-1800
 
       repo_url: https://github.com/m0eak/libwrt.git
 
-      repo_branch: mt5000
+      repo_branch: axt1800
 
       config_file: config/axt1800.config
 
