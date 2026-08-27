@@ -76,7 +76,7 @@ jobs:
 
             repo_url: https://github.com/m0eak/libwrt.git
 
-            repo_branch: ${{ inputs.version || '25.12.4' }}
+            repo_branch: ${{ github.event.inputs.tag || '25.12.4' }}
 
             config_file: config/axt1800.config
 
