@@ -92,13 +92,13 @@ jobs:
 
             fi
 
-            if [[ "${NAME}" == *"immortalwrt"* ]]; then
+            if [[ "${NAME}" == *"AXT-1800"* ]]; then
 
               DEVICE="AXT-1800"
 
             fi
 
-            if [[ "${NAME}" == *"immortalwrt"* ]]; then
+            if [[ "${NAME}" == *"JDC-AX6600"* ]]; then
 
               DEVICE="JDC-AX6600"
 
