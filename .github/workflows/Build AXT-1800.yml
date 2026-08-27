@@ -1,0 +1,68 @@
+name: Build AXT-1800
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+
+      docker:
+
+        description: Enable docker packages
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+      release:
+
+        description: Create GitHub release
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+
+  schedule:
+
+    - cron: "0 2 4 1,7 *"
+
+
+concurrency:
+
+  group: AXT-1800-build
+
+  cancel-in-progress: true
+
+
+permissions:
+
+  contents: write
+
+
+jobs:
+
+  build:
+
+    uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+    with:
+
+      device: GL-MT5000
+
+      repo_url: https://github.com/m0eak/libwrt.git
+
+      repo_branch: mt5000
+
+      config_file: config/axt1800.config
+
+      sonic_fullcone: "true"
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
