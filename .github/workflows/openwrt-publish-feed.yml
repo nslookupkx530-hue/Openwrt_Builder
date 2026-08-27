@@ -10,6 +10,8 @@ on:
       - Build GL-MT5000
       - Build Tenda-BE12PRO
       - Build immortalwrt
+      - Build Build AXT-1800
+      - Build JDC-AX6600
     types:
       - completed
 
