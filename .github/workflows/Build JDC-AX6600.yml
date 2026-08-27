@@ -1,0 +1,68 @@
+name: Build JDC-AX6600
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+
+      docker:
+
+        description: Enable docker packages
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+      release:
+
+        description: Create GitHub release
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+
+  schedule:
+
+    - cron: "0 2 5 1,7 *"
+
+
+concurrency:
+
+  group: JDC-AX6600-build
+
+  cancel-in-progress: true
+
+
+permissions:
+
+  contents: write
+
+
+jobs:
+
+  build:
+
+    uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+    with:
+
+      device: JDC-AX6600
+
+      repo_url: https://github.com/m0eak/libwrt.git
+
+      repo_branch: ax6600
+
+      config_file: config/jdcax6600.config
+
+      sonic_fullcone: "true"
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
