@@ -9,7 +9,7 @@ on:
       - Build GL-MT5000
       - Build Tenda-BE12PRO
       - Build immortalwrt
-      - Build Build AXT-1800
+      - Build AXT-1800
       - Build JDC-AX6600
 
     types:
@@ -89,6 +89,18 @@ jobs:
             if [[ "${NAME}" == *"immortalwrt"* ]]; then
 
               DEVICE="immortalwrt"
+
+            fi
+
+            if [[ "${NAME}" == *"immortalwrt"* ]]; then
+
+              DEVICE="AXT-1800"
+
+            fi
+
+            if [[ "${NAME}" == *"immortalwrt"* ]]; then
+
+              DEVICE="JDC-AX6600"
 
             fi
 
