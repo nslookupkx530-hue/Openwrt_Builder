@@ -1,0 +1,101 @@
+name: Build GL-MT3600BE
+
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+
+      version:
+
+        description: GL-MT3600BE version/tag
+
+        required: false
+
+        default: v25.12.1
+
+        type: string
+      
+      docker:
+
+        description: Enable docker packages
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+
+      release:
+
+        description: Create GitHub release
+
+        required: false
+
+        default: false
+
+        type: boolean
+
+
+  schedule:
+
+    - cron: "0 2 2 1,7 *"
+
+
+concurrency:
+
+  group: GL-MT3600BE-build
+
+  cancel-in-progress: true
+
+
+permissions:
+
+  contents: write
+
+
+jobs:
+
+
+  build:
+
+
+    strategy:
+
+      fail-fast: false
+
+
+      matrix:
+
+        include:
+
+
+          - device: GL-MT3600BE
+
+            repo_url: https://github.com/immortalwrt/immortalwrt.git
+
+            repo_branch: ${{ inputs.version || 'v25.12.1' }}
+
+            config_file: config/mt3600be.config
+
+
+    uses: ./.github/workflows/_openwrt-build-device.yml
+
+
+    with:
+
+      device: ${{ matrix.device }}
+
+      repo_url: ${{ matrix.repo_url }}
+
+      repo_branch: ${{ matrix.repo_branch }}
+
+      config_file: ${{ matrix.config_file }}
+
+      sonic_fullcone: "true"
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
