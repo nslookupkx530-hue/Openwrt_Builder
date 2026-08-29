@@ -9,11 +9,11 @@ on:
 
       version:
 
-        description: GL-MT3600BE version/tag
+        description: GL-MT3600BE stable version, empty = latest stable
 
         required: false
 
-        default: 25.12.5
+        default: ""
 
         type: string
       
@@ -76,7 +76,7 @@ jobs:
 
             repo_url: https://github.com/immortalwrt/immortalwrt.git
 
-            repo_branch: ${{ inputs.version || '25.12.5' }}
+            version: ${{ inputs.version }}
 
             config_file: config/mt3600be.config
 
