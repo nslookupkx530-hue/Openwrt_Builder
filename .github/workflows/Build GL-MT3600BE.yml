@@ -13,7 +13,7 @@ on:
 
         required: false
 
-        default: ""
+        default: 25.12.1
 
         type: string
       
@@ -76,7 +76,7 @@ jobs:
 
             repo_url: https://github.com/immortalwrt/immortalwrt.git
 
-            version: ${{ inputs.version }}
+            repo_branch: ${{ github.event.inputs.tag || '25.12.1' }}
 
             config_file: config/mt3600be.config
 
