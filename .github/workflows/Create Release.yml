@@ -12,6 +12,7 @@ on:
       - Build AXT-1800
       - Build JDC-AX6600
       - Build GL-MT3600BE
+      - Build TR-3000
 
     types:
 
@@ -108,6 +109,12 @@ jobs:
             if [[ "${NAME}" == *"GL-MT3600BE"* ]]; then
 
               DEVICE="GL-MT3600BE"
+
+            fi
+
+            if [[ "${NAME}" == *"TR-3000"* ]]; then
+
+              DEVICE="TR-3000"
 
             fi
 
