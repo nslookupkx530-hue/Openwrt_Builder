@@ -11,6 +11,7 @@ on:
       - Build immortalwrt
       - Build AXT-1800
       - Build JDC-AX6600
+      - Build GL-MT3600BE
 
     types:
 
@@ -101,6 +102,12 @@ jobs:
             if [[ "${NAME}" == *"JDC-AX6600"* ]]; then
 
               DEVICE="JDC-AX6600"
+
+            fi
+
+            if [[ "${NAME}" == *"GL-MT3600BE"* ]]; then
+
+              DEVICE="GL-MT3600BE"
 
             fi
 
