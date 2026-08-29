@@ -94,7 +94,7 @@ jobs:
 
       config_file: ${{ matrix.config_file }}
 
-      sonic_fullcone: "false"
+      sonic_fullcone: "true"
 
       docker: ${{ inputs.docker }}
 
