@@ -76,7 +76,7 @@ jobs:
 
             repo_url: https://github.com/immortalwrt/immortalwrt.git
 
-            repo_branch: ${{ github.event.inputs.tag || '25.12.1' }}
+            repo_branch: ${{ inputs.version }}
 
             config_file: config/mt3600be.config
 
