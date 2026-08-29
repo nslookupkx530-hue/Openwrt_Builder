@@ -12,7 +12,7 @@ on:
 
         required: false
 
-        default: 25.12.5
+        default: v25.12.5
 
         type: string
       
@@ -75,7 +75,7 @@ jobs:
 
             repo_url: https://github.com/openwrt/openwrt.git
 
-            repo_branch: ${{ github.event.inputs.tag || '25.12.5' }}
+            repo_branch: ${{ github.event.inputs.tag || 'v25.12.5' }}
 
             config_file: config/mt3600be.config
 
