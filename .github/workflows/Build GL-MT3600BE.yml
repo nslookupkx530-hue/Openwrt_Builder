@@ -73,7 +73,7 @@ jobs:
 
           - device: GL-MT3600BE
 
-            repo_url: https://github.com/m0eak/libwrt.git
+            repo_url: https://github.com/openwrt/openwrt.git
 
             repo_branch: ${{ github.event.inputs.tag || '25.12.5' }}
 
