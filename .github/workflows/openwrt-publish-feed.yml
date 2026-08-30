@@ -13,7 +13,7 @@ on:
       - Build AXT-1800
       - Build JDC-AX6600
       - Build GL-MT3600BE
-      - Build Build Cudy-TR3000-v1-256MB
+      - Build Cudy-TR3000-v1-256MB
     types:
       - completed
 
