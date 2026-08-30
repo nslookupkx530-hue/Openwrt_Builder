@@ -1,4 +1,4 @@
-name: Build Cudy-TR3000-v1
+name: Build Cudy-TR3000-v1-256MB
 
 on:
 
@@ -8,7 +8,7 @@ on:
 
       version:
 
-        description: Cudy-TR3000-v1 version/tag
+        description: Cudy TR3000 v1 (256MB) version/tag
 
         required: false
 
@@ -45,7 +45,7 @@ on:
 
 concurrency:
 
-  group: Cudy-TR3000-v1-build
+  group: Cudy
 
   cancel-in-progress: true
 
@@ -71,7 +71,7 @@ jobs:
         include:
 
 
-          - device: Cudy-TR3000-v1
+          - device: Cudy-TR3000-256MB
 
             repo_url: https://github.com/openwrt/openwrt.git
 
