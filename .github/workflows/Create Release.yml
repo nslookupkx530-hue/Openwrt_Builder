@@ -12,7 +12,7 @@ on:
       - Build AXT-1800
       - Build JDC-AX6600
       - Build GL-MT3600BE
-      - Build TR-3000
+      - Build Cudy-TR3000-v1-256MB
 
     types:
 
@@ -112,9 +112,9 @@ jobs:
 
             fi
 
-            if [[ "${NAME}" == *"TR-3000"* ]]; then
+            if [[ "${NAME}" == *"Cudy-TR3000-256MB"* ]]; then
 
-              DEVICE="TR-3000"
+              DEVICE="Cudy-TR3000-256MB"
 
             fi
 
