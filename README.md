@@ -27,6 +27,7 @@
 ## WIFI名称/密码
 - `默认/空`
 
+
 ## 目录结构
 
 - `.github/workflows/`：GitHub Actions 构建与发布入口；`_openwrt-build-device.yml` 是 IPQ/filogic 共享的可复用长构建流程。
