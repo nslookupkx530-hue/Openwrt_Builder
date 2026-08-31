@@ -2,15 +2,15 @@
 
 这是一个基于 GitHub Actions 的 OpenWrt/ImmortalWrt 固件构建仓库，主要用于按设备配置自动拉取源码、注入自定义包、应用默认设置并产出固件。
 
-## 支持设备
+## 所支持设备列表如下：
+
+## X86系列
+- x86 ImmortalWrt，默认 IP：`192.168.30.1`
 
 ## GL.iNet系列
 - GL.iNet AXT-1800，默认 IP：`192.168.8.1`
 - GL-MT3600BE，默认 IP：`192.168.9.1`
 - GL-MT5000，默认 IP：`192.168.100.1`
-
-## X86系列
-- x86 ImmortalWrt，默认 IP：`192.168.30.1`
 
 ## Cudy系列
 - Cudy-TR3000-256MB，默认 IP：`192.168.11.1`
@@ -30,7 +30,7 @@
 
 ## 目录结构
 
-- `.github/workflows/`：GitHub Actions 构建与发布入口；`_openwrt-build-device.yml` 是 IPQ/filogic 共享的可复用长构建流程。
+- `.github/workflows/`：GitHub Actions 构建与发布入口；`_openwrt-build-device.yml` 是共享的可复用长构建流程。
 - `.github/actions/`：发布阶段使用的本地 composite actions。
 - `config/`：各设备的 OpenWrt `.config` 配置片段。
 - `sh/scripts-part1.sh`：feeds 更新前执行的设备特定源码修改。
