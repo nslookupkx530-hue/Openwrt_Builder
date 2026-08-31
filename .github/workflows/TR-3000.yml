@@ -6,6 +6,21 @@ on:
 
     inputs:
 
+      source:
+
+       description: OpenWrt source
+
+       required: false
+
+       default: openwrt
+
+       type: choice
+
+       options:
+
+         - openwrt
+         - immortalwrt
+
       version:
 
         description: Cudy TR3000 v1 (256MB) version/tag
