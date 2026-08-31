@@ -1,0 +1,14 @@
+#!/bin/sh
+
+FEED_FILE="/etc/apk/repositories.d/distfeeds.list"
+MIRROR="https://mirror.nju.edu.cn/openwrt/releases"
+
+if [ -f "${FEED_FILE}" ]; then
+
+    sed -i \
+        "s#https://downloads.openwrt.org/releases#${MIRROR}#g" \
+        "${FEED_FILE}"
+
+fi
+
+exit 0
