@@ -6,13 +6,28 @@ on:
 
     inputs:
 
+      source:
+
+       description: OpenWrt source
+
+       required: false
+
+       default: openwrt
+
+       type: choice
+
+       options:
+
+         - openwrt
+         - immortalwrt
+
       version:
 
         description: GL-MT3600BE version/tag
 
         required: false
 
-        default: v25.12.5
+        default: ""
 
         type: string
       
@@ -75,8 +90,6 @@ jobs:
 
             repo_url: https://github.com/openwrt/openwrt.git
 
-            repo_branch: ${{ github.event.inputs.tag || 'v25.12.5' }}
-
             config_file: config/mt3600be.config
 
 
@@ -89,9 +102,9 @@ jobs:
 
       repo_url: ${{ matrix.repo_url }}
 
-      repo_branch: ${{ matrix.repo_branch }}
+      repo_url: ${{ inputs.source == 'immortalwrt' && 'https://github.com/immortalwrt/immortalwrt.git' || 'https://github.com/openwrt/openwrt.git' }}
 
-      config_file: ${{ matrix.config_file }}
+      repo_branch: ${{ inputs.version != '' && inputs.version || (inputs.source == 'immortalwrt' && 'v25.12.1' || 'v25.12.5') }}
 
       sonic_fullcone: "true"
 
