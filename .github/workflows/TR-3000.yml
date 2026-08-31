@@ -88,8 +88,6 @@ jobs:
 
           - device: Cudy-TR3000-256MB
 
-            repo_url: https://github.com/openwrt/openwrt.git
-
             config_file: config/tr3000.config
 
 
