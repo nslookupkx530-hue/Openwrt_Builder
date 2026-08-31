@@ -8,7 +8,7 @@ on:
 
       source:
 
-       description: OpenWrt source
+       description: 代码源
 
        required: false
 
