@@ -31,6 +31,7 @@ on:
 
         type: string
 
+
       third_party:
 
         description: Enable third-party packages
@@ -45,7 +46,8 @@ on:
 
          - disabled
          - enabled
-      
+
+
       docker:
 
         description: Enable docker packages
