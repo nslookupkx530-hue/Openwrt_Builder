@@ -182,6 +182,58 @@ jobs:
           printf '%s\n' "${CUSTOM_APK_PACKAGES}"
 
 
+      - name: Add third-party source feeds
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"          
+
+          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+          
+          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
+
+            echo "No third-party.config, skip third-party source feeds"
+            
+            exit 0
+            
+          fi
+
+          # 导入第三方插件配置
+          source "${THIRD_PARTY_CONFIG}"
+
+          if [ -z "${CUSTOM_SOURCE_FEEDS:-}" ]; then
+
+            echo "No third-party source feeds enabled"
+            
+            exit 0
+
+          fi
+
+          cd "${SOURCE_DIR}"
+
+          echo "Adding third-party source feeds..."
+
+          while IFS='|' read -r FEED_NAME FEED_URL FEED_BRANCH; do
+            # 跳过空行
+            [ -z "${FEED_NAME}" ] && continue
+
+            echo "Adding feed: ${FEED_NAME}"
+            echo "  URL: ${FEED_URL}"
+            echo "  Branch: ${FEED_BRANCH}"
+
+            echo "${FEED_NAME} ${FEED_URL};${FEED_BRANCH}" >> feeds.conf.default
+
+          done <<< "${CUSTOM_SOURCE_FEEDS}"
+
+          echo "Current third-party feeds:"
+
+          tail -n 20 feeds.conf.default
+
+
       - name: Update feeds
 
         shell: bash
