@@ -119,32 +119,6 @@ jobs:
           git branch
           git log -1
 
-
-      - name: Prepare config
-
-        shell: bash
-
-        env:
-
-          CONFIG_FILE: ${{ inputs.config_file }}
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
-
-          if [ ! -f "${CONFIG_PATH}" ]; then
-
-            echo "Missing config: ${CONFIG_PATH}"
-
-            exit 1
-
-          fi
-
-
       - name: Apply third-party config
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -374,6 +348,31 @@ jobs:
           find feeds -path "*luci*" -print | sed -n '1,50p'
          
 
+      - name: Prepare config
+
+        shell: bash
+
+        env:
+
+          CONFIG_FILE: ${{ inputs.config_file }}
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
+
+          if [ ! -f "${CONFIG_PATH}" ]; then
+
+            echo "Missing config: ${CONFIG_PATH}"
+
+            exit 1
+
+          fi
+
+
       - name: Apply device files
 
         shell: bash
@@ -485,7 +484,6 @@ jobs:
           export HOSTLDFLAGS=""
 
           make V=s 2>&1 | tee build.log
-
 
       - name: Upload build log
 
