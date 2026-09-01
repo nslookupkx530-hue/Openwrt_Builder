@@ -37,16 +37,16 @@ on:
 
         description: Enable third-party packages
 
-        required: NO
+        required: false
 
-        default: false
+        default: disabled
 
         type: choice
 
-       options:
+        options:
 
-         - NO
-         - YES
+         - disabled
+         - enabled
         
 
       docker:
@@ -123,6 +123,8 @@ jobs:
       config_file: ${{ matrix.config_file }}
 
       sonic_fullcone: "false"
+
+      third_party: ${{ inputs.third_party }}
 
       docker: ${{ inputs.docker }}
 
