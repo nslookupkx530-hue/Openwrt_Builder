@@ -37,11 +37,16 @@ on:
 
         description: Enable third-party packages
 
-        required: false
+        required: NO
 
         default: false
 
-        type: boolean
+        type: choice
+
+       options:
+
+         - NO
+         - YES
         
 
       docker:
