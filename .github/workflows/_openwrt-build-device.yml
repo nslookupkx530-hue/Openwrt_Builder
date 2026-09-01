@@ -120,34 +120,6 @@ jobs:
           git log -1
 
 
-      - name: Update feeds
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          ./scripts/feeds update -a
-
-          ./scripts/feeds install -a -f
-
-
-      - name: Check luci packages
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          find feeds -path "*luci*" -print | sed -n '1,50p'
-         
-
       - name: Prepare config
 
         shell: bash
@@ -209,6 +181,34 @@ jobs:
           echo "CUSTOM_APK_PACKAGES:"
           printf '%s\n' "${CUSTOM_APK_PACKAGES}"
 
+
+      - name: Update feeds
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          ./scripts/feeds update -a
+
+          ./scripts/feeds install -a -f
+
+
+      - name: Check luci packages
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          find feeds -path "*luci*" -print | sed -n '1,50p'
+         
 
       - name: Apply device files
 
