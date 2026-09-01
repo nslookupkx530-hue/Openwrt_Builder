@@ -249,19 +249,6 @@ jobs:
           ./scripts/feeds install -a -f
 
 
-      - name: Check luci packages
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          find feeds -path "*luci*" -print | sed -n '1,50p'
-         
-
       - name: Apply third-party source packages
 
         shell: bash
@@ -310,6 +297,19 @@ jobs:
 
           echo "Third-party source packages installed."
 
+
+      - name: Check luci packages
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          find feeds -path "*luci*" -print | sed -n '1,50p'
+         
 
       - name: Apply device files
 
@@ -422,6 +422,7 @@ jobs:
           export HOSTLDFLAGS=""
 
           make V=s 2>&1 | tee build.log
+
 
       - name: Upload build log
 
