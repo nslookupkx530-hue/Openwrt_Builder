@@ -208,6 +208,8 @@ jobs:
 
       - name: Add third-party source feeds
 
+        if: ${{ inputs.third_party == 'enabled' }}
+
         shell: bash
 
         run: |
@@ -249,13 +251,18 @@ jobs:
             echo "  URL: ${FEED_URL}"
             echo "  Branch: ${FEED_BRANCH}"
 
-            echo "${FEED_NAME} ${FEED_URL};${FEED_BRANCH}" >> feeds.conf.default
+            echo "src-git ${FEED_NAME} ${FEED_URL};${FEED_BRANCH}" \
+            >> feeds.conf.default
 
           done <<< "${CUSTOM_SOURCE_FEEDS}"
 
           echo "Current third-party feeds:"
 
           tail -n 20 feeds.conf.default
+
+          echo "Check feeds.conf.default syntax"
+
+          grep -n "^[^#]" feeds.conf.default
 
 
       - name: Update feeds
