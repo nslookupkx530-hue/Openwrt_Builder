@@ -78,6 +78,8 @@ jobs:
 
       sonic_fullcone: "false"
 
+      third_party: ${{ inputs.third_party }}
+
       docker: ${{ inputs.docker }}
 
       release: ${{ inputs.release }}
