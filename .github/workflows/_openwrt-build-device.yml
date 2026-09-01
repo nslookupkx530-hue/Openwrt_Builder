@@ -169,7 +169,7 @@ jobs:
           find openwrt/files -type f | sort
 
 
-      - name: Apply third-party config
+      - name: Load third-party config
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -357,7 +357,7 @@ jobs:
 
           cd "${SOURCE_DIR}"
 
-          while read -r PACKAGE
+          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
 
           do
 
@@ -365,14 +365,15 @@ jobs:
 
             [ -z "${PACKAGE}" ] && continue
 
+            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y" .config; then
 
-            echo "Enable package: ${PACKAGE}"
+              echo "Enable package: ${PACKAGE}"
 
-            echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
 
+            fi
 
-          done <<< "${CUSTOM_SOURCE_PACKAGES}"
-
+          done
 
           make defconfig V=s
 
