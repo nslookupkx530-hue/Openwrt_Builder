@@ -169,69 +169,6 @@ jobs:
           find openwrt/files -type f | sort
 
 
-      - name: Add third-party feeds
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-
-
-          if [ ! -f "${THIRD_CONFIG}" ]; then
-
-            echo "No third-party.config"
-
-            exit 0
-
-          fi
-
-
-          echo "Load third-party.config"
-
-          source "${THIRD_CONFIG}"
-
-
-          if [ -z "${CUSTOM_SOURCE_FEEDS}" ]; then
-
-            echo "No custom source feeds"
-
-            exit 0
-
-          fi
-
-
-
-          echo "${CUSTOM_SOURCE_FEEDS}" | while IFS='|' read -r name url branch
-
-          do
-
-            [ -z "${name}" ] && continue
-
-
-            echo "Add feed: ${name}"
-
-
-            echo "src-git ${name} ${url};${branch}" \
-            >> "${SOURCE_DIR}/feeds.conf.default"
-
-
-          done
-
-
-
-          echo "Current feeds.conf.default"
-
-          cat "${SOURCE_DIR}/feeds.conf.default"
-
-
       - name: Apply third-party config
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -395,7 +332,7 @@ jobs:
 
           if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
 
-            echo "No third-party.config, skip third-party source packages"
+            echo "No third-party.config"
 
             exit 0
 
@@ -413,23 +350,85 @@ jobs:
 
           cd "${SOURCE_DIR}"
 
-          echo "Installing third-party source packages..."
+          while read -r PACKAGE
 
-          while IFS= read -r PACKAGE; do
+          do
 
-            PACKAGE="$(echo "${PACKAGE}" | xargs)"
+            PACKAGE=$(echo "${PACKAGE}" | xargs)
 
             [ -z "${PACKAGE}" ] && continue
 
-            echo "Installing: ${PACKAGE}"
 
-            ./scripts/feeds install "${PACKAGE}"
+            echo "Enable package: ${PACKAGE}"
+
+            echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+
 
           done <<< "${CUSTOM_SOURCE_PACKAGES}"
 
-          echo "Third-party source packages installed."
 
-  
+          make defconfig V=s
+
+
+      - name: Apply third-party APK feeds
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+
+
+          if [ ! -f "${THIRD_CONFIG}" ]; then
+
+            echo "No third-party.config"
+
+            exit 0
+
+          fi
+
+
+          source "${THIRD_CONFIG}"
+
+
+          if [ -z "${CUSTOM_APK_FEEDS}" ]; then
+
+            echo "No custom APK feeds"
+
+            exit 0
+
+          fi
+
+
+          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
+
+
+          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
+
+          do
+
+            [ -z "${name}" ] && continue
+
+
+            echo "${url}" \
+            >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
+
+
+          done
+
+
+          echo "Custom APK feeds:"
+
+          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
+
+
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
