@@ -27,6 +27,11 @@ on:
         type: string
         default: "false"
 
+      third_party:
+        required: false
+        type: string
+        default: disabled
+
       docker:
         required: false
         type: boolean
