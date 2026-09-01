@@ -27,11 +27,6 @@ on:
         type: string
         default: "false"
 
-      third_party:
-        required: false
-        type: string
-        default: disabled
-
       docker:
         required: false
         type: boolean
@@ -119,157 +114,6 @@ jobs:
           git branch
           git log -1
 
-      - name: Apply third-party config
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
-          
-          if [ ! -f "${CONFIG_PATH}" ]; then
-
-            echo "third-party.config not found"
-            exit 1
-          fi
-
-          echo "Third-party packages enabled"
-
-          cat "${CONFIG_PATH}"
-
-          source "${CONFIG_PATH}"
-
-          echo "CUSTOM_SOURCE_FEEDS:"
-          printf '%s\n' "${CUSTOM_SOURCE_FEEDS}"
-
-          echo "CUSTOM_SOURCE_PACKAGES:"
-          printf '%s\n' "${CUSTOM_SOURCE_PACKAGES}"
-
-          echo "CUSTOM_APK_FEEDS:"
-          printf '%s\n' "${CUSTOM_APK_FEEDS}"
-
-          echo "CUSTOM_APK_PACKAGES:"
-          printf '%s\n' "${CUSTOM_APK_PACKAGES}"
-
-
-      - name: Add third-party source feeds
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"          
-
-          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-          
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
-
-            echo "No third-party.config, skip third-party source feeds"
-            
-            exit 0
-            
-          fi
-
-          # 导入第三方插件配置
-          source "${THIRD_PARTY_CONFIG}"
-
-          if [ -z "${CUSTOM_SOURCE_FEEDS:-}" ]; then
-
-            echo "No third-party source feeds enabled"
-            
-            exit 0
-
-          fi
-
-          cd "${SOURCE_DIR}"
-
-          echo "Adding third-party source feeds..."
-
-          while IFS='|' read -r FEED_NAME FEED_URL FEED_BRANCH; do
-            # 跳过空行
-            [ -z "${FEED_NAME}" ] && continue
-
-            echo "Adding feed: ${FEED_NAME}"
-            echo "  URL: ${FEED_URL}"
-            echo "  Branch: ${FEED_BRANCH}"
-
-            echo "${FEED_NAME} ${FEED_URL};${FEED_BRANCH}" >> feeds.conf.default
-
-          done <<< "${CUSTOM_SOURCE_FEEDS}"
-
-          echo "Current third-party feeds:"
-
-          tail -n 20 feeds.conf.default
-
-
-      - name: Add third party feeds
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-
-
-          if [ ! -f "${THIRD_CONFIG}" ]; then
-
-            echo "No third-party.config"
-
-            exit 0
-
-          fi
-
-
-          echo "Load third-party.config"
-
-          source "${THIRD_CONFIG}"
-
-
-          if [ -z "${CUSTOM_SOURCE_FEEDS}" ]; then
-
-            echo "No custom source feeds"
-
-            exit 0
-
-          fi
-
-
-
-          echo "${CUSTOM_SOURCE_FEEDS}" | while IFS='|' read -r name url branch
-
-          do
-
-            [ -z "${name}" ] && continue
-
-
-            echo "Add feed: ${name}"
-
-
-            echo "src-git ${name} ${url};${branch}" \
-            >> "${SOURCE_DIR}/feeds.conf.default"
-
-
-          done
-
-
-
-          echo "Current feeds.conf.default"
-
-          cat "${SOURCE_DIR}/feeds.conf.default"
-
 
       - name: Update feeds
 
@@ -284,55 +128,6 @@ jobs:
           ./scripts/feeds update -a
 
           ./scripts/feeds install -a -f
-
-
-      - name: Apply third-party source packages
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
-
-            echo "No third-party.config, skip third-party source packages"
-
-            exit 0
-
-          fi
-
-          source "${THIRD_PARTY_CONFIG}"
-
-          if [ -z "${CUSTOM_SOURCE_PACKAGES:-}" ]; then
-
-            echo "No third-party source packages enabled"
-
-            exit 0
-
-          fi
-
-          cd "${SOURCE_DIR}"
-
-          echo "Installing third-party source packages..."
-
-          while IFS= read -r PACKAGE; do
-
-            PACKAGE="$(echo "${PACKAGE}" | xargs)"
-
-            [ -z "${PACKAGE}" ] && continue
-
-            echo "Installing: ${PACKAGE}"
-
-            ./scripts/feeds install "${PACKAGE}"
-
-          done <<< "${CUSTOM_SOURCE_PACKAGES}"
-
-          echo "Third-party source packages installed."
 
 
       - name: Check luci packages
@@ -371,6 +166,13 @@ jobs:
             exit 1
 
           fi
+
+
+          cd "${SOURCE_DIR}"
+
+          cp "${CONFIG_PATH}" .config
+
+          make defconfig V=s
 
 
       - name: Apply device files
