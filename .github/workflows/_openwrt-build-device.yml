@@ -259,7 +259,7 @@ jobs:
 
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
-          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/third-party.config"
+          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
           if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
 
