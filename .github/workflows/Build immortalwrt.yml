@@ -31,7 +31,19 @@ on:
         default: ""
 
         type: string
+        
       
+      third_party:
+
+        description: Enable third-party packages
+
+        required: false
+
+        default: false
+
+        type: boolean
+        
+
       docker:
 
         description: Enable docker packages
