@@ -183,7 +183,7 @@ jobs:
 
           set -euxo pipefail
 
-          CONFIG_PATH="${{ github.workspace }}/config/third-party.config"
+          CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
           
           if [ ! -f "${CONFIG_PATH}" ]; then
 
