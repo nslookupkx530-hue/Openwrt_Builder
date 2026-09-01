@@ -120,13 +120,10 @@ jobs:
           git log -1
 
 
-      - name: Prepare config
+
+      - name: Apply device files
 
         shell: bash
-
-        env:
-
-          CONFIG_FILE: ${{ inputs.config_file }}
 
         run: |
 
@@ -134,15 +131,43 @@ jobs:
 
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
-          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
+          FILE_DIR="${{ github.workspace }}/files/${{ inputs.device }}"
 
-          if [ ! -f "${CONFIG_PATH}" ]; then
+          if [ -d "${FILE_DIR}" ]; then
 
-            echo "Missing config: ${CONFIG_PATH}"
+            cp -rf "${FILE_DIR}/." "${SOURCE_DIR}/files/"
 
-            exit 1
+            echo "Applied files for ${{ inputs.device }}"
+
+
+          # 保证 uci-defaults 脚本可执行
+          if [ -d "${SOURCE_DIR}/files/etc/uci-defaults" ]; then
+
+            chmod 755 "${SOURCE_DIR}/files/etc/uci-defaults/"*
+
+            echo "uci-defaults permissions fixed"
+
+            ls -la "${SOURCE_DIR}/files/etc/uci-defaults/"
 
           fi
+
+            echo "Applied files list:"
+            find "${SOURCE_DIR}/files" -type f
+
+          else
+            
+            echo "No custom files for ${{ inputs.device }}"
+
+          fi
+
+
+      - name: Check custom files
+
+        shell: bash
+
+        run: |
+
+          find openwrt/files -type f | sort
 
 
       - name: Apply third-party config
@@ -234,7 +259,7 @@ jobs:
           tail -n 20 feeds.conf.default
 
 
-      - name: Add third party feeds
+      - name: Add third-party feeds
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -312,6 +337,51 @@ jobs:
           ./scripts/feeds install -a -f
 
 
+      - name: Check luci packages
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          find feeds -path "*luci*" -print | sed -n '1,50p'
+         
+
+      - name: Prepare config
+
+        shell: bash
+
+        env:
+
+          CONFIG_FILE: ${{ inputs.config_file }}
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
+
+          if [ ! -f "${CONFIG_PATH}" ]; then
+
+            echo "Missing config: ${CONFIG_PATH}"
+
+            exit 1
+
+          fi
+
+
+          cd "${SOURCE_DIR}"
+
+          cp "${CONFIG_PATH}" .config
+
+          make defconfig V=s
+
+
       - name: Apply third-party source packages
 
         shell: bash
@@ -360,69 +430,7 @@ jobs:
 
           echo "Third-party source packages installed."
 
-
-      - name: Check luci packages
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          find feeds -path "*luci*" -print | sed -n '1,50p'
-         
-
-      - name: Apply device files
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          FILE_DIR="${{ github.workspace }}/files/${{ inputs.device }}"
-
-          if [ -d "${FILE_DIR}" ]; then
-
-            cp -rf "${FILE_DIR}/." "${SOURCE_DIR}/files/"
-
-            echo "Applied files for ${{ inputs.device }}"
-
-
-          # 保证 uci-defaults 脚本可执行
-          if [ -d "${SOURCE_DIR}/files/etc/uci-defaults" ]; then
-
-            chmod 755 "${SOURCE_DIR}/files/etc/uci-defaults/"*
-
-            echo "uci-defaults permissions fixed"
-
-            ls -la "${SOURCE_DIR}/files/etc/uci-defaults/"
-
-          fi
-
-            echo "Applied files list:"
-            find "${SOURCE_DIR}/files" -type f
-
-          else
-            
-            echo "No custom files for ${{ inputs.device }}"
-
-          fi
-
-
-      - name: Check custom files
-
-        shell: bash
-
-        run: |
-
-          find openwrt/files -type f | sort
-
-
+    
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
