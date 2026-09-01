@@ -173,11 +173,41 @@ jobs:
           fi
 
 
-          cd "${SOURCE_DIR}"
+      - name: Apply third-party config
 
-          cp "${CONFIG_PATH}" .config
+        if: ${{ inputs.third_party == 'enabled' }}
 
-          make defconfig V=s
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          CONFIG_PATH="${{ github.workspace }}/config/third-party.config"
+          
+          if [ ! -f "${CONFIG_PATH}" ]; then
+
+            echo "third-party.config not found"
+            exit 1
+          fi
+
+          echo "Third-party packages enabled"
+
+          cat "${CONFIG_PATH}"
+
+          source "${CONFIG_PATH}"
+
+          echo "CUSTOM_SOURCE_FEEDS:"
+          printf '%s\n' "${CUSTOM_SOURCE_FEEDS}"
+
+          echo "CUSTOM_SOURCE_PACKAGES:"
+          printf '%s\n' "${CUSTOM_SOURCE_PACKAGES}"
+
+          echo "CUSTOM_APK_FEEDS:"
+          printf '%s\n' "${CUSTOM_APK_FEEDS}"
+
+          echo "CUSTOM_APK_PACKAGES:"
+          printf '%s\n' "${CUSTOM_APK_PACKAGES}"
 
 
       - name: Apply device files
