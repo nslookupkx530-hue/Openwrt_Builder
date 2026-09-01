@@ -6,6 +6,21 @@ on:
 
     inputs:
 
+      third_party:
+
+        description: Enable third-party packages
+
+        required: false
+
+        default: disabled
+
+        type: choice
+
+        options:
+
+         - disabled
+         - enabled
+
       docker:
 
         description: Enable docker packages
