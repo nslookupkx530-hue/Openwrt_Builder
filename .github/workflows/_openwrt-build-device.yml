@@ -390,10 +390,12 @@ jobs:
 
             echo "Enable source package: ${PACKAGE}"
 
-            ./scripts/config/conf --enable "PACKAGE_${PACKAGE}"
+            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y$" .config; then
+              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+            fi
           done
 
-          echo "Current third-party source package config:"
+          echo "=== Third-party source package config ==="
 
           echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
           do
@@ -401,7 +403,7 @@ jobs:
 
             [ -z "${PACKAGE}" ] && continue
 
-            grep -E "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
+            grep "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
           done
 
 
