@@ -388,23 +388,23 @@ jobs:
 
             [ -z "${PACKAGE}" ] && continue
 
-            echo "Enable source package: ${PACKAGE}"
+            echo "Install source package: ${PACKAGE}"
 
-            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y$" .config; then
-              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+            if ! ./scripts/feeds search "${PACKAGE}" | grep -q "^${PACKAGE}[[:space:]]"; then
+              echo "ERROR: source package not found: ${PACKAGE}"
+              exit 1
             fi
+
+            ./scripts/feeds install -f -p istore "${PACKAGE}"
           done
 
-          echo "=== Third-party source package config ==="
+          echo "=== Check source package ==="
 
-          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
-          do
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
+          ls -la package/feeds/istore/luci-app-store
 
-            [ -z "${PACKAGE}" ] && continue
+          echo "=== Check package definition ==="
 
-            grep "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
-          done
+          ./scripts/feeds search luci-app-store
 
 
       - name: Check third-party source packages
@@ -589,6 +589,36 @@ jobs:
 
           echo "=== Feed package search ==="
           ./scripts/feeds search luci-app-store || true
+
+
+      - name: Check package Config.in
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== Search luci-app-store Config.in ==="
+
+          find package/feeds/istore feeds/istore \
+            -type f \
+            \( -name 'Config.in' -o -name 'Makefile' \) \
+            -print \
+            | sort
+
+          echo "=== Search PACKAGE_luci-app-store ==="
+
+          grep -Rni \
+            "PACKAGE_luci-app-store" \
+            package/feeds/istore \
+            feeds/istore \
+            feeds/luci \
+            package \
+            2>/dev/null \
+            | head -100 || true
 
 
       - name: Make defconfig
