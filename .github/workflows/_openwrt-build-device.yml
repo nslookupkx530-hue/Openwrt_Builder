@@ -120,6 +120,27 @@ jobs:
           git log -1
 
 
+      - name: Check APK package mirror
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== Search current APK mirror ==="
+
+          grep -Rni \
+            "mirrors.vsean.net" \
+            . \
+            --exclude-dir=.git \
+            --exclude-dir=build_dir \
+            --exclude-dir=staging_dir \
+            --exclude-dir=tmp \
+            | head -100
+
+
       - name: Apply device files
 
         shell: bash
