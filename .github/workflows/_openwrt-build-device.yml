@@ -384,7 +384,7 @@ jobs:
 
           THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
-          if [ ! -f "${THIRD_CONFIG}" ]; then
+          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
 
             echo "No third-party.config"
 
@@ -418,6 +418,10 @@ jobs:
 
               echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
 
+            else
+
+              echo "Package already enabled: ${PACKAGE}"
+            
             fi
 
           done
@@ -439,7 +443,7 @@ jobs:
           THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
 
-          if [ ! -f "${THIRD_CONFIG}" ]; then
+          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
 
             echo "No third-party.config"
 
@@ -498,7 +502,7 @@ jobs:
           THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
 
-          if [ ! -f "${THIRD_CONFIG}" ]; then
+          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
 
             echo "No third-party.config"
 
