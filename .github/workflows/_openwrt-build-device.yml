@@ -229,6 +229,25 @@ jobs:
           printf '%s\n' "${CUSTOM_APK_PACKAGES}"
 
 
+      - name: Check custom files
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          if [ -d "openwrt/files" ]; then
+
+             find openwrt/files -type f | sort
+
+          else
+          
+             echo "No custom files directory"
+
+          fi
+
+
       - name: Add third-party source feeds
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -412,6 +431,19 @@ jobs:
           make defconfig V=s
 
 
+      - name: Make defconfig
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          make defconfig
+
+
       - name: Apply third-party APK feeds
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -471,7 +503,7 @@ jobs:
           find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
 
 
-      - name: Apply third-party source packages
+      - name: Apply third-party APK packages
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -486,6 +518,7 @@ jobs:
 
           THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
+
           if [ ! -f "${THIRD_CONFIG}" ]; then
 
             echo "No third-party.config"
@@ -494,67 +527,39 @@ jobs:
 
           fi
 
+
           source "${THIRD_CONFIG}"
 
-          if [ -z "${CUSTOM_SOURCE_PACKAGES}" ]; then
 
-            echo "No custom source packages"
+          if [ -z "${CUSTOM_APK_FEEDS}" ]; then
+
+            echo "No custom APK feeds"
 
             exit 0
 
           fi
 
-          cd "${SOURCE_DIR}"
 
-          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
+          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
+
+
+          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
 
           do
 
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
+            [ -z "${name}" ] && continue
 
-            [ -z "${PACKAGE}" ] && continue
-            
-            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y" .config; then
 
-              echo "Enable package: ${PACKAGE}"
+            echo "${url}" \
+            >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
 
-              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
 
-          fi
-        
           done
 
 
-      - name: Check custom files
+          echo "Custom APK feeds:"
 
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          if [ -d "openwrt/files" ]; then
-
-             find openwrt/files -type f | sort
-
-          else
-          
-             echo "No custom files directory"
-
-          fi
-
-
-      - name: Make defconfig
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          make defconfig
+          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
 
 
       - name: Enable sonic fullcone
