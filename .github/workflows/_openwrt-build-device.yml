@@ -591,6 +591,32 @@ jobs:
           ./scripts/feeds search luci-app-store || true
 
 
+      - name: Check third-party package definition
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== Check luci-app-store directory ==="
+          ls -la package/feeds/istore/luci-app-store
+
+          echo "=== Check luci-app-store Makefile ==="
+          sed -n '1,160p' package/feeds/istore/luci-app-store/Makefile
+
+          echo "=== Search package definition ==="
+          grep -Rni \
+            "luci-app-store" \
+            package/feeds/istore \
+            | head -50 || true
+
+          echo "=== Feed package search ==="
+          ./scripts/feeds search luci-app-store || true
+
+
       - name: Make defconfig
 
         shell: bash
