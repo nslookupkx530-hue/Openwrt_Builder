@@ -388,23 +388,14 @@ jobs:
 
             [ -z "${PACKAGE}" ] && continue
 
-            echo "Install source package: ${PACKAGE}"
+            echo "Enable source package: ${PACKAGE}"
 
-            if ! ./scripts/feeds search "${PACKAGE}" | grep -q "^${PACKAGE}[[:space:]]"; then
-              echo "ERROR: source package not found: ${PACKAGE}"
-              exit 1
-            fi
-
-            ./scripts/feeds install -f -p istore "${PACKAGE}"
+            ./scripts/config --enable "PACKAGE_${PACKAGE}"
           done
 
-          echo "=== Check source package ==="
+          echo "=== Third-party package config ==="
 
-          ls -la package/feeds/istore/luci-app-store
-
-          echo "=== Check package definition ==="
-
-          ./scripts/feeds search luci-app-store
+          grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
 
       - name: Check third-party source packages
@@ -634,7 +625,7 @@ jobs:
           make defconfig V=s
 
 
-      - name: Check third-party source packages after defconfig
+      - name: Check third-party package config
         if: ${{ inputs.third_party == 'enabled' }}
         shell: bash
         run: |
@@ -644,14 +635,14 @@ jobs:
 
           cd "${SOURCE_DIR}"
 
-          echo "=== Check luci-app-store after defconfig ==="
+          echo "=== Check luci-app-store config ==="
 
           grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
           if grep -q '^CONFIG_PACKAGE_luci-app-store=y$' .config; then
-            echo "CONFIG_PACKAGE_luci-app-store=y: OK"
+            echo "luci-app-store is enabled"
           else
-            echo "ERROR: luci-app-store was removed by defconfig"
+            echo "ERROR: luci-app-store is NOT enabled"
             exit 1
           fi
 
