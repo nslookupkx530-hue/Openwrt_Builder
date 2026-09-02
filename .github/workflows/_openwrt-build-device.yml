@@ -578,21 +578,24 @@ jobs:
           make defconfig V=s
 
 
-      - name: Verify third-party source packages
+      - name: Check third-party source packages after defconfig
         if: ${{ inputs.third_party == 'enabled' }}
         shell: bash
         run: |
           set -euxo pipefail
 
-          cd "${{ github.workspace }}/openwrt"
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
 
-          echo "=== Check after defconfig ==="
+          cd "${SOURCE_DIR}"
+
+          echo "=== Check luci-app-store after defconfig ==="
+
+          grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
           if grep -q '^CONFIG_PACKAGE_luci-app-store=y$' .config; then
             echo "CONFIG_PACKAGE_luci-app-store=y: OK"
           else
-            echo "ERROR: CONFIG_PACKAGE_luci-app-store=y was removed by defconfig"
-            grep 'luci-app-store' .config || true
+            echo "ERROR: luci-app-store was removed by defconfig"
             exit 1
           fi
 
