@@ -192,74 +192,6 @@ jobs:
           done
 
 
-      - name: Apply third-party APK feeds
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-
-
-          if [ ! -f "${THIRD_CONFIG}" ]; then
-
-            echo "No third-party.config"
-
-            exit 0
-
-          fi
-
-
-          source "${THIRD_CONFIG}"
-
-
-          if [ -z "${CUSTOM_APK_FEEDS}" ]; then
-
-            echo "No custom APK feeds"
-
-            exit 0
-
-          fi
-
-
-          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
-
-
-          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
-
-          do
-
-            [ -z "${name}" ] && continue
-
-
-            echo "${url}" \
-            >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
-
-
-          done
-
-
-          echo "Custom APK feeds:"
-
-          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
-
-
-      - name: Check custom files
-
-        shell: bash
-
-        run: |
-
-          find openwrt/files -type f | sort
-
-
       - name: Load third-party config
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -478,6 +410,87 @@ jobs:
           done
 
           make defconfig V=s
+
+
+      - name: Apply third-party APK feeds
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+
+
+          if [ ! -f "${THIRD_CONFIG}" ]; then
+
+            echo "No third-party.config"
+
+            exit 0
+
+          fi
+
+
+          source "${THIRD_CONFIG}"
+
+
+          if [ -z "${CUSTOM_APK_FEEDS}" ]; then
+
+            echo "No custom APK feeds"
+
+            exit 0
+
+          fi
+
+
+          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
+
+
+          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
+
+          do
+
+            [ -z "${name}" ] && continue
+
+
+            echo "${url}" \
+            >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
+
+
+          done
+
+
+          echo "Custom APK feeds:"
+
+          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
+
+
+      - name: Check custom files
+
+        shell: bash
+
+        run: |
+
+          find openwrt/files -type f | sort
+
+
+      - name: Make defconfig
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          make defconfig
 
 
       - name: Enable sonic fullcone
