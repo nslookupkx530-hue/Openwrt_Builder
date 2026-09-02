@@ -335,7 +335,7 @@ jobs:
 
           cp "${CONFIG_PATH}" .config
 
-          make defconfig V=s
+          echo "Base config applied"
 
 
       - name: Apply third-party source packages
@@ -373,25 +373,24 @@ jobs:
           cd "${SOURCE_DIR}"
 
           echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
-
           do
-
             PACKAGE=$(echo "${PACKAGE}" | xargs)
 
             [ -z "${PACKAGE}" ] && continue
 
-            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y" .config; then
+            echo "Enable source package: ${PACKAGE}"
 
-              echo "Enable package: ${PACKAGE}"
+            ./scripts/config --enable "PACKAGE_${PACKAGE}"
+          done
 
-              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+          echo "Current third-party source package config:"
+          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
+          do
+            PACKAGE=$(echo "${PACKAGE}" | xargs)
 
-            else
+            [ -z "${PACKAGE}" ] && continue
 
-              echo "Package already enabled: ${PACKAGE}"
-            
-            fi
-
+            grep -E "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
           done
 
 
@@ -541,7 +540,37 @@ jobs:
 
           cd "${{ github.workspace }}/openwrt"
 
-           make defconfig V=s
+          make defconfig V=s
+
+
+      - name: Check third-party source packages
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== Check luci-app-store source ==="
+
+          if [ -d "package/feeds/istore/luci-app-store" ]; then
+            echo "luci-app-store source: OK"
+          else
+            echo "ERROR: luci-app-store source not found"
+            exit 1
+          fi
+
+          echo "=== Check luci-app-store config ==="
+
+          if grep -q '^CONFIG_PACKAGE_luci-app-store=y$' .config; then
+            echo "CONFIG_PACKAGE_luci-app-store=y: OK"
+          else
+            echo "ERROR: luci-app-store is NOT enabled"
+            grep 'CONFIG_PACKAGE_luci-app-store' .config || true
+            exit 1
+          fi
 
 
       - name: Enable sonic fullcone
