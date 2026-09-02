@@ -399,12 +399,9 @@ jobs:
 
             [ -z "${PACKAGE}" ] && continue
 
-            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y$" .config; then
-              echo "Enable source package: ${PACKAGE}"
-              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
-            else
-              echo "Already enabled: ${PACKAGE}"
-            fi
+            echo "Enable source package: ${PACKAGE}"
+
+            ./scripts/config --enable "PACKAGE_${PACKAGE}"
           done
 
 
