@@ -390,12 +390,19 @@ jobs:
 
             echo "Enable source package: ${PACKAGE}"
 
-            ./scripts/config --enable "PACKAGE_${PACKAGE}"
+            ./scripts/config/conf --enable "PACKAGE_${PACKAGE}"
           done
 
-          echo "=== Third-party package config ==="
+          echo "Current third-party source package config:"
 
-          grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
+          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
+          do
+            PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+            [ -z "${PACKAGE}" ] && continue
+
+            grep -E "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
+          done
 
 
       - name: Check third-party source packages
