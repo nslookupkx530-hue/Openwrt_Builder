@@ -423,19 +423,6 @@ jobs:
           done
 
 
-      - name: Make defconfig
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-           make defconfig V=s
-
-
       - name: Apply third-party APK feeds
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -567,6 +554,19 @@ jobs:
           echo "Third-party APK packages applied"
 
           grep '^CONFIG_PACKAGE_.*=y' .config | tail -n 30 || true
+
+
+      - name: Make defconfig
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+           make defconfig V=s
 
 
       - name: Enable sonic fullcone
