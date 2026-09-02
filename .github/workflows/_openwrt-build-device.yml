@@ -405,6 +405,28 @@ jobs:
           done
 
 
+      - name: Check third-party source packages
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=== Check luci-app-store source ==="
+
+          if [ -d "package/feeds/istore/luci-app-store" ]; then
+            echo "luci-app-store source: OK"
+          else
+            echo "ERROR: luci-app-store source not found"
+            exit 1
+          fi
+
+          echo "=== Check before defconfig ==="
+
+          grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
+
+
       - name: Apply third-party APK feeds
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -554,32 +576,21 @@ jobs:
           make defconfig V=s
 
 
-      - name: Check third-party source packages
+      - name: Verify third-party source packages
         if: ${{ inputs.third_party == 'enabled' }}
         shell: bash
         run: |
           set -euxo pipefail
 
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
+          cd "${{ github.workspace }}/openwrt"
 
-          cd "${SOURCE_DIR}"
-
-          echo "=== Check luci-app-store source ==="
-
-          if [ -d "package/feeds/istore/luci-app-store" ]; then
-            echo "luci-app-store source: OK"
-          else
-            echo "ERROR: luci-app-store source not found"
-            exit 1
-          fi
-
-          echo "=== Check luci-app-store config ==="
+          echo "=== Check after defconfig ==="
 
           if grep -q '^CONFIG_PACKAGE_luci-app-store=y$' .config; then
             echo "CONFIG_PACKAGE_luci-app-store=y: OK"
           else
-            echo "ERROR: luci-app-store is NOT enabled"
-            grep 'CONFIG_PACKAGE_luci-app-store' .config || true
+            echo "ERROR: CONFIG_PACKAGE_luci-app-store=y was removed by defconfig"
+            grep 'luci-app-store' .config || true
             exit 1
           fi
 
