@@ -528,38 +528,53 @@ jobs:
           fi
 
 
+          echo "Load third-party.config"
+
           source "${THIRD_CONFIG}"
 
 
-          if [ -z "${CUSTOM_APK_FEEDS}" ]; then
+          if [ -z "${CUSTOM_APK_PACKAGES:-}" ]; then
 
-            echo "No custom APK feeds"
+            echo "No custom APK packages"
 
             exit 0
 
           fi
 
 
-          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
+          cd "${SOURCE_DIR}"
 
 
-          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
+          echo "Apply third-party APK packages:"
+
+
+          while read -r PACKAGE
 
           do
 
-            [ -z "${name}" ] && continue
+            PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+            [ -z "${PACKAGE}" ] && continue
 
 
-            echo "${url}" \
-            >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
+            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y" .config; then
+
+              echo "Enable APK package: ${PACKAGE}"
+
+              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+
+            else
+
+              echo "APK package already enabled: ${PACKAGE}"
+
+            fi
+
+          done <<< "${CUSTOM_APK_PACKAGES}"
 
 
-          done
+          echo "Third-party APK packages applied"
 
-
-          echo "Custom APK feeds:"
-
-          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
+          grep '^CONFIG_PACKAGE_.*=y' .config | tail -n 30 || true
 
 
       - name: Enable sonic fullcone
