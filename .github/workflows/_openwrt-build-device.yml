@@ -160,38 +160,6 @@ jobs:
           fi
 
 
-      - name: Modify APK package feeds
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          MIRROR="https://mirror.nju.edu.cn/openwrt/releases"
-
-          FEED_FILES=(
-            "${SOURCE_DIR}/package/base-files/files/etc/apk/repositories.d/distfeeds.list"
-            "${SOURCE_DIR}/files/etc/apk/repositories.d/distfeeds.list"
-          )
-
-          for FEED_FILE in "${FEED_FILES[@]}"; do
-
-            if [ -f "${FEED_FILE}" ]; then
-
-              echo "Modify APK feeds: ${FEED_FILE}"
-
-              sed -i -E \
-                "s#https?://[^/]+/openwrt/releases#${MIRROR}#g" \
-                "${FEED_FILE}"
-
-              echo "Current feed:"
-              cat "${FEED_FILE}"
-
-            fi
-
-          done
-
-
       - name: Load third-party config
 
         if: ${{ inputs.third_party == 'enabled' }}
