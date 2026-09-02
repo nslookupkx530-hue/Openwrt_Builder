@@ -443,7 +443,7 @@ jobs:
           THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
 
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
+          if [ ! -f "${THIRD_CONFIG}" ]; then
 
             echo "No third-party.config"
 
@@ -452,10 +452,10 @@ jobs:
           fi
 
 
-          source "${THIRD_PARTY_CONFIG}"
+          source "${THIRD_CONFIG}"
 
 
-          if [ -z "${CUSTOM_APK_FEEDS}" ]; then
+          if [ -z "${CUSTOM_APK_FEEDS:-}" ]; then
 
             echo "No custom APK feeds"
 
@@ -473,9 +473,11 @@ jobs:
 
             [ -z "${name}" ] && continue
 
+            echo "Add custom APK feed: ${name}"
+
 
             echo "${url}" \
-            >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
+              >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
 
 
           done
@@ -483,7 +485,8 @@ jobs:
 
           echo "Custom APK feeds:"
 
-          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f -exec cat {} \;
+          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f \
+            -exec sh -c 'echo "===== $1 ====="; cat "$1"' _ {} \;
 
 
       - name: Apply third-party APK packages
