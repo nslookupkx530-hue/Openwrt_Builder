@@ -264,47 +264,39 @@ jobs:
           
           if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
 
-            echo "No third-party.config, skip third-party source feeds"
+            echo "No third-party.config"
             
             exit 0
             
           fi
-
-          # 导入第三方插件配置
-          source "${THIRD_PARTY_CONFIG}"
+          
+          echo "Load third-party.config"
+          source "${THIRD_CONFIG}"
 
           if [ -z "${CUSTOM_SOURCE_FEEDS:-}" ]; then
 
-            echo "No third-party source feeds enabled"
+            echo "No custom source feeds"
             
             exit 0
 
           fi
 
-          cd "${SOURCE_DIR}"
+          echo "${CUSTOM_SOURCE_FEEDS}" | while IFS='|' read -r name url branch
 
-          echo "Adding third-party source feeds..."
+          do
+          
+            [ -z "${name}" ] && continue
 
-          while IFS='|' read -r FEED_NAME FEED_URL FEED_BRANCH; do
-            # 跳过空行
-            [ -z "${FEED_NAME}" ] && continue
+            echo "Add source feed: ${name}"
+            
+            echo "src-git ${name} ${url};${branch}" \
+              >> "${SOURCE_DIR}/feeds.conf.default"
 
-            echo "Adding feed: ${FEED_NAME}"
-            echo "  URL: ${FEED_URL}"
-            echo "  Branch: ${FEED_BRANCH}"
+          done
 
-            echo "src-git ${FEED_NAME} ${FEED_URL};${FEED_BRANCH}" \
-            >> feeds.conf.default
+          echo "Current feeds.conf.default"
 
-          done <<< "${CUSTOM_SOURCE_FEEDS}"
-
-          echo "Current third-party feeds:"
-
-          tail -n 20 feeds.conf.default
-
-          echo "Check feeds.conf.default syntax"
-
-          grep -n "^[^#]" feeds.conf.default
+          cat "${SOURCE_DIR}/feeds.conf.default"
 
 
       - name: Update feeds
@@ -380,6 +372,8 @@ jobs:
 
       - name: Apply third-party source packages
 
+        if: ${{ inputs.third_party == 'enabled' }}
+
         shell: bash
 
         run: |
@@ -390,7 +384,7 @@ jobs:
 
           THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
+          if [ ! -f "${THIRD_CONFIG}" ]; then
 
             echo "No third-party.config"
 
@@ -398,11 +392,11 @@ jobs:
 
           fi
 
-          source "${THIRD_PARTY_CONFIG}"
+          source "${THIRD_CONFIG}"
 
           if [ -z "${CUSTOM_SOURCE_PACKAGES:-}" ]; then
 
-            echo "No third-party source packages enabled"
+            echo "No custom source packages"
 
             exit 0
 
@@ -428,8 +422,6 @@ jobs:
 
           done
 
-          make defconfig V=s
-
 
       - name: Make defconfig
 
@@ -441,7 +433,7 @@ jobs:
 
           cd "${{ github.workspace }}/openwrt"
 
-          make defconfig
+           make defconfig V=s
 
 
       - name: Apply third-party APK feeds
