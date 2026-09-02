@@ -505,7 +505,7 @@ jobs:
           THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
 
 
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
+          if [ ! -f "${THIRD_CONFIG}" ]; then
 
             echo "No third-party.config"
 
@@ -516,7 +516,7 @@ jobs:
 
           echo "Load third-party.config"
 
-          source "${THIRD_PARTY_CONFIG}"
+          source "${THIRD_CONFIG}"
 
 
           if [ -z "${CUSTOM_APK_PACKAGES:-}" ]; then
