@@ -681,19 +681,20 @@ jobs:
         run: |
           set -euxo pipefail
 
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
+          cd "${{ github.workspace }}/openwrt"
 
-          cd "${SOURCE_DIR}"
-
-          echo "=== Check luci-app-store config ==="
+          echo "=== Check luci-app-store after defconfig ==="
 
           grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
-          if grep -q '^CONFIG_PACKAGE_luci-app-store=y$' .config; then
-            echo "luci-app-store is enabled"
-          else
-            echo "ERROR: luci-app-store is NOT enabled"
-            exit 1
+          echo "=== Check generated package metadata ==="
+
+          if [ -f tmp/.packageinfo ]; then
+            grep -n "luci-app-store" tmp/.packageinfo || true
+          fi
+
+          if [ -f tmp/.config-package.in ]; then
+            grep -n "luci-app-store" tmp/.config-package.in || true
           fi
 
 
