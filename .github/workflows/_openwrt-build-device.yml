@@ -675,6 +675,60 @@ jobs:
           make defconfig V=s
 
 
+      - name: Re-apply third-party source packages
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+
+          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
+            echo "No third-party.config"
+            exit 0
+          fi
+
+          source "${THIRD_PARTY_CONFIG}"
+
+          cd "${SOURCE_DIR}"
+
+          if [ -z "${CUSTOM_SOURCE_PACKAGES:-}" ]; then
+            echo "No custom source packages"
+            exit 0
+          fi
+
+          echo "=== Re-enable third-party source packages ==="
+
+          while read -r PACKAGE
+          do
+            PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+            [ -z "${PACKAGE}" ] && continue
+
+            echo "Enable source package: ${PACKAGE}"
+
+            if grep -q "^CONFIG_PACKAGE_${PACKAGE}=" .config; then
+              sed -i \
+                "s/^CONFIG_PACKAGE_${PACKAGE}=.*/CONFIG_PACKAGE_${PACKAGE}=y/" \
+                .config
+            else
+              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+            fi
+          done <<< "${CUSTOM_SOURCE_PACKAGES}"
+
+          echo "=== Third-party source package config ==="
+
+          while read -r PACKAGE
+          do
+            PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+            [ -z "${PACKAGE}" ] && continue
+
+            grep "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
+          done <<< "${CUSTOM_SOURCE_PACKAGES}"
+
+
       - name: Check third-party package config
         if: ${{ inputs.third_party == 'enabled' }}
         shell: bash
@@ -683,18 +737,15 @@ jobs:
 
           cd "${{ github.workspace }}/openwrt"
 
-          echo "=== Check luci-app-store after defconfig ==="
+          echo "=== Check luci-app-store config ==="
 
           grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
-          echo "=== Check generated package metadata ==="
-
-          if [ -f tmp/.packageinfo ]; then
-            grep -n "luci-app-store" tmp/.packageinfo || true
-          fi
-
-          if [ -f tmp/.config-package.in ]; then
-            grep -n "luci-app-store" tmp/.config-package.in || true
+          if grep -q '^CONFIG_PACKAGE_luci-app-store=y$' .config; then
+            echo "luci-app-store: ENABLED"
+          else
+            echo "ERROR: luci-app-store is NOT enabled"
+            exit 1
           fi
 
 
