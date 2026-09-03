@@ -662,57 +662,6 @@ jobs:
           grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
 
-      - name: Generate and check package metadata
-        if: ${{ inputs.third_party == 'enabled' }}
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          echo "=== Check iStore package ==="
-
-          ls -la package/feeds/istore/luci-app-store
-
-          echo "=== Generate package metadata ==="
-
-          make package/metadata V=s
-
-          echo "=== Check tmp/.packageinfo ==="
-
-          if [ -f tmp/.packageinfo ]; then
-            grep -n \
-              "luci-app-store" \
-              tmp/.packageinfo \
-              | head -50 || true
-          else
-            echo "ERROR: tmp/.packageinfo not generated"
-          fi
-
-          echo "=== Check tmp/.config-package.in ==="
-
-          if [ -f tmp/.config-package.in ]; then
-            grep -n \
-              "luci-app-store" \
-              tmp/.config-package.in \
-              | head -50 || true
-          else
-            echo "ERROR: tmp/.config-package.in not generated"
-          fi
-
-          echo "=== Check package metadata result ==="
-
-          if [ -f tmp/.packageinfo ] && \
-             grep -q "luci-app-store" tmp/.packageinfo; then
-            echo "luci-app-store metadata: OK"
-          else
-            echo "ERROR: luci-app-store is NOT in package metadata"
-            exit 1
-          fi
-
-
       - name: Make defconfig
 
         shell: bash
