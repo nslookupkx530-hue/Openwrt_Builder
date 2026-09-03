@@ -622,45 +622,6 @@ jobs:
           find openwrt/files/etc/uci-defaults -type f -exec ls -l {} \; || true
 
 
-      - name: Check iStore dependencies
-        #检测Istore最重要的是这 5 个文件是否存在
-        if: ${{ inputs.third_party == 'enabled' }}
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          echo "=== iStore package ==="
-          find bin/packages -type f \
-            \( -name 'luci-app-store*.apk' -o \
-               -name 'luci-lib-taskd*.apk' -o \
-               -name 'libuci-lua*.apk' -o \
-               -name 'mount-utils*.apk' -o \
-               -name 'tar*.apk' \) \
-            | sort || true
-
-          echo "=== iStore package definitions ==="
-
-          ./scripts/feeds search luci-app-store || true
-          ./scripts/feeds search luci-lib-taskd || true
-
-          echo "=== APK package index ==="
-
-          find staging_dir/packages -name packages.adb -print
-
-          echo "=== Check dependency APKs ==="
-
-          find bin/packages \
-            -type f \
-            -name '*.apk' \
-            | grep -E \
-              '/(luci-app-store|luci-lib-taskd|libuci-lua|mount-utils|tar)[^/]*\.apk$' \
-            | sort || true
-
-
       - name: Build firmware
 
         shell: bash
@@ -695,6 +656,53 @@ jobs:
           path: openwrt/build.log
 
           if-no-files-found: ignore
+
+
+      - name: Check iStore dependencies
+        #检测Istore最重要的是这 5 个文件是否存在
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== iStore package ==="
+          if [ -d "bin/packages" ]; then
+             find bin/packages -type f \                    
+             \( -name 'luci-app-store*.apk' \
+             -o -name 'luci-lib-taskd*.apk' \
+             -o -name 'libuci-lua*.apk' \
+             -o -name 'mount-utils*.apk' \
+             -o -name 'tar*.apk' \) \
+             | sort
+          else
+            echo "bin/packages does not exist yet"
+          fi
+          
+          echo "=== iStore package definitions ==="
+
+          ./scripts/feeds search luci-app-store || true
+          ./scripts/feeds search luci-lib-taskd || true
+
+          echo "=== APK package index ==="
+
+          if [ -d "staging_dir/packages" ]; then
+             find staging_dir/packages -name packages.adb -print
+          else   
+             echo "staging_dir/packages does not exist yet" 
+          fi
+
+          echo "=== Check dependency APKs ==="
+
+          find bin/packages \
+            -type f \
+            -name '*.apk' \
+            | grep -E \
+              '/(luci-app-store|luci-lib-taskd|libuci-lua|mount-utils|tar)[^/]*\.apk$' \
+            | sort || true
 
 
       - name: Collect firmware
