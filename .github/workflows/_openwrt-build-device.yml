@@ -707,8 +707,6 @@ jobs:
 
           echo "=== Check package Makefile parsing ==="
 
-          make package/luci-app-store/clean V=s
-
 
       - name: Make defconfig
 
