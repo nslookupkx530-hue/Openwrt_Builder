@@ -621,6 +621,47 @@ jobs:
             | head -100 || true
 
 
+      - name: Check generated package metadata
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== Check .packageinfo ==="
+
+          if [ -f "tmp/.packageinfo" ]; then
+            grep -n -A30 -B5 \
+              "Package: luci-app-store" \
+              tmp/.packageinfo \
+              | head -100 || true
+          else
+            echo "tmp/.packageinfo not found"
+          fi
+
+          echo "=== Check .config-package.in ==="
+
+          if [ -f "tmp/.config-package.in" ]; then
+            grep -n -A20 -B5 \
+              "CONFIG_PACKAGE_luci-app-store" \
+              tmp/.config-package.in \
+              | head -100 || true
+          else
+            echo "tmp/.config-package.in not found"
+          fi
+
+          echo "=== Check package path ==="
+
+          readlink -f package/feeds/istore/luci-app-store
+
+          echo "=== Check current config ==="
+
+          grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
+
+
       - name: Make defconfig
 
         shell: bash
