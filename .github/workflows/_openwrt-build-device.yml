@@ -662,6 +662,54 @@ jobs:
           grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
 
+      - name: Check package metadata generation
+        if: ${{ inputs.third_party == 'enabled' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=== Package Makefile ==="
+          sed -n '1,220p' package/feeds/istore/luci-app-store/Makefile
+
+          echo "=== Check BuildPackage ==="
+          grep -Rni \
+            'BuildPackage.*luci-app-store' \
+            feeds/luci \
+            package/feeds/istore \
+            2>/dev/null \
+            | head -50 || true
+
+          echo "=== Check package metadata ==="
+
+          if [ -f tmp/.packageinfo ]; then
+            grep -n \
+              'luci-app-store' \
+              tmp/.packageinfo \
+              | head -50 || true
+          else
+            echo "tmp/.packageinfo does not exist"
+          fi
+
+          echo "=== Check generated package Config.in ==="
+
+          if [ -f tmp/.config-package.in ]; then
+            grep -n \
+              'luci-app-store' \
+              tmp/.config-package.in \
+              | head -50 || true
+          else
+            echo "tmp/.config-package.in does not exist"
+          fi
+
+          echo "=== Check package Makefile parsing ==="
+
+          make package/luci-app-store/clean V=s
+
+
       - name: Make defconfig
 
         shell: bash
