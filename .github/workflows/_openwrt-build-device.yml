@@ -662,7 +662,7 @@ jobs:
           grep '^CONFIG_PACKAGE_luci-app-store=' .config || true
 
 
-      - name: Check package metadata generation
+      - name: Generate and check package metadata
         if: ${{ inputs.third_party == 'enabled' }}
         shell: bash
         run: |
@@ -672,40 +672,45 @@ jobs:
 
           cd "${SOURCE_DIR}"
 
-          echo "=== Package Makefile ==="
-          sed -n '1,220p' package/feeds/istore/luci-app-store/Makefile
+          echo "=== Check iStore package ==="
 
-          echo "=== Check BuildPackage ==="
-          grep -Rni \
-            'BuildPackage.*luci-app-store' \
-            feeds/luci \
-            package/feeds/istore \
-            2>/dev/null \
-            | head -50 || true
+          ls -la package/feeds/istore/luci-app-store
 
-          echo "=== Check package metadata ==="
+          echo "=== Generate package metadata ==="
+
+          make package/metadata V=s
+
+          echo "=== Check tmp/.packageinfo ==="
 
           if [ -f tmp/.packageinfo ]; then
             grep -n \
-              'luci-app-store' \
+              "luci-app-store" \
               tmp/.packageinfo \
               | head -50 || true
           else
-            echo "tmp/.packageinfo does not exist"
+            echo "ERROR: tmp/.packageinfo not generated"
           fi
 
-          echo "=== Check generated package Config.in ==="
+          echo "=== Check tmp/.config-package.in ==="
 
           if [ -f tmp/.config-package.in ]; then
             grep -n \
-              'luci-app-store' \
+              "luci-app-store" \
               tmp/.config-package.in \
               | head -50 || true
           else
-            echo "tmp/.config-package.in does not exist"
+            echo "ERROR: tmp/.config-package.in not generated"
           fi
 
-          echo "=== Check package Makefile parsing ==="
+          echo "=== Check package metadata result ==="
+
+          if [ -f tmp/.packageinfo ] && \
+             grep -q "luci-app-store" tmp/.packageinfo; then
+            echo "luci-app-store metadata: OK"
+          else
+            echo "ERROR: luci-app-store is NOT in package metadata"
+            exit 1
+          fi
 
 
       - name: Make defconfig
