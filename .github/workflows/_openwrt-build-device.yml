@@ -334,20 +334,20 @@ jobs:
 
           CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
           
-          if [ ! -f "${CONFIG_FILE}" ]; then
+          if [ ! -f "${CONFIG_PATH}" ]; then
 
             echo "Missing third-party config:"
-            echo "${CONFIG_FILE}"
+            echo "${CONFIG_PATH}"
             exit 1
           fi
 
-          source "${CONFIG_FILE}"
+          source "${CONFIG_PATH}"
 
-          echo "CUSTOM_PACKAGES=${CUSTOM_PACKAGES}" >> "$GITHUB_ENV"
+          echo "CUSTOM_PACKAGES=${CUSTOM_PACKAGES:-}" >> "$GITHUB_ENV"
 
           echo "=========================================="
           echo "Third-party CUSTOM_PACKAGES:"
-          echo "${CUSTOM_PACKAGES}"
+          echo "${CUSTOM_PACKAGES:-}"
           echo "=========================================="
 
 
@@ -389,7 +389,6 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
           cd "${SOURCE_DIR}"
@@ -397,7 +396,7 @@ jobs:
           rm -f tmp/third-party-apk-packages
           mkdir -p tmp
 
-          for PACKAGE in ${CUSTOM_PACKAGES}; do
+          for PACKAGE in ${CUSTOM_PACKAGES:-}; do
             echo "${PACKAGE}" >> tmp/third-party-apk-packages
           done
 
@@ -405,7 +404,15 @@ jobs:
           echo "Third-party APK package list"
           echo "=========================================="
 
-          cat tmp/third-party-apk-packages
+          if [ -s tmp/third-party-apk-packages ]; then
+         
+            cat tmp/third-party-apk-packages
+
+          else
+
+            echo "No third-party APK packages"
+
+          fi
 
 
       - name: Generate third-party APK package selection
@@ -452,31 +459,6 @@ jobs:
 
           echo "Apply third-party APK packages:"
 
-
-          while read -r PACKAGE
-
-          do
-
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
-
-            [ -z "${PACKAGE}" ] && continue
-
-
-            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y" .config; then
-
-              echo "Enable APK package: ${PACKAGE}"
-
-              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
-
-            else
-
-              echo "APK package already enabled: ${PACKAGE}"
-
-            fi
-
-          done <<< "${CUSTOM_APK_PACKAGES}"
-
-
           echo "Third-party APK packages applied"
 
           grep '^CONFIG_PACKAGE_.*=y' .config | tail -n 30 || true
@@ -491,6 +473,23 @@ jobs:
           set -euxo pipefail
 
           cd "${{ github.workspace }}/openwrt"
+
+          make defconfig V=s
+
+
+      - name: Enable sonic fullcone
+
+        if: ${{ inputs.sonic_fullcone == 'true' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "Enable sonic fullcone"
 
           make defconfig V=s
 
@@ -577,49 +576,35 @@ jobs:
 
           for PACKAGE in ${CUSTOM_PACKAGES}; do
 
-          echo
-          echo "----- ${PACKAGE} -----"
+            echo
+            echo "----- ${PACKAGE} -----"
 
-          MATCH_COUNT=$(
+            MATCH_COUNT=$(
+              find "${PACKAGE_DIR}" \
+                -maxdepth 1 \
+                -type f \
+                -name "${PACKAGE}-*.apk" \
+                | wc -l
+            )
+
+            if [ "${MATCH_COUNT}" -eq 0 ]; then
+
+              echo "❌ APK not found: ${PACKAGE}"
+
+              exit 1
+
+            fi
+
             find "${PACKAGE_DIR}" \
               -maxdepth 1 \
               -type f \
               -name "${PACKAGE}-*.apk" \
-              | wc -l
-          )
-          
-          if [ "${MATCH_COUNT}" -eq 0 ]; then
-            echo "❌ APK not found: ${PACKAGE}"
-            exit 1
-          fi
-
-          find "${PACKAGE_DIR}" \
-            -maxdepth 1 \
-            -type f \
-            -name "${PACKAGE}-*.apk" \
-            -printf '✅ %f\n'
+              -printf '✅ %f\n'
 
           done
 
           echo
           echo "✅ All requested third-party APK packages were found."
-
-
-      - name: Enable sonic fullcone
-
-        if: ${{ inputs.sonic_fullcone == 'true' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          echo "Enable sonic fullcone"
-
-          make defconfig V=s
 
 
       - name: Prepare build download
