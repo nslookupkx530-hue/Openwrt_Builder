@@ -181,35 +181,6 @@ jobs:
           fi
 
 
-      - name: Load third-party config
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
-          
-          if [ ! -f "${CONFIG_FILE}" ]; then
-
-            echo "Missing third-party config:"
-            echo "${CONFIG_FILE}"
-            exit 1
-          fi
-
-          source "${CONFIG_FILE}"
-
-          echo "CUSTOM_PACKAGES=${CUSTOM_PACKAGES}" >> "$GITHUB_ENV"
-
-          echo "=========================================="
-          echo "Third-party CUSTOM_PACKAGES:"
-          echo "${CUSTOM_PACKAGES}"
-          echo "=========================================="
-
-
       - name: Check custom files
 
         shell: bash
@@ -351,7 +322,7 @@ jobs:
           echo "Base config applied"
 
 
-      - name: Apply third-party APK feeds
+      - name: Load third-party config
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -361,59 +332,83 @@ jobs:
 
           set -euxo pipefail
 
+          CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
+          
+          if [ ! -f "${CONFIG_FILE}" ]; then
+
+            echo "Missing third-party config:"
+            echo "${CONFIG_FILE}"
+            exit 1
+          fi
+
+          source "${CONFIG_FILE}"
+
+          echo "CUSTOM_PACKAGES=${CUSTOM_PACKAGES}" >> "$GITHUB_ENV"
+
+          echo "=========================================="
+          echo "Third-party CUSTOM_PACKAGES:"
+          echo "${CUSTOM_PACKAGES}"
+          echo "=========================================="
+
+
+      - name: Prepare third-party APK packages
+
+        if: ${{ inputs.third_party == 'enabled' && env.CUSTOM_PACKAGES != '' }}
+
+        shell: bash
+
+        env:
+
+          CUSTOM_PACKAGES: ${{ env.CUSTOM_PACKAGES }}
+
+        run: |
+
+          set -euxo pipefail
+
 
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
-          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+          cd "${SOURCE_DIR}"
+
+          export SOURCE_DIR
+
+          bash "${{ github.workspace }}/shell/apk-custom-packages.sh"
 
 
-          if [ ! -f "${THIRD_CONFIG}" ]; then
+      - name: Prepare third-party APK package list
 
-            echo "No third-party.config"
+        if: ${{ inputs.third_party == 'enabled' }}
 
-            exit 0
+        shell: bash
 
-          fi
+        env:
 
+          CUSTOM_PACKAGES: ${{ env.CUSTOM_PACKAGES }}
 
-          source "${THIRD_CONFIG}"
+        run: |
 
-
-          if [ -z "${CUSTOM_APK_FEEDS:-}" ]; then
-
-            echo "No custom APK feeds"
-
-            exit 0
-
-          fi
+          set -euxo pipefail
 
 
-          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
 
+          cd "${SOURCE_DIR}"
 
-          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
+          rm -f tmp/third-party-apk-packages
+          mkdir -p tmp
 
-          do
-
-            [ -z "${name}" ] && continue
-
-            echo "Add custom APK feed: ${name}"
-
-
-            echo "${url}" \
-              >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
-
-
+          for PACKAGE in ${CUSTOM_PACKAGES}; do
+            echo "${PACKAGE}" >> tmp/third-party-apk-packages
           done
 
+          echo "=========================================="
+          echo "Third-party APK package list"
+          echo "=========================================="
 
-          echo "Custom APK feeds:"
-
-          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f \
-            -exec sh -c 'echo "===== $1 ====="; cat "$1"' _ {} \;
+          cat tmp/third-party-apk-packages
 
 
-      - name: Apply third-party APK packages
+      - name: Generate third-party APK package selection
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -546,6 +541,133 @@ jobs:
 
             grep "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
           done
+
+
+      - name: Check third-party APK packages
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        env:
+
+          CUSTOM_PACKAGES: ${{ env.CUSTOM_PACKAGES }}
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          PACKAGE_DIR="${SOURCE_DIR}/packages"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=========================================="
+          echo "Check third-party APK packages"
+          echo "=========================================="
+
+          if [ -z "${CUSTOM_PACKAGES// }" ]; then
+
+            echo "ℹ️ No third-party APK packages enabled."
+
+            exit 0
+
+          fi
+
+          for PACKAGE in ${CUSTOM_PACKAGES}; do
+
+          echo
+          echo "----- ${PACKAGE} -----"
+
+          MATCH_COUNT=$(
+            find "${PACKAGE_DIR}" \
+              -maxdepth 1 \
+              -type f \
+              -name "${PACKAGE}-*.apk" \
+              | wc -l
+          )
+          
+          if [ "${MATCH_COUNT}" -eq 0 ]; then
+            echo "❌ APK not found: ${PACKAGE}"
+            exit 1
+          fi
+
+          find "${PACKAGE_DIR}" \
+            -maxdepth 1 \
+            -type f \
+            -name "${PACKAGE}-*.apk" \
+            -printf '✅ %f\n'
+
+          done
+
+          echo
+          echo "✅ All requested third-party APK packages were found."
+
+
+      - name: Apply third-party APK feeds
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+
+
+          if [ ! -f "${THIRD_CONFIG}" ]; then
+
+            echo "No third-party.config"
+
+            exit 0
+
+          fi
+
+
+          source "${THIRD_CONFIG}"
+
+
+          if [ -z "${CUSTOM_APK_FEEDS:-}" ]; then
+
+            echo "No custom APK feeds"
+
+            exit 0
+
+          fi
+
+
+          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
+
+
+          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
+
+          do
+
+            [ -z "${name}" ] && continue
+
+            echo "Add custom APK feed: ${name}"
+
+
+            echo "${url}" \
+              >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
+
+
+          done
+
+
+          echo "Custom APK feeds:"
+
+          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f \
+            -exec sh -c 'echo "===== $1 ====="; cat "$1"' _ {} \;
+
+
+
 
 
       - name: Check third-party package config
