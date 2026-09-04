@@ -564,6 +564,57 @@ jobs:
           make defconfig V=s
 
 
+      - name: Apply third-party APK selection
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+
+          if [ ! -f tmp/third-party-apk-selection ]; then
+
+            echo "No third-party APK selection"
+
+            exit 0
+
+          fi
+
+
+          echo "=========================================="
+          echo "Apply third-party APK selection"
+          echo "=========================================="
+
+
+          while read -r PACKAGE
+
+          do
+
+            [ -z "${PACKAGE}" ] && continue
+
+
+            echo "Enable APK package: ${PACKAGE}"
+
+
+            echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+
+
+          done < tmp/third-party-apk-selection
+
+
+          echo "Third-party APK selection applied"
+
+
+          grep "^CONFIG_PACKAGE_" .config | grep -E "store|taskd|xterm" || true
+
+
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
