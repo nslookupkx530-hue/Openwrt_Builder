@@ -11,198 +11,264 @@ PACKAGE_DIR="${SOURCE_DIR}/packages"
 APK_REPO="https://github.com/wukongdaily/apk.git"
 APK_REPO_DIR="/tmp/wukongdaily-apk"
 
+
 echo "=========================================="
 echo "      Prepare third-party APK packages"
 echo "=========================================="
 
-# ------------------------------------------------------------
-# 检查 CUSTOM_PACKAGES
-# ------------------------------------------------------------
 
 CUSTOM_PACKAGES="${CUSTOM_PACKAGES:-}"
 
+
 if [ -z "${CUSTOM_PACKAGES// }" ]; then
-    echo "ℹ️ CUSTOM_PACKAGES 为空"
-    echo "ℹ️ 未启用第三方预编译 APK"
+
+    echo "ℹ️ No third-party APK enabled"
+
     exit 0
+
 fi
+
 
 echo "CUSTOM_PACKAGES:"
 echo "${CUSTOM_PACKAGES}"
 
-# ------------------------------------------------------------
-# 判断架构
-# ------------------------------------------------------------
 
-ARCH=""
 
-if [ -f "${SOURCE_DIR}/.config" ]; then
+# ============================================================
+# Detect architecture
+# ============================================================
 
-    if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
 
-        ARCH="x86_64"
+if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
 
-    elif grep -q '^CONFIG_TARGET_x86=y$' "${SOURCE_DIR}/.config"; then
+    ARCH="x86"
 
-        ARCH="x86"
+elif grep -q '^CONFIG_TARGET_x86=y$' "${SOURCE_DIR}/.config"; then
 
-    elif grep -q '^CONFIG_TARGET_arm64=y$' "${SOURCE_DIR}/.config"; then
+    ARCH="x86"
 
-        if grep -q '^CONFIG_CPU_TYPE_cortex-a53=y$' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y$' "${SOURCE_DIR}/.config"; then
 
-            ARCH="aarch64_cortex-a53"
+    ARCH="arm64-a53"
 
-        else
+elif grep -q '^CONFIG_TARGET_arm64=y$' "${SOURCE_DIR}/.config"; then
 
-            ARCH="aarch64_generic"
+    ARCH="arm64"
 
-        fi
+else
 
-    fi
+    echo "Unsupported architecture"
+
+    exit 1
 
 fi
 
-echo "Detected ARCH: ${ARCH}"
 
-case "${ARCH}" in
+echo "Selected architecture:"
+echo "${ARCH}"
 
-    x86_64)
-        RUN_ARCH="x86"
-        ;;
 
-    aarch64_cortex-a53)
-        RUN_ARCH="arm64-a53"
-        ;;
 
-    aarch64_generic)
-        RUN_ARCH="arm64"
-        ;;
+# ============================================================
+# Prepare directory
+# ============================================================
 
-    *)
-        echo "❌ 不支持的架构: ${ARCH}"
-        echo
-        echo "Target configuration:"
-        grep -E '^CONFIG_TARGET_|^CONFIG_CPU_TYPE_' \
-            "${SOURCE_DIR}/.config" \
-            | head -100 \
-            || true
-        exit 1
-        ;;
-
-esac
-
-echo "Selected third-party APK architecture: ${RUN_ARCH}"
-
-# ------------------------------------------------------------
-# 清理目录
-# ------------------------------------------------------------
 
 rm -rf "${BASE_DIR}"
 rm -rf "${PACKAGE_DIR}"
 
-mkdir -p "${BASE_DIR}"
-mkdir -p "${TEMP_DIR}"
-mkdir -p "${PACKAGE_DIR}"
 
-# ------------------------------------------------------------
-# 下载第三方 APK 仓库
-# ------------------------------------------------------------
+mkdir -p \
+    "${BASE_DIR}" \
+    "${TEMP_DIR}" \
+    "${PACKAGE_DIR}"
+
+
+
+# ============================================================
+# Clone repository
+# ============================================================
+
 
 rm -rf "${APK_REPO_DIR}"
 
-echo "🔄 Cloning third-party APK repository..."
+
+echo "🔄 Clone third-party repository"
+
 
 git clone \
     --depth=1 \
     "${APK_REPO}" \
     "${APK_REPO_DIR}"
 
-RUN_DIR="${APK_REPO_DIR}/run/${RUN_ARCH}"
+
+
+RUN_DIR="${APK_REPO_DIR}/run/${ARCH}"
+
 
 if [ ! -d "${RUN_DIR}" ]; then
-    echo "❌ 找不到架构目录:"
+
+    echo "Missing:"
     echo "${RUN_DIR}"
+
     exit 1
+
 fi
 
-echo "✅ Third-party repository:"
+
+
+echo "Repository:"
 echo "${RUN_DIR}"
 
-# ------------------------------------------------------------
-# 复制对应架构的 run / apk
-# ------------------------------------------------------------
 
-echo "📦 Copying ${RUN_ARCH} packages..."
 
-find "${RUN_DIR}" \
-    -maxdepth 1 \
-    -type f \
-    \( -name "*.run" -o -name "*.apk" \) \
-    -exec cp -v {} "${BASE_DIR}/" \;
+# ============================================================
+# Match enabled packages
+# ============================================================
 
-# ------------------------------------------------------------
-# 解包 .run
-# ------------------------------------------------------------
 
-for RUN_FILE in "${BASE_DIR}"/*.run; do
+for PACKAGE in ${CUSTOM_PACKAGES}
+
+do
+
+    echo
+    echo "Search package:"
+    echo "${PACKAGE}"
+
+
+    FOUND=0
+
+
+    for FILE in "${RUN_DIR}"/*.run
+
+    do
+
+        [ -e "${FILE}" ] || continue
+
+
+        NAME=$(basename "${FILE}")
+
+
+        if [[ "${NAME}" == *"${PACKAGE}"* ]]; then
+
+
+            echo "✅ Selected:"
+            echo "${NAME}"
+
+
+            cp -v \
+                "${FILE}" \
+                "${BASE_DIR}/"
+
+
+            FOUND=1
+
+
+        fi
+
+
+    done
+
+
+
+    if [ "${FOUND}" -eq 0 ]; then
+
+
+        echo "❌ Cannot find RUN package:"
+        echo "${PACKAGE}"
+
+
+        exit 1
+
+
+    fi
+
+
+done
+
+
+
+# ============================================================
+# Extract RUN
+# ============================================================
+
+
+for RUN_FILE in "${BASE_DIR}"/*.run
+
+do
 
     [ -e "${RUN_FILE}" ] || continue
 
+
     echo
-    echo "🧩 Extracting:"
+    echo "🧩 Extract:"
     echo "${RUN_FILE}"
+
 
     sh "${RUN_FILE}" \
         --target "${TEMP_DIR}" \
         --noexec \
         --nochown
 
+
 done
 
-# ------------------------------------------------------------
-# 收集 .apk
-# ------------------------------------------------------------
+
+
+# ============================================================
+# Collect APK
+# ============================================================
+
 
 echo
-echo "📦 Collecting APK files..."
+echo "📦 Collect APK"
+
+
 
 find "${TEMP_DIR}" \
     -type f \
     -name "*.apk" \
     -exec cp -v {} "${PACKAGE_DIR}/" \;
 
-find "${BASE_DIR}" \
-    -maxdepth 1 \
+
+
+# ============================================================
+# Show result
+# ============================================================
+
+
+APK_COUNT=$(find "${PACKAGE_DIR}" \
     -type f \
     -name "*.apk" \
-    -exec cp -v {} "${PACKAGE_DIR}/" \;
+    | wc -l)
 
-# ------------------------------------------------------------
-# 检查 APK
-# ------------------------------------------------------------
 
-APK_COUNT=$(find "${PACKAGE_DIR}" -type f -name "*.apk" | wc -l)
 
 echo
 echo "=========================================="
 echo "Third-party APK count: ${APK_COUNT}"
 echo "=========================================="
 
+
+
 if [ "${APK_COUNT}" -eq 0 ]; then
-    echo "❌ 没有找到任何 APK"
+
+    echo "❌ No APK found"
+
     exit 1
+
 fi
 
-# ------------------------------------------------------------
-# 显示 APK
-# ------------------------------------------------------------
+
 
 find "${PACKAGE_DIR}" \
     -maxdepth 1 \
     -type f \
     -name "*.apk" \
-    -printf '%f\n' \
+    -printf "%f\n" \
     | sort
+
+
 
 echo
 echo "✅ Third-party APK preparation completed."
