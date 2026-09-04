@@ -193,29 +193,21 @@ jobs:
 
           CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
           
-          if [ ! -f "${CONFIG_PATH}" ]; then
+          if [ ! -f "${CONFIG_FILE}" ]; then
 
-            echo "third-party.config not found"
+            echo "Missing third-party config:"
+            echo "${CONFIG_FILE}"
             exit 1
           fi
 
-          echo "Third-party packages enabled"
+          source "${CONFIG_FILE}"
 
-          cat "${CONFIG_PATH}"
+          echo "CUSTOM_PACKAGES=${CUSTOM_PACKAGES}" >> "$GITHUB_ENV"
 
-          source "${CONFIG_PATH}"
-
-          echo "CUSTOM_SOURCE_FEEDS:"
-          printf '%s\n' "${CUSTOM_SOURCE_FEEDS}"
-
-          echo "CUSTOM_SOURCE_PACKAGES:"
-          printf '%s\n' "${CUSTOM_SOURCE_PACKAGES}"
-
-          echo "CUSTOM_APK_FEEDS:"
-          printf '%s\n' "${CUSTOM_APK_FEEDS}"
-
-          echo "CUSTOM_APK_PACKAGES:"
-          printf '%s\n' "${CUSTOM_APK_PACKAGES}"
+          echo "=========================================="
+          echo "Third-party CUSTOM_PACKAGES:"
+          echo "${CUSTOM_PACKAGES}"
+          echo "=========================================="
 
 
       - name: Check custom files
