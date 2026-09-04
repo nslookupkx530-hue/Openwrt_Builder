@@ -406,6 +406,30 @@ jobs:
             -exec sh -c 'echo "===== $1 ====="; cat "$1"' _ {} \;          
  
 
+      - name: Check target architecture
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=========================================="
+          echo "Target architecture configuration"
+          echo "=========================================="
+
+          grep -E \
+            '^CONFIG_TARGET_|^CONFIG_ARCH_' \
+            .config \
+            | head -100 || true
+
+
       - name: Prepare third-party APK packages
 
         if: ${{ inputs.third_party == 'enabled' && env.CUSTOM_PACKAGES != '' }}
