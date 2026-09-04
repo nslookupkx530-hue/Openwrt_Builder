@@ -407,7 +407,7 @@ jobs:
  
 
       - name: Check target architecture
-
+        #检测当前的硬件架构，X86、arm64、arm64-a53
         if: ${{ inputs.third_party == 'enabled' }}
 
         shell: bash
