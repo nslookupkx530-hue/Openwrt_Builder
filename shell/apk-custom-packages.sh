@@ -34,15 +34,15 @@ echo "${CUSTOM_PACKAGES}"
 # 判断架构
 # ------------------------------------------------------------
 
-ARCH="${TARGET_ARCH:-${ARCH:-}}"
+ARCH=""
 
-if [ -z "$ARCH" ]; then
-    if [ -f "${SOURCE_DIR}/.config" ]; then
-        ARCH="$(
-            grep '^CONFIG_ARCH=' "${SOURCE_DIR}/.config" \
-            | cut -d '"' -f 2
-        )"
-    fi
+if [ -f "${SOURCE_DIR}/.config" ]; then
+
+    ARCH="$(
+        grep '^CONFIG_TARGET_ARCH_PACKAGES=' "${SOURCE_DIR}/.config" \
+        | cut -d '"' -f 2
+    )"
+
 fi
 
 echo "Detected ARCH: ${ARCH}"
@@ -57,12 +57,17 @@ case "${ARCH}" in
         RUN_ARCH="arm64-a53"
         ;;
 
-    aarch64)
+    aarch64_generic)
         RUN_ARCH="arm64"
         ;;
 
     *)
         echo "❌ 不支持的架构: ${ARCH}"
+        echo
+        echo "CONFIG_TARGET_ARCH_PACKAGES:"
+        grep '^CONFIG_TARGET_ARCH_PACKAGES=' \
+            "${SOURCE_DIR}/.config" \
+            || true
         exit 1
         ;;
 
