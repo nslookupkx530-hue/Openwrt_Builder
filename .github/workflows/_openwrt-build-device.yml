@@ -633,7 +633,7 @@ jobs:
           echo "Verify config"
           echo "=========================================="
 
-          grep '^CONFIG_PACKAGE_' .config | grep -E "$(cat tmp/third-party-apk-selection | tr '\n' '|')" || true
+          grep -E "^CONFIG_PACKAGE_($(tr '\n' '|' < tmp/third-party-apk-selection | sed 's/|$//'))=y$" .config || true
 
 
       - name: Apply third-party source packages
