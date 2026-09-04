@@ -38,10 +38,27 @@ ARCH=""
 
 if [ -f "${SOURCE_DIR}/.config" ]; then
 
-    ARCH="$(
-        grep '^CONFIG_TARGET_ARCH_PACKAGES=' "${SOURCE_DIR}/.config" \
-        | cut -d '"' -f 2
-    )"
+    if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
+
+        ARCH="x86_64"
+
+    elif grep -q '^CONFIG_TARGET_x86=y$' "${SOURCE_DIR}/.config"; then
+
+        ARCH="x86"
+
+    elif grep -q '^CONFIG_TARGET_arm64=y$' "${SOURCE_DIR}/.config"; then
+
+        if grep -q '^CONFIG_CPU_TYPE_cortex-a53=y$' "${SOURCE_DIR}/.config"; then
+
+            ARCH="aarch64_cortex-a53"
+
+        else
+
+            ARCH="aarch64_generic"
+
+        fi
+
+    fi
 
 fi
 
@@ -64,9 +81,10 @@ case "${ARCH}" in
     *)
         echo "❌ 不支持的架构: ${ARCH}"
         echo
-        echo "CONFIG_TARGET_ARCH_PACKAGES:"
-        grep '^CONFIG_TARGET_ARCH_PACKAGES=' \
+        echo "Target configuration:"
+        grep -E '^CONFIG_TARGET_|^CONFIG_CPU_TYPE_' \
             "${SOURCE_DIR}/.config" \
+            | head -100 \
             || true
         exit 1
         ;;
