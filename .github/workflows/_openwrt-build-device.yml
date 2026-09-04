@@ -551,7 +551,7 @@ jobs:
           fi
 
 
-      - name: Add third-party APK feed
+      - name: Register third-party APK feed
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -568,39 +568,67 @@ jobs:
           cd "${SOURCE_DIR}"
 
 
-          if [ ! -d packages ]; then
+          mkdir -p packages
 
-              echo "No third-party APK directory"
 
-              exit 0
+          echo "=========================================="
+          echo "Register third-party APK feed"
+          echo "=========================================="
+
+
+          echo "src-apk third-party packages" \
+          >> feeds.conf.default
+
+
+          tail -n 20 feeds.conf.default
+
+
+      - name: Prepare third-party APK repository
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+
+          cd "${SOURCE_DIR}"
+
+
+          mkdir -p packages
+
+
+          echo "=========================================="
+          echo "Prepare third-party APK repository"
+          echo "=========================================="
+
+
+          if ! command -v apk >/dev/null 2>&1; then
+
+              echo "apk command missing"
+
+              exit 1
 
           fi
 
 
-          echo "=========================================="
-          echo "Add third-party APK feed"
-          echo "=========================================="
-
-
-          mkdir -p feeds/third-party
-
-
-          cp packages/*.apk feeds/third-party/ || true
-
-
-          echo "Generate APK index"
-
-
           apk index \
-          --allow-untrusted \
-          -o feeds/third-party/packages.adb \
-          feeds/third-party/*.apk
+            --output packages/packages.adb \
+            packages/*.apk
 
 
-          echo "Third-party APK feed created"
+          echo "Generated APK repository:"
 
 
-          ls -lh feeds/third-party
+          ls -lh packages
+
+
+          file packages/packages.adb
 
 
       - name: Make defconfig
