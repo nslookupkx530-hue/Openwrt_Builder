@@ -672,7 +672,7 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config 
 
 
-      - name: Prepare third-party APK install list
+      - name: Apply third-party OpenWrt package selection
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -690,23 +690,18 @@ jobs:
 
 
           echo "=========================================="
-          echo "Prepare third-party APK install list"
+          echo "Apply third-party OpenWrt package selection"
           echo "=========================================="
 
 
-          if [ ! -f tmp/third-party-apk-selection ]; then
+          if [ ! -f tmp/third-party-package-selection ]; then
 
-            echo "No third-party APK selection"
+            echo "No third-party OpenWrt package selection"
 
             exit 0
 
           fi
 
-
-          mkdir -p files/etc/apk
-
-
-          rm -f files/etc/apk/world
 
 
           while read -r PACKAGE
@@ -719,19 +714,31 @@ jobs:
             [ -z "${PACKAGE}" ] && continue
 
 
-            echo "${PACKAGE}" >> files/etc/apk/world
+            echo "Enable OpenWrt package: ${PACKAGE}"
 
 
-          done < tmp/third-party-apk-selection
+            scripts/config \
+              --enable \
+              "CONFIG_PACKAGE_${PACKAGE}"
+
+
+          done < tmp/third-party-package-selection
 
 
 
+          echo
           echo "=========================================="
-          echo "APK world list"
+          echo "Verify third-party OpenWrt package config"
           echo "=========================================="
 
 
-          cat files/etc/apk/world
+          for PACKAGE in $(cat tmp/third-party-package-selection)
+
+          do
+
+            grep "^CONFIG_PACKAGE_${PACKAGE}=y" .config || true
+
+          done
 
 
       - name: Apply third-party source packages
