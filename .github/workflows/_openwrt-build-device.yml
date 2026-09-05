@@ -443,7 +443,7 @@ jobs:
             | head -100 || true
 
 
-      - name: Prepare third-party APK packages
+      - name: Prepare third-party OpenWrt packages
 
         if: ${{ inputs.third_party == 'enabled' && env.CUSTOM_PACKAGES != '' }}
 
