@@ -846,33 +846,17 @@ jobs:
 
           echo "Third-party APK list:"
 
-          find packages -name "*.apk" -type f | sort
+
+          find packages \
+            -maxdepth 1 \
+            -name "*.apk" \
+            -type f \
+            | sort
 
 
           echo
-          echo "Generate APK index"
 
-
-          if [ -x "./staging_dir/host/bin/apk" ]; then
-
-              ./staging_dir/host/bin/apk \
-              index \
-              packages/*.apk \
-              -o packages/packages.adb
-
-          else
-
-              echo "OpenWrt apk tool not available yet"
-
-              exit 1
-
-          fi
-
-
-          echo
-          echo "Generated repository"
-
-          ls -lh packages/
+          echo "Third-party APK repository prepared"
 
 
       - name: Prepare build download
