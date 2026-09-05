@@ -677,7 +677,7 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config 
 
 
-      - name: Apply third-party APK selection
+      - name: Prepare third-party APK install list
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -687,13 +687,17 @@ jobs:
 
           set -euxo pipefail
 
+
           SOURCE_DIR="${{ github.workspace }}/openwrt"
+
 
           cd "${SOURCE_DIR}"
 
+
           echo "=========================================="
-          echo "Apply third-party APK selection"
+          echo "Prepare third-party APK install list"
           echo "=========================================="
+
 
           if [ ! -f tmp/third-party-apk-selection ]; then
 
@@ -703,31 +707,36 @@ jobs:
 
           fi
 
+
+          mkdir -p files/etc/apk
+
+
+          rm -f files/etc/apk/world
+
+
           while read -r PACKAGE
 
           do
 
             PACKAGE=$(echo "${PACKAGE}" | xargs)
 
+
             [ -z "${PACKAGE}" ] && continue
 
-            echo "Enable APK package: ${PACKAGE}"
 
-            echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+            echo "${PACKAGE}" >> files/etc/apk/world
+
 
           done < tmp/third-party-apk-selection
 
-          echo "=========================================="
-          echo "Apply third-party APK selection"
-          echo "=========================================="
-          
-          cat tmp/third-party-apk-selection
+
 
           echo "=========================================="
-          echo "Verify config"
+          echo "APK world list"
           echo "=========================================="
 
-          grep -E "^CONFIG_PACKAGE_($(tr '\n' '|' < tmp/third-party-apk-selection | sed 's/|$//'))=y$" .config || true
+
+          cat files/etc/apk/world
 
 
       - name: Apply third-party source packages
