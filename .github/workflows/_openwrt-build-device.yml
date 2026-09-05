@@ -467,7 +467,7 @@ jobs:
           bash "${{ github.workspace }}/shell/apk-custom-packages.sh"
 
 
-      - name: Prepare third-party APK package list
+      - name: Prepare third-party package list
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -507,7 +507,7 @@ jobs:
           fi
 
 
-      - name: Generate third-party APK package selection
+      - name: Generate third-party package selection
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -525,7 +525,7 @@ jobs:
 
 
           echo "=========================================="
-          echo "Generate third-party APK package selection"
+          echo "Generate third-party package selection"
           echo "=========================================="
 
 
