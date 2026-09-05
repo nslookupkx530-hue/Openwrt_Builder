@@ -591,57 +591,6 @@ jobs:
           make defconfig V=s
 
 
-      - name: Prepare third-party APK repository
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-
-          cd "${SOURCE_DIR}"
-
-
-          echo "=========================================="
-          echo "Prepare third-party APK repository"
-          echo "=========================================="
-
-
-          mkdir -p packages
-
-
-
-          echo "Copy third-party APK:"
-
-
-          find packages -name "*.apk" -type f | sort
-
-
-
-          echo "Generate APK repository index"
-
-
-          if [ -x "staging_dir/host/bin/apk" ]; then
-
-              staging_dir/host/bin/apk \
-              index \
-              packages
-
-          else
-
-              echo "OpenWrt host apk not ready"
-
-              echo "Skip index generation"
-
-          fi
-
-
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
@@ -895,13 +844,35 @@ jobs:
           mkdir -p packages
 
 
-          ls -lh packages
+          echo "Third-party APK list:"
+
+          find packages -name "*.apk" -type f | sort
 
 
-          echo "Third-party APK packages ready"
+          echo
+          echo "Generate APK index"
 
 
-          find packages -name "*.apk" -type f
+          if [ -x "./staging_dir/host/bin/apk" ]; then
+
+              ./staging_dir/host/bin/apk \
+              index \
+              packages/*.apk \
+              -o packages/packages.adb
+
+          else
+
+              echo "OpenWrt apk tool not available yet"
+
+              exit 1
+
+          fi
+
+
+          echo
+          echo "Generated repository"
+
+          ls -lh packages/
 
 
       - name: Prepare build download
