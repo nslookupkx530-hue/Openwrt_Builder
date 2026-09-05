@@ -789,7 +789,7 @@ jobs:
           done
 
 
-      - name: Check third-party APK packages
+      - name: Check third-party OpenWrt packages
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -810,7 +810,7 @@ jobs:
           cd "${SOURCE_DIR}"
 
           echo "=========================================="
-          echo "Check third-party APK packages"
+          echo "Check third-party OpenWrt packages"
           echo "=========================================="
 
           if [ -z "${CUSTOM_PACKAGES// }" ]; then
