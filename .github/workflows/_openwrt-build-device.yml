@@ -473,41 +473,56 @@ jobs:
 
         shell: bash
 
-        env:
-
-          CUSTOM_PACKAGES: ${{ env.CUSTOM_PACKAGES }}
-
         run: |
 
           set -euxo pipefail
 
+
           SOURCE_DIR="${{ github.workspace }}/openwrt"
+
 
           cd "${SOURCE_DIR}"
 
-          rm -f tmp/third-party-apk-packages
+
+          echo "=========================================="
+          echo "Prepare third-party OpenWrt package list"
+          echo "=========================================="
+
+
+          rm -f tmp/third-party-packages
+
+
           mkdir -p tmp
 
-          for PACKAGE in ${CUSTOM_PACKAGES:-}; do
-            echo "${PACKAGE}" >> tmp/third-party-apk-packages
-          done
 
-          echo "=========================================="
-          echo "Third-party APK package list"
-          echo "=========================================="
+          if [ ! -d "package/third-party" ]; then
 
-          if [ -s tmp/third-party-apk-packages ]; then
-         
-            cat tmp/third-party-apk-packages
+              echo "No third-party package directory"
 
-          else
-
-            echo "No third-party APK packages"
+              exit 0
 
           fi
 
 
-      - name: Generate third-party package selection
+          find package/third-party \
+            -mindepth 1 \
+            -maxdepth 1 \
+            -type d \
+            -printf "%f\n" \
+            | sort \
+            > tmp/third-party-packages
+
+
+
+          echo
+          echo "Third-party OpenWrt packages:"
+          echo "=========================================="
+
+
+          cat tmp/third-party-packages || true
+
+
+      - name: Prepare third-party OpenWrt package selection
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -525,57 +540,67 @@ jobs:
 
 
           echo "=========================================="
-          echo "Generate third-party package selection"
+          echo "Prepare third-party OpenWrt package selection"
           echo "=========================================="
 
 
-          if [ ! -f "tmp/third-party-apk-packages" ]; then
+          rm -f tmp/third-party-package-selection
 
-            echo "No third-party APK package list"
 
-            exit 0
+          if [ ! -f "tmp/third-party-packages" ]; then
+
+              echo "No third-party package list"
+
+              exit 0
 
           fi
 
 
-          rm -f tmp/third-party-apk-selection
+          touch tmp/third-party-package-selection
 
-
-          touch tmp/third-party-apk-selection
 
 
           while read -r PACKAGE
 
           do
 
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
+              PACKAGE=$(echo "${PACKAGE}" | xargs)
 
 
-            [ -z "${PACKAGE}" ] && continue
-
-
-            grep -qx "${PACKAGE}" tmp/third-party-apk-selection || \
-            echo "${PACKAGE}" >> tmp/third-party-apk-selection
-
-
-          done < tmp/third-party-apk-packages
+              [ -z "${PACKAGE}" ] && continue
 
 
 
+              if [ -d "package/third-party/${PACKAGE}" ]; then
+
+
+                  echo "${PACKAGE}" \
+                  >> tmp/third-party-package-selection
+
+
+              else
+
+
+                  echo "❌ Missing package:"
+                  echo "${PACKAGE}"
+
+                  exit 1
+
+
+              fi
+
+
+          done < tmp/third-party-packages
+
+
+
+          echo
           echo "=========================================="
-          echo "Third-party APK package selection"
+          echo "Third-party OpenWrt package selection"
           echo "=========================================="
 
 
-          if [ -s tmp/third-party-apk-selection ]; then
-
-            cat tmp/third-party-apk-selection
-
-          else
-
-            echo "No third-party APK packages selected"
-
-          fi
+          cat tmp/third-party-package-selection
 
 
       - name: Make defconfig
