@@ -663,9 +663,7 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
-
 
           cd "${SOURCE_DIR}"
 
@@ -677,45 +675,57 @@ jobs:
 
           if [ ! -f tmp/third-party-package-selection ]; then
 
-            echo "No third-party OpenWrt package selection"
+              echo "No third-party package selection"
 
-            exit 0
+              exit 0
 
           fi
-
 
 
           while read -r PACKAGE
 
           do
 
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
+              PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+              [ -z "${PACKAGE}" ] && continue
 
 
-            [ -z "${PACKAGE}" ] && continue
+              echo "Enable OpenWrt package: ${PACKAGE}"
 
 
-            echo "Enable OpenWrt package: ${PACKAGE}"
+              sed -i "/^CONFIG_PACKAGE_${PACKAGE}=/d" .config
 
-            sed -i "/^CONFIG_PACKAGE_${PACKAGE}=y$/d" .config
 
-            echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
+
 
           done < tmp/third-party-package-selection
 
 
 
           echo
+
           echo "=========================================="
-          echo "Verify third-party packages"
+
+          echo "Third-party package config"
+
           echo "=========================================="
 
 
-          grep "^CONFIG_PACKAGE_" .config \
+          while read -r PACKAGE
 
-          | grep -E "$(cat tmp/third-party-package-selection | tr '\n' '|')" \
+          do
 
-          || true
+              PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+              [ -z "${PACKAGE}" ] && continue
+
+
+              grep "^CONFIG_PACKAGE_${PACKAGE}=y" .config || true
+
+
+          done < tmp/third-party-package-selection
 
 
       - name: Refresh defconfig after third-party packages
