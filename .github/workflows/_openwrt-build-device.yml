@@ -728,21 +728,6 @@ jobs:
           done < tmp/third-party-package-selection
 
 
-      - name: Refresh defconfig after third-party packages
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          make defconfig V=s
-
-
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
@@ -823,6 +808,23 @@ jobs:
           mkdir -p dl
 
           make download -j$(nproc)
+
+
+      - name: Check third-party package config
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "Third-party package config"
+          echo "=========================================="
+
+          grep "CONFIG_PACKAGE_luci-app-store" .config || true
 
 
       - name: Check uci-defaults
