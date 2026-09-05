@@ -696,6 +696,7 @@ jobs:
 
               sed -i "/^CONFIG_PACKAGE_${PACKAGE}=/d" .config
 
+              sed -i "/^# CONFIG_PACKAGE_${PACKAGE} is not set/d" .config
 
               echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
 
