@@ -653,25 +653,6 @@ jobs:
           make defconfig V=s
 
 
-      - name: Enable sonic fullcone
-
-        if: ${{ inputs.sonic_fullcone == 'true' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          echo "Enable sonic fullcone"
-
-          echo "Enable sonic fullcone"
-
-          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config 
-
-
       - name: Apply third-party OpenWrt package selection
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -717,9 +698,7 @@ jobs:
             echo "Enable OpenWrt package: ${PACKAGE}"
 
 
-            scripts/config \
-              --enable \
-              "CONFIG_PACKAGE_${PACKAGE}"
+            ./scripts/config/conf --enable "CONFIG_PACKAGE_${PACKAGE}"
 
 
           done < tmp/third-party-package-selection
@@ -739,6 +718,40 @@ jobs:
             grep "^CONFIG_PACKAGE_${PACKAGE}=y" .config || true
 
           done
+
+
+      - name: Refresh defconfig after third-party packages
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          make defconfig V=s
+
+
+      - name: Enable sonic fullcone
+
+        if: ${{ inputs.sonic_fullcone == 'true' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "Enable sonic fullcone"
+
+          echo "Enable sonic fullcone"
+
+          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config 
 
 
       - name: Apply third-party source packages
