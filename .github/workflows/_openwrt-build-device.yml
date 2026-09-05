@@ -467,7 +467,7 @@ jobs:
           bash "${{ github.workspace }}/shell/apk-custom-packages.sh"
 
 
-      - name: Prepare third-party package list
+      - name: Prepare third-party OpenWrt package list
 
         if: ${{ inputs.third_party == 'enabled' }}
 
