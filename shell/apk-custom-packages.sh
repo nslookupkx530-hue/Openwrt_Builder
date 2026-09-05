@@ -5,30 +5,20 @@ set -euo pipefail
 
 SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
 
+PACKAGE_ROOT="${SOURCE_DIR}/package/third-party"
 
-BASE_DIR="${SOURCE_DIR}/extra-packages"
-
-TEMP_DIR="${BASE_DIR}/temp-unpack"
-
-
-THIRD_PACKAGE_DIR="${SOURCE_DIR}/package/third-party"
+TEMP_DIR="/tmp/wukongdaily-apk"
 
 
 APK_REPO="https://github.com/wukongdaily/apk.git"
 
-APK_REPO_DIR="/tmp/wukongdaily-apk"
-
-
 
 echo "=========================================="
-
-echo " Prepare third-party OpenWrt packages "
-
+echo " Prepare third-party OpenWrt packages"
 echo "=========================================="
 
 
 CUSTOM_PACKAGES="${CUSTOM_PACKAGES:-}"
-
 
 
 if [ -z "${CUSTOM_PACKAGES// }" ]; then
@@ -40,12 +30,8 @@ if [ -z "${CUSTOM_PACKAGES// }" ]; then
 fi
 
 
-
 echo "CUSTOM_PACKAGES:"
-
 echo "${CUSTOM_PACKAGES}"
-
-
 
 
 
@@ -58,21 +44,17 @@ if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="x86"
 
-
 elif grep -q '^CONFIG_TARGET_x86=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="x86"
-
 
 elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="arm64-a53"
 
-
 elif grep -q '^CONFIG_TARGET_arm64=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="arm64"
-
 
 else
 
@@ -83,58 +65,32 @@ else
 fi
 
 
-
-echo "Selected architecture:"
-
+echo "Architecture:"
 echo "${ARCH}"
 
 
 
-
-
 # ============================================================
-# Prepare directory
+# Clone APK repository
 # ============================================================
 
 
-rm -rf "${BASE_DIR}"
-
-rm -rf "${THIRD_PACKAGE_DIR}"
-
-
-mkdir -p \
-    "${TEMP_DIR}" \
-    "${THIRD_PACKAGE_DIR}"
-
-
-
-
-
-# ============================================================
-# Clone repository
-# ============================================================
-
-
-rm -rf "${APK_REPO_DIR}"
-
-
-echo "Clone third-party repository"
+rm -rf "${TEMP_DIR}"
 
 
 git clone \
     --depth=1 \
     "${APK_REPO}" \
-    "${APK_REPO_DIR}"
+    "${TEMP_DIR}"
 
 
 
-RUN_DIR="${APK_REPO_DIR}/run/${ARCH}"
-
+RUN_DIR="${TEMP_DIR}/run/${ARCH}"
 
 
 if [ ! -d "${RUN_DIR}" ]; then
 
-    echo "Missing directory:"
+    echo "Missing APK directory:"
     echo "${RUN_DIR}"
 
     exit 1
@@ -143,78 +99,7 @@ fi
 
 
 
-
-
-# ============================================================
-# Download RUN packages
-# ============================================================
-
-
-for PACKAGE in ${CUSTOM_PACKAGES}
-
-do
-
-    FOUND=0
-
-
-    echo
-
-    echo "Search package: ${PACKAGE}"
-
-
-
-    for FILE in "${RUN_DIR}"/*.run
-
-    do
-
-        [ -e "${FILE}" ] || continue
-
-
-
-        NAME=$(basename "${FILE}")
-
-
-
-        if [[ "${NAME}" == *"${PACKAGE}"* ]]; then
-
-
-            echo "Selected:"
-            echo "${NAME}"
-
-
-
-            sh "${FILE}" \
-                --target "${TEMP_DIR}" \
-                --noexec \
-                --nochown
-
-
-
-            FOUND=1
-
-
-            break
-
-
-        fi
-
-
-    done
-
-
-
-    if [ "${FOUND}" -eq 0 ]; then
-
-        echo "Package not found: ${PACKAGE}"
-
-        exit 1
-
-    fi
-
-
-done
-
-
+mkdir -p "${PACKAGE_ROOT}"
 
 
 
@@ -223,72 +108,127 @@ done
 # ============================================================
 
 
-echo
-
-echo "Convert APK to OpenWrt package"
-
-
-
-
-
-for APK in "${TEMP_DIR}"/*.apk
+for PACKAGE in ${CUSTOM_PACKAGES}
 
 do
 
-    [ -e "${APK}" ] || continue
+    echo
+    echo "=========================================="
+    echo "Build package: ${PACKAGE}"
+    echo "=========================================="
+
+
+    RUN_FILE=$(find "${RUN_DIR}" \
+        -maxdepth 1 \
+        -name "*${PACKAGE}*.run" \
+        | head -n1)
 
 
 
-    NAME=$(basename "${APK}" .apk)
+    if [ -z "${RUN_FILE}" ]; then
+
+        echo "Cannot find:"
+        echo "${PACKAGE}"
+
+        exit 1
+
+    fi
 
 
 
-    PKG_DIR="${THIRD_PACKAGE_DIR}/${NAME}"
+    WORK="/tmp/${PACKAGE}"
+
+
+    rm -rf "${WORK}"
+
+    mkdir -p "${WORK}"
 
 
 
-    mkdir -p "${PKG_DIR}"
+    echo "Extract:"
+    echo "${RUN_FILE}"
+
+
+    sh "${RUN_FILE}" \
+        --target "${WORK}" \
+        --noexec \
+        --nochown
 
 
 
-    echo "Generate package: ${NAME}"
+    APK_FILE=$(find "${WORK}" \
+        -name "${PACKAGE}-*.apk" \
+        | head -n1)
+
+
+
+    if [ -z "${APK_FILE}" ]; then
+
+        echo "APK missing for ${PACKAGE}"
+
+        exit 1
+
+    fi
+
+
+
+    PKG_DIR="${PACKAGE_ROOT}/${PACKAGE}"
+
+
+    rm -rf "${PKG_DIR}"
+
+    mkdir -p "${PKG_DIR}/files"
+
+
+
+    cp "${APK_FILE}" \
+       "${PKG_DIR}/files/"
 
 
 
     cat > "${PKG_DIR}/Makefile" <<EOF
 include \$(TOPDIR)/rules.mk
 
-PKG_NAME:=${NAME}
-PKG_VERSION:=1.0
+PKG_NAME:=${PACKAGE}
+PKG_VERSION:=1
 PKG_RELEASE:=1
 
 include \$(INCLUDE_DIR)/package.mk
 
 
-define Package/${NAME}
- SECTION:=utils
- CATEGORY:=Utilities
- TITLE:=${NAME}
- DEPENDS:=+apk
+define Package/${PACKAGE}
+  SECTION:=utils
+  CATEGORY:=Utilities
+  TITLE:=${PACKAGE}
 endef
 
 
-define Package/${NAME}/install
+define Package/${PACKAGE}/description
+Third party APK package converted from wukongdaily
+endef
 
-	\$(INSTALL_DIR) \$\$(1)/usr/lib/apk/packages
 
-	\$(INSTALL_DATA) ${NAME}.apk \$\$(1)/usr/lib/apk/packages/
+define Build/Compile
+endef
+
+
+define Package/${PACKAGE}/install
+
+	\$(INSTALL_DIR) \$\$(1)/tmp/packages
+
+	\$(INSTALL_DATA) ./files/*.apk \
+		\$\$(1)/tmp/packages/
 
 endef
 
 
-\$(eval \$(call BuildPackage,${NAME}))
+\$(eval \$(call BuildPackage,${PACKAGE}))
 EOF
 
 
 
-    cp "${APK}" \
-       "${PKG_DIR}/${NAME}.apk"
+    echo "Created:"
+    echo "${PKG_DIR}"
 
 
 
@@ -296,23 +236,17 @@ done
 
 
 
-
-
 echo
-
 echo "=========================================="
-
 echo "Third-party OpenWrt packages"
-
 echo "=========================================="
 
 
-find "${THIRD_PACKAGE_DIR}" \
--type f \
-| sort
-
+find "${PACKAGE_ROOT}" \
+    -maxdepth 2 \
+    -type f \
+    | sort
 
 
 echo
-
-echo "Third-party package preparation completed"
+echo "Completed"
