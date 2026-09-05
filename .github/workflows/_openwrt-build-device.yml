@@ -870,6 +870,40 @@ jobs:
           fi
 
 
+      - name: Prepare third-party APK repository
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+
+          cd "${SOURCE_DIR}"
+
+
+          echo "=========================================="
+          echo "Prepare third-party APK repository"
+          echo "=========================================="
+
+
+          mkdir -p packages
+
+
+          ls -lh packages
+
+
+          echo "Third-party APK packages ready"
+
+
+          find packages -name "*.apk" -type f
+
+
       - name: Prepare build download
 
         shell: bash
