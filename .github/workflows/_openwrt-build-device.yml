@@ -795,28 +795,44 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
-
 
           cd "${SOURCE_DIR}"
 
-
-          if [ -f tmp/third-party-apk-packages ]; then
-
-
-              mkdir -p files/etc/apk
+          echo "=========================================="
+          echo "Prepare rootfs APK install list"
+          echo "=========================================="
 
 
-              cp tmp/third-party-apk-packages \
-              files/etc/apk/third-party-packages
+          if [ ! -f tmp/third-party-apk-packages ]; then
 
+              echo "No third-party APK package list"
 
-              echo "Third party APK install list:"
-              cat files/etc/apk/third-party-packages
-
+              exit 0
 
           fi
+
+          mkdir -p files/etc/apk
+
+          rm -f files/etc/apk/world
+
+          while read -r PACKAGE
+
+          do
+
+              PACKAGE=$(echo "${PACKAGE}" | xargs)
+
+              [ -z "${PACKAGE}" ] && continue
+
+              echo "${PACKAGE}" >> files/etc/apk/world
+
+          done < tmp/third-party-apk-packages
+
+          echo "=========================================="
+          echo "APK world list"
+          echo "=========================================="
+
+          cat files/etc/apk/world
 
 
       - name: Prepare third-party APK repository
@@ -841,22 +857,29 @@ jobs:
           echo "=========================================="
 
 
-          mkdir -p packages
+          # 第三方 APK 存放目录
+          mkdir -p files/etc/apk/packages
 
 
-          echo "Third-party APK list:"
+          # 复制第三方 APK
+          cp packages/*.apk files/etc/apk/packages/
 
 
-          find packages \
-            -maxdepth 1 \
-            -name "*.apk" \
-            -type f \
-            | sort
+          echo "Third-party APK copied:"
+          find files/etc/apk/packages -type f | sort
 
 
-          echo
 
-          echo "Third-party APK repository prepared"
+          # 注册第三方 APK 仓库
+          mkdir -p files/etc/apk/repositories.d
+
+
+          echo "/etc/apk/packages" \
+          > files/etc/apk/repositories.d/third-party.list
+
+
+          echo "Third-party repository:"
+          cat files/etc/apk/repositories.d/third-party.list
 
 
       - name: Prepare build download
@@ -883,6 +906,17 @@ jobs:
           set -euxo pipefail
 
           find openwrt/files/etc/uci-defaults -type f -exec ls -l {} \; || true
+
+
+      - name: Check APK rootfs files
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          find openwrt/files/etc/apk -type f | sort
 
 
       - name: Build firmware
