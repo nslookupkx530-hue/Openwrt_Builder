@@ -597,6 +597,19 @@ jobs:
           tail -n 20 feeds.conf.default
 
 
+      - name: Make defconfig
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          make defconfig V=s
+
+
       - name: Prepare third-party APK repository
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -646,19 +659,6 @@ jobs:
               echo "Skip index generation"
 
           fi
-
-
-      - name: Make defconfig
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          make defconfig V=s
 
 
       - name: Enable sonic fullcone
@@ -976,13 +976,45 @@ jobs:
 
           set -euxo pipefail
 
+
           SOURCE_DIR="${{ github.workspace }}/openwrt"
+
 
           mkdir -p "${SOURCE_DIR}/output/apk-feed"
 
-          find "${SOURCE_DIR}/bin/packages" -type f -name "*.apk" -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
 
-          find "${SOURCE_DIR}/bin/packages" -type f -name "packages.adb" -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
+          # OpenWrt 官方 APK feed
+          find "${SOURCE_DIR}/bin/packages" \
+          -type f \
+          -name "*.apk" \
+          -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
+
+
+          find "${SOURCE_DIR}/bin/packages" \
+          -type f \
+          -name "packages.adb" \
+          -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
+
+
+
+          # 第三方预编译 APK
+          if [ -d "${SOURCE_DIR}/packages" ]; then
+
+              echo "Copy third-party APK packages"
+
+              cp -f \
+              "${SOURCE_DIR}"/packages/*.apk \
+              "${SOURCE_DIR}/output/apk-feed/" \
+              || true
+
+          fi
+
+
+
+          echo "=========================================="
+          echo "Collected APK feed"
+          echo "=========================================="
+
 
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
 
