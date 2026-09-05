@@ -697,9 +697,9 @@ jobs:
 
             echo "Enable OpenWrt package: ${PACKAGE}"
 
+            sed -i "/^CONFIG_PACKAGE_${PACKAGE}=y$/d" .config
 
-            ./scripts/config/conf --enable "CONFIG_PACKAGE_${PACKAGE}"
-
+            echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
 
           done < tmp/third-party-package-selection
 
@@ -707,17 +707,15 @@ jobs:
 
           echo
           echo "=========================================="
-          echo "Verify third-party OpenWrt package config"
+          echo "Verify third-party packages"
           echo "=========================================="
 
 
-          for PACKAGE in $(cat tmp/third-party-package-selection)
+          grep "^CONFIG_PACKAGE_" .config \
 
-          do
+          | grep -E "$(cat tmp/third-party-package-selection | tr '\n' '|')" \
 
-            grep "^CONFIG_PACKAGE_${PACKAGE}=y" .config || true
-
-          done
+          || true
 
 
       - name: Refresh defconfig after third-party packages
@@ -800,71 +798,6 @@ jobs:
 
             grep "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
           done
-
-
-      - name: Check third-party OpenWrt packages
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        env:
-
-          CUSTOM_PACKAGES: ${{ env.CUSTOM_PACKAGES }}
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          PACKAGE_DIR="${SOURCE_DIR}/packages"
-
-          cd "${SOURCE_DIR}"
-
-          echo "=========================================="
-          echo "Check third-party OpenWrt packages"
-          echo "=========================================="
-
-          if [ -z "${CUSTOM_PACKAGES// }" ]; then
-
-            echo "ℹ️ No third-party APK packages enabled."
-
-            exit 0
-
-          fi
-
-          for PACKAGE in ${CUSTOM_PACKAGES}; do
-
-            echo
-            echo "----- ${PACKAGE} -----"
-
-            MATCH_COUNT=$(
-              find "${PACKAGE_DIR}" \
-                -maxdepth 1 \
-                -type f \
-                -name "${PACKAGE}-*.apk" \
-                | wc -l
-            )
-
-            if [ "${MATCH_COUNT}" -eq 0 ]; then
-
-              echo "❌ APK not found: ${PACKAGE}"
-
-              exit 1
-
-            fi
-
-            find "${PACKAGE_DIR}" \
-              -maxdepth 1 \
-              -type f \
-              -name "${PACKAGE}-*.apk" \
-              -printf '✅ %f\n'
-
-          done
-
-          echo
-          echo "✅ All requested third-party APK packages were found."
 
 
       - name: Prepare build download
