@@ -614,35 +614,38 @@ jobs:
           cd "${SOURCE_DIR}"
 
 
-          mkdir -p packages
-
-
           echo "=========================================="
           echo "Prepare third-party APK repository"
           echo "=========================================="
 
 
-          if ! command -v apk >/dev/null 2>&1; then
+          mkdir -p packages
 
-              echo "apk command missing"
 
-              exit 1
+
+          echo "Copy third-party APK:"
+
+
+          find packages -name "*.apk" -type f | sort
+
+
+
+          echo "Generate APK repository index"
+
+
+          if [ -x "staging_dir/host/bin/apk" ]; then
+
+              staging_dir/host/bin/apk \
+              index \
+              packages
+
+          else
+
+              echo "OpenWrt host apk not ready"
+
+              echo "Skip index generation"
 
           fi
-
-
-          apk index \
-            --output packages/packages.adb \
-            packages/*.apk
-
-
-          echo "Generated APK repository:"
-
-
-          ls -lh packages
-
-
-          file packages/packages.adb
 
 
       - name: Make defconfig
