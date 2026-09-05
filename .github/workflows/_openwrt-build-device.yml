@@ -603,6 +603,43 @@ jobs:
           cat tmp/third-party-package-selection
 
 
+      - name: Check third-party OpenWrt packages
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+
+          cd "${SOURCE_DIR}"
+
+
+          echo "=========================================="
+          echo "Check third-party OpenWrt packages"
+          echo "=========================================="
+
+
+          if [ ! -d package/third-party ]; then
+
+              echo "❌ package/third-party missing"
+
+              exit 1
+
+          fi
+
+
+          find package/third-party \
+          -maxdepth 2 \
+          -name Makefile \
+          -print
+
+
       - name: Make defconfig
 
         shell: bash
