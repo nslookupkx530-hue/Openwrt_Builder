@@ -504,13 +504,17 @@ jobs:
 
           set -euxo pipefail
 
+
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
+
           cd "${SOURCE_DIR}"
+
 
           echo "=========================================="
           echo "Generate third-party APK package selection"
           echo "=========================================="
+
 
           if [ ! -f "tmp/third-party-apk-packages" ]; then
 
@@ -520,9 +524,12 @@ jobs:
 
           fi
 
-          rm -f "tmp/third-party-apk-selection"
 
-          touch "tmp/third-party-apk-selection"
+          rm -f tmp/third-party-apk-selection
+
+
+          touch tmp/third-party-apk-selection
+
 
           while read -r PACKAGE
 
@@ -530,19 +537,26 @@ jobs:
 
             PACKAGE=$(echo "${PACKAGE}" | xargs)
 
+
             [ -z "${PACKAGE}" ] && continue
 
-            echo "${PACKAGE}" >> "tmp/third-party-apk-selection"
 
-          done < "tmp/third-party-apk-packages"
+            grep -qx "${PACKAGE}" tmp/third-party-apk-selection || \
+            echo "${PACKAGE}" >> tmp/third-party-apk-selection
+
+
+          done < tmp/third-party-apk-packages
+
+
 
           echo "=========================================="
           echo "Third-party APK package selection"
           echo "=========================================="
 
-          if [ -s "tmp/third-party-apk-selection" ]; then
 
-            cat "tmp/third-party-apk-selection"
+          if [ -s tmp/third-party-apk-selection ]; then
+
+            cat tmp/third-party-apk-selection
 
           else
 
