@@ -764,35 +764,6 @@ jobs:
           done < tmp/third-party-package-selection
 
 
-      - name: Update third-party OpenWrt package links
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-
-          cd "${SOURCE_DIR}"
-
-
-          echo "=========================================="
-          echo "Update third-party OpenWrt package links"
-          echo "=========================================="
-
-
-          make package/symlinks
-
-
-          echo
-          echo "Third-party package links updated"
-
-
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
