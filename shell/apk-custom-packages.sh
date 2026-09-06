@@ -9,8 +9,8 @@ PACKAGE_ROOT="${SOURCE_DIR}/package/third-party"
 
 TEMP_DIR="/tmp/wukongdaily-apk"
 
-APK_REPO="https://github.com/wukongdaily/apk.git"
 
+APK_REPO="https://github.com/wukongdaily/apk.git"
 
 
 echo "=========================================="
@@ -19,7 +19,6 @@ echo "=========================================="
 
 
 CUSTOM_PACKAGES="${CUSTOM_PACKAGES:-}"
-
 
 
 if [ -z "${CUSTOM_PACKAGES// }" ]; then
@@ -31,10 +30,8 @@ if [ -z "${CUSTOM_PACKAGES// }" ]; then
 fi
 
 
-
 echo "CUSTOM_PACKAGES:"
 echo "${CUSTOM_PACKAGES}"
-
 
 
 # ============================================================
@@ -42,19 +39,19 @@ echo "${CUSTOM_PACKAGES}"
 # ============================================================
 
 
-if grep -q '^CONFIG_TARGET_x86_64=y' "${SOURCE_DIR}/.config"; then
+if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="x86"
 
-elif grep -q '^CONFIG_TARGET_x86=y' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_TARGET_x86=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="x86"
 
-elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_TARGET_mediatek=y$' "${SOURCE_DIR}/.config"; then
 
-    ARCH="arm64-a53"
+    ARCH="arm64"
 
-elif grep -q '^CONFIG_TARGET_arm64=y' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_TARGET_arm64=y$' "${SOURCE_DIR}/.config"; then
 
     ARCH="arm64"
 
@@ -67,49 +64,8 @@ else
 fi
 
 
-
 echo "Architecture:"
 echo "${ARCH}"
-
-
-
-# ============================================================
-# Prepare apk tool
-# ============================================================
-
-
-APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
-
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
-    echo "Build OpenWrt apk host tool"
-
-
-    make -C "${SOURCE_DIR}" \
-        package/system/apk/host/compile \
-        V=s
-
-
-fi
-
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
-    echo "OpenWrt apk tool missing"
-
-    echo "${APK_TOOL}"
-
-    exit 1
-
-fi
-
-
-
-echo "APK tool:"
-echo "${APK_TOOL}"
 
 
 
@@ -131,10 +87,9 @@ git clone \
 RUN_DIR="${TEMP_DIR}/run/${ARCH}"
 
 
-
 if [ ! -d "${RUN_DIR}" ]; then
 
-    echo "Missing:"
+    echo "Missing APK directory:"
     echo "${RUN_DIR}"
 
     exit 1
@@ -148,7 +103,7 @@ mkdir -p "${PACKAGE_ROOT}"
 
 
 # ============================================================
-# Convert packages
+# Convert APK package
 # ============================================================
 
 
@@ -156,132 +111,93 @@ for PACKAGE in ${CUSTOM_PACKAGES}
 
 do
 
-
-echo
-echo "=========================================="
-echo "Process package: ${PACKAGE}"
-echo "=========================================="
-
-
-
-RUN_FILE=$(find "${RUN_DIR}" \
-    -maxdepth 1 \
-    -name "*${PACKAGE}*.run" \
-    | head -n1)
-
-
-
-if [ -z "${RUN_FILE}" ]; then
-
-    echo "RUN package missing:"
-    echo "${PACKAGE}"
-
-    exit 1
-
-fi
-
-
-
-RUN_WORK="/tmp/${PACKAGE}-run"
-
-
-ROOT_WORK="/tmp/${PACKAGE}-root"
-
-
-
-rm -rf \
-    "${RUN_WORK}" \
-    "${ROOT_WORK}"
-
-
-mkdir -p \
-    "${RUN_WORK}" \
-    "${ROOT_WORK}"
-
-
-
-echo "Extract RUN:"
-echo "${RUN_FILE}"
-
-
-
-sh "${RUN_FILE}" \
-    --target "${RUN_WORK}" \
-    --noexec \
-    --nochown
-
-
-
-echo "APK files:"
-
-
-find "${RUN_WORK}" \
-    -name "*.apk" \
-    -printf "%f\n"
-
-
-
-# ============================================================
-# Install APK into rootfs
-# ============================================================
-
-
-for APK_FILE in "${RUN_WORK}"/*.apk
-
-do
-
-
-    [ -e "${APK_FILE}" ] || continue
-
-
-
     echo
+    echo "=========================================="
+    echo "Process package: ${PACKAGE}"
+    echo "=========================================="
 
-    echo "Install APK:"
+
+    RUN_FILE=$(find "${RUN_DIR}" \
+        -maxdepth 1 \
+        -name "*${PACKAGE}*.run" \
+        | head -n1)
+
+
+
+    if [ -z "${RUN_FILE}" ]; then
+
+        echo "Cannot find RUN package:"
+        echo "${PACKAGE}"
+
+        exit 1
+
+    fi
+
+
+
+    WORK="/tmp/${PACKAGE}"
+
+
+    rm -rf "${WORK}"
+
+    mkdir -p "${WORK}"
+
+
+
+    echo "Extract RUN:"
+    echo "${RUN_FILE}"
+
+
+
+    sh "${RUN_FILE}" \
+        --target "${WORK}" \
+        --noexec \
+        --nochown
+
+
+
+    APK_FILE=$(find "${WORK}" \
+        -maxdepth 1 \
+        -name "${PACKAGE}-*.apk" \
+        | head -n1)
+
+
+
+    if [ -z "${APK_FILE}" ]; then
+
+        echo "Cannot find APK:"
+        echo "${PACKAGE}"
+
+        echo "Available files:"
+        find "${WORK}" -type f
+
+        exit 1
+
+    fi
+
+
+
+    echo "APK:"
     echo "${APK_FILE}"
 
 
 
-    "${APK_TOOL}" add \
-        --root "${ROOT_WORK}" \
-        --initdb \
-        --allow-untrusted \
-        "${APK_FILE}"
+    PKG_DIR="${PACKAGE_ROOT}/${PACKAGE}"
 
 
 
-done
+    rm -rf "${PKG_DIR}"
+
+    mkdir -p "${PKG_DIR}/files"
 
 
 
-# ============================================================
-# Generate OpenWrt package
-# ============================================================
-
-
-PKG_DIR="${PACKAGE_ROOT}/${PACKAGE}"
+    cp "${APK_FILE}" \
+       "${PKG_DIR}/files/"
 
 
 
-rm -rf "${PKG_DIR}"
-
-
-mkdir -p "${PKG_DIR}/files"
-
-
-
-echo "Copy root filesystem"
-
-
-
-cp -a \
-    "${ROOT_WORK}"/* \
-    "${PKG_DIR}/files/" \
-    2>/dev/null || true
-
-
-
-cat > "${PKG_DIR}/Makefile" <<EOF
+    cat > "${PKG_DIR}/Makefile" <<EOF
 include \$(TOPDIR)/rules.mk
 
 
@@ -310,7 +226,7 @@ endef
 
 define Package/${PACKAGE}/description
 
-Third party APK converted package
+Third party APK package converted from wukongdaily
 
 endef
 
@@ -324,19 +240,23 @@ endef
 
 define Package/${PACKAGE}/install
 
-	\$(CP) ./files/* \$(1)/
+	\$(INSTALL_DIR) \$\$(1)/tmp/packages
+
+	\$(INSTALL_DATA) ./files/*.apk \
+		\$\$(1)/tmp/packages/
 
 endef
 
 
 
 \$(eval \$(call BuildPackage,${PACKAGE}))
+
 EOF
 
 
 
-echo "Created:"
-echo "${PKG_DIR}"
+    echo "Created:"
+    echo "${PKG_DIR}"
 
 
 
@@ -345,21 +265,16 @@ done
 
 
 echo
-
 echo "=========================================="
-
 echo "Third-party OpenWrt packages"
-
 echo "=========================================="
 
 
 find "${PACKAGE_ROOT}" \
-    -name Makefile \
-    -print \
+    -maxdepth 2 \
+    -type f \
     | sort
 
 
-
 echo
-
 echo "Completed"
