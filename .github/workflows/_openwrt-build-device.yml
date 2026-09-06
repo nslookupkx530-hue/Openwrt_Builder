@@ -660,11 +660,14 @@ jobs:
           echo "=========================================="
 
 
-          rm -f tmp/.packageinfo
-          rm -f tmp/.packageauxvars
+          rm -rf tmp/.packageinfo
+          rm -rf tmp/.packageauxvars
 
 
-          make package/metadata
+          make defconfig
+
+
+          make package/symlinks
 
 
           echo "=========================================="
