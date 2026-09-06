@@ -12,6 +12,7 @@ TEMP_DIR="/tmp/wukongdaily-apk"
 APK_REPO="https://github.com/wukongdaily/apk.git"
 
 
+
 echo "=========================================="
 echo " Prepare third-party OpenWrt packages"
 echo "=========================================="
@@ -107,27 +108,7 @@ mkdir -p "${PACKAGE_ROOT}"
 
 
 # ============================================================
-# Extract APK tool
-# ============================================================
-
-
-APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
-
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
-    echo "OpenWrt apk tool missing:"
-    echo "${APK_TOOL}"
-
-    exit 1
-
-fi
-
-
-
-# ============================================================
-# Convert .run to OpenWrt packages
+# Convert RUN package
 # ============================================================
 
 
@@ -136,139 +117,174 @@ for PACKAGE in ${CUSTOM_PACKAGES}
 do
 
 
-echo
-echo "=========================================="
-echo "Process package: ${PACKAGE}"
-echo "=========================================="
+    echo
+    echo "=========================================="
+    echo "Process package: ${PACKAGE}"
+    echo "=========================================="
 
 
-RUN_FILE=$(find "${RUN_DIR}" \
-    -maxdepth 1 \
-    -name "*${PACKAGE}*.run" \
-    | head -n1)
-
-
-
-if [ -z "${RUN_FILE}" ]; then
-
-    echo "Cannot find:"
-    echo "${PACKAGE}"
-
-    exit 1
-
-fi
+    RUN_FILE=$(find "${RUN_DIR}" \
+        -maxdepth 1 \
+        -name "*${PACKAGE}*.run" \
+        | head -n1)
 
 
 
-RUN_WORK="/tmp/${PACKAGE}"
+    if [ -z "${RUN_FILE}" ]; then
 
-rm -rf "${RUN_WORK}"
+        echo "Cannot find:"
+        echo "${PACKAGE}"
 
-mkdir -p "${RUN_WORK}"
+        exit 1
 
-
-
-echo "Extract RUN:"
-echo "${RUN_FILE}"
+    fi
 
 
 
-sh "${RUN_FILE}" \
-    --target "${RUN_WORK}" \
-    --noexec \
-    --nochown
+    RUN_WORK="/tmp/${PACKAGE}"
 
 
 
-echo
-echo "APK list:"
+    rm -rf "${RUN_WORK}"
 
-find "${RUN_WORK}" \
-    -maxdepth 1 \
-    -name "*.apk" \
-    -printf "%f\n" \
-    | sort
+    mkdir -p "${RUN_WORK}"
 
 
 
-# ============================================================
-# Process every APK
-# ============================================================
-
-
-for APK_FILE in "${RUN_WORK}"/*.apk
-
-do
-
-
-    [ -e "${APK_FILE}" ] || continue
+    echo "Extract RUN:"
+    echo "${RUN_FILE}"
 
 
 
-    APK_NAME=$(basename "${APK_FILE}")
-
-
-    PKG_NAME="${APK_NAME%%-[0-9]*}"
+    sh "${RUN_FILE}" \
+        --target "${RUN_WORK}" \
+        --noexec \
+        --nochown
 
 
 
     echo
-    echo "------------------------------------------"
-    echo "Convert APK:"
-    echo "${APK_NAME}"
-    echo "Package:"
-    echo "${PKG_NAME}"
-    echo "------------------------------------------"
+    echo "APK list:"
 
 
 
-    PKG_DIR="${PACKAGE_ROOT}/${PKG_NAME}"
-
-
-
-    rm -rf "${PKG_DIR}"
-
-    mkdir -p "${PKG_DIR}/files"
-
-
-
-    APK_WORK="/tmp/${PKG_NAME}-extract"
-
-
-    rm -rf "${APK_WORK}"
-
-    mkdir -p "${APK_WORK}"
-
-
-
-    echo "Extract APK filesystem"
-
-
-
-    "${APK_TOOL}" extract \
-        "${APK_FILE}" \
-        --root "${APK_WORK}"
-
-
-
-    echo "Copy filesystem"
-
-
-
-    cp -a \
-        "${APK_WORK}"/* \
-        "${PKG_DIR}/files/" \
-        2>/dev/null || true
+    find "${RUN_WORK}" \
+        -maxdepth 1 \
+        -name "*.apk" \
+        -printf "%f\n" \
+        | sort
 
 
 
     # ========================================================
-    # Generate Makefile
+    # Convert every APK
     # ========================================================
 
 
-    cat > "${PKG_DIR}/Makefile" <<EOF
+    for APK_FILE in "${RUN_WORK}"/*.apk
 
+    do
+
+
+        [ -e "${APK_FILE}" ] || continue
+
+
+
+        APK_NAME=$(basename "${APK_FILE}")
+
+
+
+        PKG_NAME=$(echo "${APK_NAME}" \
+            | sed -E 's/-[0-9].*\.apk$//')
+
+
+
+        echo
+        echo "------------------------------------------"
+        echo "Convert APK:"
+        echo "${APK_NAME}"
+        echo "Package:"
+        echo "${PKG_NAME}"
+        echo "------------------------------------------"
+
+
+
+        PKG_DIR="${PACKAGE_ROOT}/${PKG_NAME}"
+
+
+
+        rm -rf "${PKG_DIR}"
+
+        mkdir -p "${PKG_DIR}/files"
+
+
+
+        APK_TMP="/tmp/${PKG_NAME}-apk"
+
+        APK_WORK="/tmp/${PKG_NAME}-root"
+
+
+
+        rm -rf "${APK_TMP}"
+        rm -rf "${APK_WORK}"
+
+
+
+        mkdir -p "${APK_TMP}"
+        mkdir -p "${APK_WORK}"
+
+
+
+        echo "Extract APK filesystem"
+
+
+
+        pushd "${APK_TMP}" >/dev/null
+
+
+
+        ar x "${APK_FILE}"
+
+
+
+        if [ ! -f data.tar.gz ]; then
+
+            echo "data.tar.gz missing"
+
+            ls -la
+
+            exit 1
+
+        fi
+
+
+
+        tar -xzf data.tar.gz \
+            -C "${APK_WORK}"
+
+
+
+        popd >/dev/null
+
+
+
+        echo "Copy filesystem"
+
+
+
+        cp -a \
+            "${APK_WORK}"/* \
+            "${PKG_DIR}/files/" \
+            2>/dev/null || true
+
+
+
+        # ====================================================
+        # Generate OpenWrt package Makefile
+        # ====================================================
+
+
+        cat > "${PKG_DIR}/Makefile" <<EOF
 include \$(TOPDIR)/rules.mk
 
 
@@ -318,18 +334,16 @@ endef
 
 
 \$(eval \$(call BuildPackage,${PKG_NAME}))
-
 EOF
 
 
 
-    echo
-    echo "Created:"
-    echo "${PKG_DIR}"
+        echo "Created:"
+        echo "${PKG_DIR}"
 
 
 
-done
+    done
 
 
 
