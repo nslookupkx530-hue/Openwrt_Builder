@@ -640,6 +640,33 @@ jobs:
           -print
 
 
+      - name: Check third-party package content
+        #临时检查
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+          echo "=========================================="
+          echo "Check luci-app-store package"
+          echo "=========================================="
+
+          find package/third-party/luci-app-store -type f | sort
+
+          echo "=========================================="
+          echo "Makefile:"
+          echo "=========================================="
+
+          cat package/third-party/luci-app-store/Makefile
+
+
       - name: Update package metadata
 
         if: ${{ inputs.third_party == 'enabled' }}
