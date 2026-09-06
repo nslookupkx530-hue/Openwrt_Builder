@@ -239,37 +239,19 @@ do
 
 
 
-        pushd "${APK_TMP}" >/dev/null
+        echo "Extract APK filesystem"
 
 
 
-        ar x "${APK_FILE}"
+        rm -rf "${APK_WORK}"
+		
+		mkdir -p "${APK_WORK}"
 
-
-
-        if [ ! -f data.tar.gz ]; then
-
-            echo "data.tar.gz missing"
-
-            ls -la
-
-            exit 1
-
-        fi
-
-
-
-        tar -xzf data.tar.gz \
+        tar -xf "${APK_FILE}" \
             -C "${APK_WORK}"
 
 
-
-        popd >/dev/null
-
-
-
         echo "Copy filesystem"
-
 
 
         cp -a \
