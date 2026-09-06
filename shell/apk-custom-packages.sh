@@ -16,7 +16,9 @@ echo "=========================================="
 echo " Prepare third-party OpenWrt packages"
 echo "=========================================="
 
+
 CUSTOM_PACKAGES="${CUSTOM_PACKAGES:-}"
+
 
 
 if [ -z "${CUSTOM_PACKAGES// }" ]; then
@@ -28,13 +30,16 @@ if [ -z "${CUSTOM_PACKAGES// }" ]; then
 fi
 
 
+
 echo "CUSTOM_PACKAGES:"
 echo "${CUSTOM_PACKAGES}"
+
 
 
 # ============================================================
 # Detect architecture
 # ============================================================
+
 
 if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
 
@@ -61,15 +66,19 @@ else
 fi
 
 
+
 echo "Architecture:"
 echo "${ARCH}"
+
 
 
 # ============================================================
 # Clone APK repository
 # ============================================================
 
+
 rm -rf "${TEMP_DIR}"
+
 
 git clone \
     --depth=1 \
@@ -77,7 +86,9 @@ git clone \
     "${TEMP_DIR}"
 
 
+
 RUN_DIR="${TEMP_DIR}/run/${ARCH}"
+
 
 
 if [ ! -d "${RUN_DIR}" ]; then
@@ -90,26 +101,52 @@ if [ ! -d "${RUN_DIR}" ]; then
 fi
 
 
+
 mkdir -p "${PACKAGE_ROOT}"
 
 
+
 # ============================================================
-# Convert APK to OpenWrt package
+# Extract APK tool
 # ============================================================
+
+
+APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
+
+
+
+if [ ! -x "${APK_TOOL}" ]; then
+
+    echo "OpenWrt apk tool missing:"
+    echo "${APK_TOOL}"
+
+    exit 1
+
+fi
+
+
+
+# ============================================================
+# Convert .run to OpenWrt packages
+# ============================================================
+
 
 for PACKAGE in ${CUSTOM_PACKAGES}
 
 do
 
+
 echo
 echo "=========================================="
-echo "Build package: ${PACKAGE}"
+echo "Process package: ${PACKAGE}"
 echo "=========================================="
+
 
 RUN_FILE=$(find "${RUN_DIR}" \
     -maxdepth 1 \
     -name "*${PACKAGE}*.run" \
     | head -n1)
+
 
 
 if [ -z "${RUN_FILE}" ]; then
@@ -122,178 +159,197 @@ if [ -z "${RUN_FILE}" ]; then
 fi
 
 
-WORK="/tmp/${PACKAGE}"
 
-rm -rf "${WORK}"
+RUN_WORK="/tmp/${PACKAGE}"
 
-mkdir -p "${WORK}"
+rm -rf "${RUN_WORK}"
+
+mkdir -p "${RUN_WORK}"
 
 
-echo "Extract:"
+
+echo "Extract RUN:"
 echo "${RUN_FILE}"
 
 
+
 sh "${RUN_FILE}" \
-    --target "${WORK}" \
+    --target "${RUN_WORK}" \
     --noexec \
     --nochown
 
 
-APK_FILE=$(find "${WORK}" \
+
+echo
+echo "APK list:"
+
+find "${RUN_WORK}" \
+    -maxdepth 1 \
     -name "*.apk" \
-    | head -n1)
+    -printf "%f\n" \
+    | sort
 
-
-if [ -z "${APK_FILE}" ]; then
-
-    echo "APK missing for ${PACKAGE}"
-
-    exit 1
-
-fi
-
-
-echo "APK:"
-echo "${APK_FILE}"
-
-# ============================================================
-# Extract APK filesystem
-# ============================================================
-
-APK_WORK="${WORK}/apk-extract"
-
-rm -rf "${APK_WORK}"
-
-mkdir -p "${APK_WORK}"
-
-echo "Extract APK filesystem"
-
-tar -xf \
-    "${APK_FILE}" \
-    -C "${APK_WORK}"
-
-# Alpine APK format:
-# data.tar.gz
-
-if [ -f "${APK_WORK}/data.tar.gz" ]; then
-
-    mkdir -p "${APK_WORK}/rootfs"
-
-    tar -xzf \
-        "${APK_WORK}/data.tar.gz" \
-        -C "${APK_WORK}/rootfs"
-
-    ROOTFS="${APK_WORK}/rootfs"
-
-else
-
-    ROOTFS="${APK_WORK}"
-
-fi
 
 
 # ============================================================
-# Generate OpenWrt package
+# Process every APK
 # ============================================================
 
-PKG_DIR="${PACKAGE_ROOT}/${PACKAGE}"
 
-rm -rf "${PKG_DIR}"
+for APK_FILE in "${RUN_WORK}"/*.apk
 
-mkdir -p "${PKG_DIR}/files"
+do
 
-echo "Copy filesystem"
 
-if [ -d "${ROOTFS}/usr" ]; then
+    [ -e "${APK_FILE}" ] || continue
+
+
+
+    APK_NAME=$(basename "${APK_FILE}")
+
+
+    PKG_NAME="${APK_NAME%%-[0-9]*}"
+
+
+
+    echo
+    echo "------------------------------------------"
+    echo "Convert APK:"
+    echo "${APK_NAME}"
+    echo "Package:"
+    echo "${PKG_NAME}"
+    echo "------------------------------------------"
+
+
+
+    PKG_DIR="${PACKAGE_ROOT}/${PKG_NAME}"
+
+
+
+    rm -rf "${PKG_DIR}"
+
+    mkdir -p "${PKG_DIR}/files"
+
+
+
+    APK_WORK="/tmp/${PKG_NAME}-extract"
+
+
+    rm -rf "${APK_WORK}"
+
+    mkdir -p "${APK_WORK}"
+
+
+
+    echo "Extract APK filesystem"
+
+
+
+    "${APK_TOOL}" extract \
+        "${APK_FILE}" \
+        --root "${APK_WORK}"
+
+
+
+    echo "Copy filesystem"
+
+
 
     cp -a \
-        "${ROOTFS}/usr" \
-        "${PKG_DIR}/files/"
+        "${APK_WORK}"/* \
+        "${PKG_DIR}/files/" \
+        2>/dev/null || true
 
-fi
 
-if [ -d "${ROOTFS}/etc" ]; then
 
-    cp -a \
-        "${ROOTFS}/etc" \
-        "${PKG_DIR}/files/"
+    # ========================================================
+    # Generate Makefile
+    # ========================================================
 
-fi
 
-if [ -d "${ROOTFS}/www" ]; then
-
-    cp -a \
-        "${ROOTFS}/www" \
-        "${PKG_DIR}/files/"
-
-fi
-
-# ============================================================
-# Generate Makefile
-# ============================================================
-
-cat > "${PKG_DIR}/Makefile" <<EOF
+    cat > "${PKG_DIR}/Makefile" <<EOF
 
 include \$(TOPDIR)/rules.mk
 
-PKG_NAME:=${PACKAGE}
+
+PKG_NAME:=${PKG_NAME}
 
 PKG_VERSION:=1
 
 PKG_RELEASE:=1
 
+
 include \$(INCLUDE_DIR)/package.mk
 
-define Package/${PACKAGE}
+
+
+define Package/${PKG_NAME}
 
   SECTION:=utils
 
   CATEGORY:=Utilities
 
-  TITLE:=${PACKAGE}
+  TITLE:=${PKG_NAME}
 
 endef
 
-define Package/${PACKAGE}/description
+
+
+define Package/${PKG_NAME}/description
 
 Third party package converted from APK
 
 endef
 
+
+
 define Build/Compile
 
 endef
 
-define Package/${PACKAGE}/install
+
+
+define Package/${PKG_NAME}/install
 
 	\$(CP) ./files/* \$(1)/
 
 endef
 
-\$(eval \$(call BuildPackage,${PACKAGE}))
+
+
+\$(eval \$(call BuildPackage,${PKG_NAME}))
 
 EOF
 
-echo
-echo "Created OpenWrt package:"
-echo "${PKG_DIR}"
 
-find "${PKG_DIR}" \
-    -type f \
-    | sort
+
+    echo
+    echo "Created:"
+    echo "${PKG_DIR}"
+
+
 
 done
+
+
+
+done
+
+
 
 echo
 echo "=========================================="
 echo "Third-party OpenWrt packages"
 echo "=========================================="
 
+
 find "${PACKAGE_ROOT}" \
     -maxdepth 2 \
     -name Makefile \
     -print \
     | sort
+
+
 
 echo
 echo "Completed"
