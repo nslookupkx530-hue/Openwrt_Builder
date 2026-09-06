@@ -764,6 +764,39 @@ jobs:
           done < tmp/third-party-package-selection
 
 
+      - name: Update third-party OpenWrt package metadata
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+
+          cd "${SOURCE_DIR}"
+
+
+          echo "=========================================="
+          echo "Update third-party OpenWrt package metadata"
+          echo "=========================================="
+
+
+          rm -rf tmp/.packageinfo
+          rm -rf tmp/.packageauxvars
+
+
+          make package/metadata
+
+
+          echo
+          echo "Third-party package metadata updated"
+
+
       - name: Enable sonic fullcone
 
         if: ${{ inputs.sonic_fullcone == 'true' }}
