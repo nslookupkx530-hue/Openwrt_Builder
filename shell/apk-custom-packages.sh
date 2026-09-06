@@ -42,19 +42,19 @@ echo "${CUSTOM_PACKAGES}"
 # ============================================================
 
 
-if grep -q '^CONFIG_TARGET_x86_64=y$' "${SOURCE_DIR}/.config"; then
+if grep -q '^CONFIG_TARGET_x86_64=y' "${SOURCE_DIR}/.config"; then
 
     ARCH="x86"
 
-elif grep -q '^CONFIG_TARGET_x86=y$' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_TARGET_x86=y' "${SOURCE_DIR}/.config"; then
 
     ARCH="x86"
 
-elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y$' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y' "${SOURCE_DIR}/.config"; then
 
     ARCH="arm64-a53"
 
-elif grep -q '^CONFIG_TARGET_arm64=y$' "${SOURCE_DIR}/.config"; then
+elif grep -q '^CONFIG_TARGET_arm64=y' "${SOURCE_DIR}/.config"; then
 
     ARCH="arm64"
 
@@ -70,6 +70,46 @@ fi
 
 echo "Architecture:"
 echo "${ARCH}"
+
+
+
+# ============================================================
+# Prepare apk tool
+# ============================================================
+
+
+APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
+
+
+
+if [ ! -x "${APK_TOOL}" ]; then
+
+    echo "Build OpenWrt apk host tool"
+
+
+    make -C "${SOURCE_DIR}" \
+        package/system/apk/host/compile \
+        V=s
+
+
+fi
+
+
+
+if [ ! -x "${APK_TOOL}" ]; then
+
+    echo "OpenWrt apk tool missing"
+
+    echo "${APK_TOOL}"
+
+    exit 1
+
+fi
+
+
+
+echo "APK tool:"
+echo "${APK_TOOL}"
 
 
 
@@ -94,7 +134,7 @@ RUN_DIR="${TEMP_DIR}/run/${ARCH}"
 
 if [ ! -d "${RUN_DIR}" ]; then
 
-    echo "Missing APK directory:"
+    echo "Missing:"
     echo "${RUN_DIR}"
 
     exit 1
@@ -108,7 +148,7 @@ mkdir -p "${PACKAGE_ROOT}"
 
 
 # ============================================================
-# Convert RUN package
+# Convert packages
 # ============================================================
 
 
@@ -117,160 +157,135 @@ for PACKAGE in ${CUSTOM_PACKAGES}
 do
 
 
+echo
+echo "=========================================="
+echo "Process package: ${PACKAGE}"
+echo "=========================================="
+
+
+
+RUN_FILE=$(find "${RUN_DIR}" \
+    -maxdepth 1 \
+    -name "*${PACKAGE}*.run" \
+    | head -n1)
+
+
+
+if [ -z "${RUN_FILE}" ]; then
+
+    echo "RUN package missing:"
+    echo "${PACKAGE}"
+
+    exit 1
+
+fi
+
+
+
+RUN_WORK="/tmp/${PACKAGE}-run"
+
+
+ROOT_WORK="/tmp/${PACKAGE}-root"
+
+
+
+rm -rf \
+    "${RUN_WORK}" \
+    "${ROOT_WORK}"
+
+
+mkdir -p \
+    "${RUN_WORK}" \
+    "${ROOT_WORK}"
+
+
+
+echo "Extract RUN:"
+echo "${RUN_FILE}"
+
+
+
+sh "${RUN_FILE}" \
+    --target "${RUN_WORK}" \
+    --noexec \
+    --nochown
+
+
+
+echo "APK files:"
+
+
+find "${RUN_WORK}" \
+    -name "*.apk" \
+    -printf "%f\n"
+
+
+
+# ============================================================
+# Install APK into rootfs
+# ============================================================
+
+
+for APK_FILE in "${RUN_WORK}"/*.apk
+
+do
+
+
+    [ -e "${APK_FILE}" ] || continue
+
+
+
     echo
-    echo "=========================================="
-    echo "Process package: ${PACKAGE}"
-    echo "=========================================="
 
+    echo "Install APK:"
+    echo "${APK_FILE}"
 
-    RUN_FILE=$(find "${RUN_DIR}" \
-        -maxdepth 1 \
-        -name "*${PACKAGE}*.run" \
-        | head -n1)
 
 
+    "${APK_TOOL}" add \
+        --root "${ROOT_WORK}" \
+        --initdb \
+        --allow-untrusted \
+        "${APK_FILE}"
 
-    if [ -z "${RUN_FILE}" ]; then
 
-        echo "Cannot find:"
-        echo "${PACKAGE}"
 
-        exit 1
+done
 
-    fi
 
 
+# ============================================================
+# Generate OpenWrt package
+# ============================================================
 
-    RUN_WORK="/tmp/${PACKAGE}"
 
+PKG_DIR="${PACKAGE_ROOT}/${PACKAGE}"
 
 
-    rm -rf "${RUN_WORK}"
 
-    mkdir -p "${RUN_WORK}"
+rm -rf "${PKG_DIR}"
 
 
+mkdir -p "${PKG_DIR}/files"
 
-    echo "Extract RUN:"
-    echo "${RUN_FILE}"
 
 
+echo "Copy root filesystem"
 
-    sh "${RUN_FILE}" \
-        --target "${RUN_WORK}" \
-        --noexec \
-        --nochown
 
 
+cp -a \
+    "${ROOT_WORK}"/* \
+    "${PKG_DIR}/files/" \
+    2>/dev/null || true
 
-    echo
-    echo "APK list:"
 
 
-
-    find "${RUN_WORK}" \
-        -maxdepth 1 \
-        -name "*.apk" \
-        -printf "%f\n" \
-        | sort
-
-
-
-    # ========================================================
-    # Convert every APK
-    # ========================================================
-
-
-    for APK_FILE in "${RUN_WORK}"/*.apk
-
-    do
-
-
-        [ -e "${APK_FILE}" ] || continue
-
-
-
-        APK_NAME=$(basename "${APK_FILE}")
-
-
-
-        PKG_NAME=$(echo "${APK_NAME}" \
-            | sed -E 's/-[0-9].*\.apk$//')
-
-
-
-        echo
-        echo "------------------------------------------"
-        echo "Convert APK:"
-        echo "${APK_NAME}"
-        echo "Package:"
-        echo "${PKG_NAME}"
-        echo "------------------------------------------"
-
-
-
-        PKG_DIR="${PACKAGE_ROOT}/${PKG_NAME}"
-
-
-
-        rm -rf "${PKG_DIR}"
-
-        mkdir -p "${PKG_DIR}/files"
-
-
-
-        APK_TMP="/tmp/${PKG_NAME}-apk"
-
-        APK_WORK="/tmp/${PKG_NAME}-root"
-
-
-
-        rm -rf "${APK_TMP}"
-        rm -rf "${APK_WORK}"
-
-
-
-        mkdir -p "${APK_TMP}"
-        mkdir -p "${APK_WORK}"
-
-
-
-        echo "Extract APK filesystem"
-
-
-
-        echo "Extract APK filesystem"
-
-
-
-        rm -rf "${APK_WORK}"
-		
-		mkdir -p "${APK_WORK}"
-
-        tar -xf "${APK_FILE}" \
-            -C "${APK_WORK}"
-
-
-        echo "Copy filesystem"
-
-
-        cp -a \
-            "${APK_WORK}"/* \
-            "${PKG_DIR}/files/" \
-            2>/dev/null || true
-
-
-
-        # ====================================================
-        # Generate OpenWrt package Makefile
-        # ====================================================
-
-
-        cat > "${PKG_DIR}/Makefile" <<EOF
+cat > "${PKG_DIR}/Makefile" <<EOF
 include \$(TOPDIR)/rules.mk
 
 
-PKG_NAME:=${PKG_NAME}
+PKG_NAME:=${PACKAGE}
 
 PKG_VERSION:=1
 
@@ -281,21 +296,21 @@ include \$(INCLUDE_DIR)/package.mk
 
 
 
-define Package/${PKG_NAME}
+define Package/${PACKAGE}
 
   SECTION:=utils
 
   CATEGORY:=Utilities
 
-  TITLE:=${PKG_NAME}
+  TITLE:=${PACKAGE}
 
 endef
 
 
 
-define Package/${PKG_NAME}/description
+define Package/${PACKAGE}/description
 
-Third party package converted from APK
+Third party APK converted package
 
 endef
 
@@ -307,7 +322,7 @@ endef
 
 
 
-define Package/${PKG_NAME}/install
+define Package/${PACKAGE}/install
 
 	\$(CP) ./files/* \$(1)/
 
@@ -315,17 +330,13 @@ endef
 
 
 
-\$(eval \$(call BuildPackage,${PKG_NAME}))
+\$(eval \$(call BuildPackage,${PACKAGE}))
 EOF
 
 
 
-        echo "Created:"
-        echo "${PKG_DIR}"
-
-
-
-    done
+echo "Created:"
+echo "${PKG_DIR}"
 
 
 
@@ -334,13 +345,15 @@ done
 
 
 echo
+
 echo "=========================================="
+
 echo "Third-party OpenWrt packages"
+
 echo "=========================================="
 
 
 find "${PACKAGE_ROOT}" \
-    -maxdepth 2 \
     -name Makefile \
     -print \
     | sort
@@ -348,4 +361,5 @@ find "${PACKAGE_ROOT}" \
 
 
 echo
+
 echo "Completed"
