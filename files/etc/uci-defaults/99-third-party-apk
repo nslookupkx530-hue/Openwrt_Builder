@@ -1,16 +1,27 @@
 #!/bin/sh
 
+PACKAGE_LIST="/etc/third-party-packages"
+
+if [ ! -f "${PACKAGE_LIST}" ]; then
+
+    exit 0
+
+fi
+
 
 apk update
 
-
-for pkg in $(cat /etc/third-party-packages)
+while read pkg
 
 do
 
+    [ -z "$pkg" ] && continue
+
+    echo "Installing third-party package:"
+    echo "$pkg"
+
     apk add "$pkg"
 
-done
-
+done < "${PACKAGE_LIST}"
 
 exit 0
