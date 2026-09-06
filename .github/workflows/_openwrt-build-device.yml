@@ -251,19 +251,6 @@ jobs:
           cat "${SOURCE_DIR}/feeds.conf.default"
 
 
-      - name: Check feeds.conf.default
-        #临时增加一个检查
-        shell: bash
-
-        run: |
-
-          cd openwrt
-
-          echo "===== feeds.conf.default ====="
-
-          nl -ba feeds.conf.default
-
-
       - name: Update feeds
 
         shell: bash
