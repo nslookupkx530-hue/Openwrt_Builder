@@ -640,6 +640,38 @@ jobs:
           -print
 
 
+      - name: Update package metadata
+
+        if: ${{ inputs.third_party == 'enabled' }}
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+
+          echo "=========================================="
+          echo "Update package metadata"
+          echo "=========================================="
+
+
+          rm -f tmp/.packageinfo
+          rm -f tmp/.packageauxvars
+
+
+          make package/metadata
+
+
+          echo "=========================================="
+          echo "Package metadata updated"
+          echo "=========================================="
+
+
       - name: Make defconfig
 
         shell: bash
