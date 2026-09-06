@@ -611,23 +611,6 @@ jobs:
           make download -j$(nproc)
 
 
-      - name: Check third-party package config
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          echo "=========================================="
-          echo "Third-party package config"
-          echo "=========================================="
-
-          grep "CONFIG_PACKAGE_luci-app-store" .config || true
-
-
       - name: Check uci-defaults
 
         shell: bash
