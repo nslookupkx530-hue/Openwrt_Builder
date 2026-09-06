@@ -764,7 +764,7 @@ jobs:
           done < tmp/third-party-package-selection
 
 
-      - name: Update third-party OpenWrt package metadata
+      - name: Update third-party OpenWrt package links
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -782,19 +782,15 @@ jobs:
 
 
           echo "=========================================="
-          echo "Update third-party OpenWrt package metadata"
+          echo "Update third-party OpenWrt package links"
           echo "=========================================="
 
 
-          rm -rf tmp/.packageinfo
-          rm -rf tmp/.packageauxvars
-
-
-          make package/metadata
+          make package/symlinks
 
 
           echo
-          echo "Third-party package metadata updated"
+          echo "Third-party package links updated"
 
 
       - name: Enable sonic fullcone
