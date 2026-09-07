@@ -486,11 +486,13 @@ jobs:
           cd "${SOURCE_DIR}"
 
           echo "=========================================="
-          echo "Copy third-party APK repository"
+          echo "Install third-party APK repository files"
           echo "=========================================="
 
-          mkdir -p files/usr/share/third-party
-
+          #
+          # APK repository
+          #
+          
           mkdir -p \
           files/usr/share/third-party
 
@@ -498,18 +500,38 @@ jobs:
           packages/*.apk \
           files/usr/share/third-party/
 
-          echo "=========================================="
-          echo "Create third-party package list"
-          echo "=========================================="  
+          #
+          # echo "package list
+          #  
 
-          mkdir -p files/etc
+          mkdir -p \
+          files/etc
 
           echo "${CUSTOM_PACKAGES}" \
           | xargs -n1 \
           > files/etc/third-party-packages
 
+          #
+          # uci-defaults
+          #  
+
+          mkdir -p \
+          files/etc/uci-defaults
+
+          echo "${CUSTOM_PACKAGES}" \
+          | xargs -n1 \
+          > files/etc/third-party-packages
+
+          cp \
+          "${{ github.workspace }}/files/99-third-party-apk" \
+          files/etc/uci-defaults/99-third-party-apk
+          
           chmod +x \
           files/etc/uci-defaults/99-third-party-apk
+
+          echo "Third-party APK repository installed"
+
+          ls -lah files/etc/uci-defaults/
 
 
       - name: Make defconfig
