@@ -512,26 +512,12 @@ jobs:
           > files/etc/third-party-packages
 
           #
-          # uci-defaults
+          # repository installed
           #  
 
-          mkdir -p \
-          files/etc/uci-defaults
+          ls -lah files/usr/share/third-party
 
-          echo "${CUSTOM_PACKAGES}" \
-          | xargs -n1 \
-          > files/etc/third-party-packages
-
-          cp \
-          "${{ github.workspace }}/files/99-third-party-apk" \
-          files/etc/uci-defaults/99-third-party-apk
-          
-          chmod +x \
-          files/etc/uci-defaults/99-third-party-apk
-
-          echo "Third-party APK repository installed"
-
-          ls -lah files/etc/uci-defaults/
+          cat files/etc/third-party-packages
 
 
       - name: Make defconfig
