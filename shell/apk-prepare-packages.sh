@@ -44,11 +44,13 @@ mkdir -p "${OUTPUT_DIR}"
 
 echo "Clone APK repository"
 
+APK_REPO_DIR="/tmp/wukongdaily-apk"
+rm -rf "${APK_REPO_DIR}"
 
 git clone \
     --depth=1 \
-    "${REPO}" \
-    /tmp/wukongdaily-apk
+    https://github.com/wukongdaily/apk.git \
+    "${APK_REPO_DIR}"
 
 
 
