@@ -22,9 +22,8 @@ fi
 mkdir -p /etc/apk/repositories.d
 
 
-cat > /etc/apk/repositories.d/third-party.list <<EOF
-file://$APK_DIR
-EOF
+echo "file://$APK_DIR" \
+> /etc/apk/repositories.d/third-party.list
 
 
 apk update
