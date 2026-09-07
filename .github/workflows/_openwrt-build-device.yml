@@ -471,7 +471,7 @@ jobs:
           "${{ github.workspace }}/shell/apk-create-feed.sh"
 
 
-      - name: Install third-party APK repository
+      - name: Install third-party APK repository files
 
         if: ${{ inputs.third_party == 'enabled' }}
 
@@ -486,21 +486,27 @@ jobs:
           cd "${SOURCE_DIR}"
 
           echo "=========================================="
-          echo "Install third-party APK repository"
+          echo "Copy third-party APK repository"
           echo "=========================================="
 
           mkdir -p files/usr/share/third-party
 
-          cp packages/*.apk \
-             files/usr/share/third-party/
+          mkdir -p \
+          files/usr/share/third-party
+
+          cp \
+          packages/*.apk \
+          files/usr/share/third-party/
+
+          echo "=========================================="
+          echo "Create third-party package list"
+          echo "=========================================="  
 
           mkdir -p files/etc
 
           echo "${CUSTOM_PACKAGES}" \
+          | xargs -n1 \
           > files/etc/third-party-packages
-
-          echo "Third-party APK:"
-          ls -lh files/usr/share/third-party
 
           chmod +x \
           files/etc/uci-defaults/99-third-party-apk
