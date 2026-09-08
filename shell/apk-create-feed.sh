@@ -44,6 +44,7 @@ echo "Generate APK repository"
 
 
 "${APK_TOOL}" index \
+    --allow-untrusted \
     --output packages.adb \
     *.apk
 
