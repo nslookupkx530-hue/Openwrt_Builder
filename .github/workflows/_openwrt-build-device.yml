@@ -489,9 +489,6 @@ jobs:
           echo "Install third-party APK repository files"
           echo "=========================================="
 
-          #
-          # APK repository
-          #
           
           mkdir -p \
           files/usr/share/third-party
@@ -500,24 +497,26 @@ jobs:
           packages/*.apk \
           files/usr/share/third-party/
 
-          #
-          # echo "package list
-          #  
+          cp \
+          packages/packages.adb \
+          files/usr/share/third-party/
+
 
           mkdir -p \
-          files/etc
+          files/etc/apk/repositories.d
+
+          cat > files/etc/apk/repositories.d/third-party.list <<EOF
+          file:///usr/share/third-party
+          EOF
+
+          mkdir -p files/etc
 
           echo "${CUSTOM_PACKAGES}" \
           | xargs -n1 \
           > files/etc/third-party-packages
 
-          #
-          # repository installed
-          #  
 
-          ls -lah files/usr/share/third-party
-
-          cat files/etc/third-party-packages
+          echo "Third-party APK repository installed"
 
 
       - name: Make defconfig
