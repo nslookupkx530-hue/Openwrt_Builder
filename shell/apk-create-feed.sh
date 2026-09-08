@@ -5,22 +5,12 @@ set -euo pipefail
 
 SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
 
-
 PACKAGE_DIR="${SOURCE_DIR}/packages"
 
 
 echo "=========================================="
 echo "Create third-party APK repository"
 echo "=========================================="
-
-
-if ! command -v apk >/dev/null 2>&1; then
-
-    echo "apk tool missing"
-
-    exit 1
-
-fi
 
 
 mkdir -p "${PACKAGE_DIR}"
@@ -40,7 +30,7 @@ apk index \
 echo
 
 echo "=========================================="
-echo "APK repository created"
+echo "Third-party APK repository created"
 echo "=========================================="
 
 
