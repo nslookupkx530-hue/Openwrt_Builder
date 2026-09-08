@@ -426,8 +426,6 @@ jobs:
 
           export SOURCE_DIR
 
-          bash "${{ github.workspace }}/shell/apk-prepare-packages.sh"
-
 
       - name: Prepare third-party APK packages
 
