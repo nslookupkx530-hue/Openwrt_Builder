@@ -1,0 +1,37 @@
+#!/bin/sh
+
+echo "=========================================="
+echo "Install third-party APK packages"
+echo "=========================================="
+
+
+if [ ! -f /etc/third-party-packages ]; then
+    exit 0
+fi
+
+
+APK_DIR="/usr/share/third-party"
+
+
+mkdir -p /etc/apk/repositories.d
+
+
+cat > /etc/apk/repositories.d/third-party.list <<EOF
+$APK_DIR
+EOF
+
+
+apk update
+
+
+while read -r pkg
+do
+
+    [ -z "$pkg" ] && continue
+
+    apk add "$pkg"
+
+done < /etc/third-party-packages
+
+
+exit 0
