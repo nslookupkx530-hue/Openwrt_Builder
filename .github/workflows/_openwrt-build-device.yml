@@ -447,7 +447,36 @@ jobs:
           echo "Target architecture configuration"
           echo "=========================================="
 
-          export SOURCE_DIR
+          if grep -q '^CONFIG_TARGET_x86_64=y' .config; then
+          
+             ARCH="x86"
+             
+          elif grep -q '^CONFIG_TARGET_x86=y' .config; then   
+          
+             ARCH="x86"
+
+          elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y' .config; then 
+
+             ARCH="arm64-a53"
+
+          elif grep -q '^CONFIG_TARGET_arm64=y' .config; then 
+
+             ARCH="arm64"
+
+          else
+
+              echo "Unsupported architecture"
+
+             exit 1
+
+          fi
+
+
+          echo "Architecture:"
+          echo "${ARCH}"
+
+
+          echo "ARCH=${ARCH}" >> "${GITHUB_ENV}"
 
 
       - name: Prepare third-party APK packages
