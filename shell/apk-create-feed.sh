@@ -30,11 +30,8 @@ if [ ! -x "${APK_TOOL}" ]; then
 
     echo "Missing apk tool:"
     echo "${APK_TOOL}"
-
     exit 1
-
 fi
-
 
 
 cd "${PACKAGE_DIR}"
@@ -47,7 +44,6 @@ echo "Generate APK repository"
     --allow-untrusted \
     --output packages.adb \
     *.apk
-
 
 
 echo
