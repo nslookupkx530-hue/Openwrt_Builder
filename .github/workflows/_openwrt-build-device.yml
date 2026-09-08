@@ -537,19 +537,8 @@ jobs:
           packages/*.apk \
           files/usr/share/third-party/
 
-          cp \
-          packages/packages.adb \
-          files/usr/share/third-party/
-
-
           mkdir -p \
-          files/etc/apk/repositories.d
-
-          cat > files/etc/apk/repositories.d/third-party.list <<EOF
-          file:///usr/share/third-party
-          EOF
-
-          mkdir -p files/etc
+          files/etc
 
           echo "${CUSTOM_PACKAGES}" \
           | xargs -n1 \
@@ -557,6 +546,8 @@ jobs:
 
 
           echo "Third-party APK repository installed"
+
+          ls -lah files/usr/share/third-party
 
 
       - name: Enable sonic fullcone
