@@ -450,19 +450,6 @@ jobs:
           "${{ github.workspace }}/shell/apk-prepare-packages.sh"
 
 
-      - name: Make defconfig
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          make defconfig V=s
-
-
       - name: Prepare third-party APK repository
 
         if: ${{ inputs.third_party == 'enabled' }}
@@ -530,6 +517,19 @@ jobs:
 
 
           echo "Third-party APK repository installed"
+
+
+      - name: Make defconfig
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          make defconfig V=s
 
 
       - name: Enable sonic fullcone
