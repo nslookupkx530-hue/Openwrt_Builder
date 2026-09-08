@@ -7,8 +7,6 @@ SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
 
 PACKAGE_DIR="${SOURCE_DIR}/packages"
 
-FEED_DIR="${SOURCE_DIR}/third-party-feed"
-
 
 APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
 
@@ -18,25 +16,9 @@ echo "Create third-party APK repository"
 echo "=========================================="
 
 
-#
-# Build apk host tool
-#
-
 if [ ! -x "${APK_TOOL}" ]; then
 
-    echo "Build OpenWrt apk host tool"
-
-    cd "${SOURCE_DIR}"
-
-    make package/system/apk/host/compile V=s
-
-fi
-
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
-    echo "apk tool still missing:"
+    echo "Missing apk tool:"
     echo "${APK_TOOL}"
 
     exit 1
@@ -50,29 +32,18 @@ echo "${APK_TOOL}"
 
 
 
-#
-# create repository
-#
-
-mkdir -p "${FEED_DIR}"
-
-
-cp \
-    "${PACKAGE_DIR}"/*.apk \
-    "${FEED_DIR}/"
+mkdir -p "${PACKAGE_DIR}"
 
 
 
-cd "${FEED_DIR}"
+cd "${PACKAGE_DIR}"
 
 
 
-echo "Generate packages.adb"
+echo "Generate APK repository index"
 
 
-"${APK_TOOL}" mkndx \
-    --root . \
-    --allow-untrusted \
+"${APK_TOOL}" index \
     --output packages.adb \
     *.apk
 
@@ -80,6 +51,9 @@ echo "Generate packages.adb"
 
 echo
 
+echo "=========================================="
 echo "Third-party APK repository created"
+echo "=========================================="
+
 
 ls -lah
