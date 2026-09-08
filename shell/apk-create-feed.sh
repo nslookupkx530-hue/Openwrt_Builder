@@ -1,39 +1,54 @@
 #!/bin/bash
 
-
 set -euo pipefail
 
 
 SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
 
+PACKAGE_DIR="${SOURCE_DIR}/packages"
 
-PKG_DIR="${SOURCE_DIR}/packages"
+
+echo "=========================================="
+echo "Create third-party APK repository"
+echo "=========================================="
 
 
-if [ ! -d "${PKG_DIR}" ]; then
+if [ ! -d "$PACKAGE_DIR" ]; then
 
-    exit 0
+    echo "Missing packages directory"
+
+    exit 1
 
 fi
 
 
-echo "Create APK repository"
+APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
 
 
-mkdir -p \
-    "${SOURCE_DIR}/files/etc/apk/keys"
+if [ ! -x "$APK_TOOL" ]; then
+
+    echo "Missing apk tool"
+
+    exit 1
+
+fi
 
 
-
-mkdir -p \
-    "${SOURCE_DIR}/files/etc/apk/repositories.d"
+cd "$PACKAGE_DIR"
 
 
-
-cp \
-    ${PKG_DIR}/*.apk \
-    "${SOURCE_DIR}/files/"
+echo "Generate packages.adb"
 
 
-echo "local /files" \
-> "${SOURCE_DIR}/files/etc/apk/repositories.d/third-party.list"
+"$APK_TOOL" index \
+    --output packages.adb \
+    *.apk
+
+
+echo
+
+ls -lah
+
+echo
+
+echo "Third-party APK repository created"
