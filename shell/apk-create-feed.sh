@@ -5,67 +5,30 @@ set -euo pipefail
 
 SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
 
+
 PACKAGE_DIR="${SOURCE_DIR}/packages"
 
-APK_TOOL="${SOURCE_DIR}/staging_dir/host/bin/apk"
-
 
 echo "=========================================="
-echo "Create third-party APK repository"
+echo "Prepare third-party APK repository"
 echo "=========================================="
 
 
-#
-# Prepare OpenWrt apk host tools
-#
+if [ ! -d "${PACKAGE_DIR}" ]; then
 
-if [ ! -x "${SOURCE_DIR}/staging_dir/host/bin/libdeflate-gzip" ]; then
-
-    echo "Build OpenWrt host tools"
-
-    make tools/install
-
-fi
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
-    echo "Build OpenWrt apk host tool"
-
-    make package/system/apk/host/compile
-
-fi
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
-    echo "Missing apk tool:"
-    echo "${APK_TOOL}"
+    echo "Missing package directory"
 
     exit 1
 
 fi
 
 
-
-cd "${PACKAGE_DIR}"
-
-
-echo "Generate APK repository"
+echo "Third-party APK packages:"
 
 
-"${APK_TOOL}" index \
-    --allow-untrusted \
-    --output packages.adb \
-    *.apk
-
+ls -lah "${PACKAGE_DIR}"
 
 
 echo
 
-echo "=========================================="
-echo "Third-party APK repository created"
-echo "=========================================="
-
-
-ls -lah
+echo "Repository preparation completed"
