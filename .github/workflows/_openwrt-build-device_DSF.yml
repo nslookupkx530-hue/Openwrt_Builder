@@ -519,6 +519,36 @@ jobs:
           make defconfig V=s
 
 
+      - name: Prepare OpenWrt APK host tool
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+
+          echo "=========================================="
+          echo "Prepare OpenWrt APK host tool"
+          echo "=========================================="
+
+
+          if [ ! -x staging_dir/host/bin/apk ]; then
+
+              make package/system/apk/host/compile
+
+          else
+
+               echo "APK host tool exists"
+
+          fi
+
+
       - name: Prepare third-party APK repository
 
         shell: bash
