@@ -61,7 +61,12 @@ permissions:
 
 jobs:
 
-  build:
+
+  build-standard:
+
+
+    if: ${{ github.event_name == 'schedule' || inputs.third_party == 'disabled' }}
+
 
     uses: ./.github/workflows/_openwrt-build-device.yml
 
@@ -78,7 +83,36 @@ jobs:
 
       sonic_fullcone: "true"
 
-      third_party: ${{ inputs.third_party }}
+      third_party: disabled
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
+
+
+
+  build-third-party:
+
+
+    if: ${{ inputs.third_party == 'enabled' }}
+
+
+    uses: ./.github/workflows/_openwrt-build-device_DSF.yml
+
+
+    with:
+
+      device: GL-MT5000
+
+      repo_url: https://github.com/m0eak/fanchmwrt.git
+
+      repo_branch: mt5000
+
+      config_file: config/mt5000.config
+
+      sonic_fullcone: "true"
+
+      third_party: enabled
 
       docker: ${{ inputs.docker }}
 
