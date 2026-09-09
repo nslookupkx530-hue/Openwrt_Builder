@@ -61,7 +61,12 @@ permissions:
 
 jobs:
 
-  build:
+
+  build-standard:
+
+
+    if: ${{ github.event_name == 'schedule' || inputs.third_party == 'disabled' }}
+
 
     uses: ./.github/workflows/_openwrt-build-device.yml
 
@@ -78,7 +83,36 @@ jobs:
 
       sonic_fullcone: "false"
 
-      third_party: ${{ inputs.third_party }}
+      third_party: disabled
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
+
+
+
+  build-third-party:
+
+
+    if: ${{ inputs.third_party == 'enabled' }}
+
+
+    uses: ./.github/workflows/_openwrt-build-device_DSF.yml
+
+
+    with:
+
+      device: Tenda-BE12PRO
+
+      repo_url: https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git
+
+      repo_branch: 25.12-dev-wifi7
+
+      config_file: config/be12pro.config
+
+      sonic_fullcone: "false"
+
+      third_party: enabled
 
       docker: ${{ inputs.docker }}
 
