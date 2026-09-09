@@ -17,17 +17,6 @@ echo "=========================================="
 
 if [ ! -x "${APK_TOOL}" ]; then
 
-    echo "Build OpenWrt apk host tool"
-
-    make tools/install
-
-    make package/system/apk/host/compile
-
-fi
-
-
-if [ ! -x "${APK_TOOL}" ]; then
-
     echo "Missing apk tool:"
     echo "${APK_TOOL}"
     exit 1
@@ -43,7 +32,7 @@ echo "Generate APK repository"
 "${APK_TOOL}" index \
     --allow-untrusted \
     --output packages.adb \
-    .
+    *.apk
 
 
 echo
