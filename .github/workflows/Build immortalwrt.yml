@@ -91,18 +91,19 @@ permissions:
 jobs:
 
 
-  build:
+  build-base:
+
+
+    if: ${{ github.event_name == 'schedule' || inputs.third_party == 'disabled' }}
 
 
     strategy:
 
       fail-fast: false
 
-
       matrix:
 
         include:
-
 
           - device: immortalwrt
 
@@ -124,7 +125,50 @@ jobs:
 
       sonic_fullcone: "false"
 
-      third_party: ${{ inputs.third_party }}
+      third_party: disabled
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
+
+
+
+  build-third-party:
+
+
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.third_party == 'enabled' }}
+
+
+    strategy:
+
+      fail-fast: false
+
+
+      matrix:
+
+        include:
+
+          - device: immortalwrt
+
+            config_file: config/immortalwrt.config
+
+
+    uses: ./.github/workflows/_openwrt-build-device_DSF.yml
+
+
+    with:
+
+      device: ${{ matrix.device }}
+
+      repo_url: ${{ inputs.source == 'immortalwrt' && 'https://github.com/immortalwrt/immortalwrt.git' || 'https://github.com/openwrt/openwrt.git' }}
+
+      repo_branch: ${{ inputs.version != '' && inputs.version || (inputs.source == 'immortalwrt' && 'v25.12.1' || 'v25.12.5') }}
+
+      config_file: ${{ matrix.config_file }}
+
+      sonic_fullcone: "false"
+
+      third_party: enabled
 
       docker: ${{ inputs.docker }}
 
