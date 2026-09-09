@@ -91,7 +91,7 @@ permissions:
 jobs:
 
 
-  build-base:
+  build-standard:
 
 
     if: ${{ github.event_name == 'schedule' || inputs.third_party == 'disabled' }}
@@ -136,7 +136,7 @@ jobs:
   build-third-party:
 
 
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.third_party == 'enabled' }}
+    if: ${{ inputs.third_party == 'enabled' }}
 
 
     strategy:
