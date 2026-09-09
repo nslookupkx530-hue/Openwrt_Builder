@@ -27,11 +27,6 @@ on:
         type: string
         default: "false"
 
-      third_party:
-        required: false
-        type: string
-        default: disabled
-
       docker:
         required: false
         type: boolean
@@ -120,25 +115,64 @@ jobs:
           git log -1
 
 
-      - name: Check APK package mirror
+      - name: Update feeds
+
         shell: bash
+
         run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          ./scripts/feeds update -a
+
+          ./scripts/feeds install -a -f
+
+
+      - name: Check luci packages
+
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          find feeds -path "*luci*" -print | sed -n '1,50p'
+         
+
+      - name: Prepare config
+
+        shell: bash
+
+        env:
+
+          CONFIG_FILE: ${{ inputs.config_file }}
+
+        run: |
+
           set -euxo pipefail
 
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
+          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
+
+          if [ ! -f "${CONFIG_PATH}" ]; then
+
+            echo "Missing config: ${CONFIG_PATH}"
+
+            exit 1
+
+          fi
+
+
           cd "${SOURCE_DIR}"
 
-          echo "=== Search current APK mirror ==="
+          cp "${CONFIG_PATH}" .config
 
-          grep -Rni \
-            "mirrors.vsean.net" \
-            . \
-            --exclude-dir=.git \
-            --exclude-dir=build_dir \
-            --exclude-dir=staging_dir \
-            --exclude-dir=tmp \
-            | head -100
+          make defconfig V=s
 
 
       - name: Apply device files
@@ -187,367 +221,7 @@ jobs:
 
         run: |
 
-          set -euxo pipefail
-
-          if [ -d "openwrt/files" ]; then
-
-             find openwrt/files -type f | sort
-
-          else
-          
-             echo "No custom files directory"
-
-          fi
-
-
-      - name: Add third-party source feeds
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"          
-
-          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-          
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
-
-            echo "No third-party.config"
-            
-            exit 0
-            
-          fi
-          
-          echo "Load third-party.config"
-          source "${THIRD_PARTY_CONFIG}"
-
-          if [ -z "${CUSTOM_SOURCE_FEEDS:-}" ]; then
-
-            echo "No custom source feeds"
-            
-            exit 0
-
-          fi
-
-          echo "${CUSTOM_SOURCE_FEEDS}" | while IFS='|' read -r name url branch
-
-          do
-          
-            [ -z "${name}" ] && continue
-
-            echo "Add source feed: ${name}"
-            
-            echo "src-git ${name} ${url};${branch}" \
-              >> "${SOURCE_DIR}/feeds.conf.default"
-
-          done
-
-          echo "Current feeds.conf.default"
-
-          cat "${SOURCE_DIR}/feeds.conf.default"
-
-
-      - name: Update feeds
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          ./scripts/feeds update -a
-
-
-      - name: Install feeds
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          ./scripts/feeds install -a -f
-
-
-      - name: Check luci packages
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          find feeds -path "*luci*" -print | sed -n '1,50p'
-         
-
-      - name: Prepare config
-
-        shell: bash
-
-        env:
-
-          CONFIG_FILE: ${{ inputs.config_file }}
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          CONFIG_PATH="${{ github.workspace }}/${CONFIG_FILE}"
-
-          if [ ! -f "${CONFIG_PATH}" ]; then
-
-            echo "Missing config: ${CONFIG_PATH}"
-
-            exit 1
-
-          fi
-
-
-          cd "${SOURCE_DIR}"
-
-          cp "${CONFIG_PATH}" .config
-
-          echo "Base config applied"
-
-
-      - name: Load third-party config
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          CONFIG_PATH="${{ github.workspace }}/config/Third-Party/third-party.config"
-          
-          if [ ! -f "${CONFIG_PATH}" ]; then
-
-            echo "Missing third-party config:"
-            echo "${CONFIG_PATH}"
-            exit 1
-          fi
-          
-          source "${CONFIG_PATH}"
-
-          echo "CUSTOM_PACKAGES=${CUSTOM_PACKAGES:-}" >> "$GITHUB_ENV"
-
-          echo "=========================================="
-          echo "Third-party CUSTOM_PACKAGES:"
-          echo "${CUSTOM_PACKAGES:-}"
-          echo "=========================================="
-
-
-      - name: Apply third-party APK feeds
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          THIRD_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-
-
-          if [ ! -f "${THIRD_CONFIG}" ]; then
-
-            echo "No third-party.config"
-
-            exit 0
-
-          fi
-
-          source "${THIRD_CONFIG}"
-
-          if [ -z "${CUSTOM_APK_FEEDS:-}" ]; then
-
-            echo "No custom APK feeds"
-
-            exit 0
-
-          fi
-
-          mkdir -p "${SOURCE_DIR}/files/etc/apk/repositories.d"
-
-          echo "${CUSTOM_APK_FEEDS}" | while IFS='|' read -r name url
-
-          do
-
-            [ -z "${name}" ] && continue
-
-            echo "Add custom APK feed: ${name}"
-
-
-            echo "${url}" \
-              >> "${SOURCE_DIR}/files/etc/apk/repositories.d/${name}.list"
-
-          done
-
-          echo "Custom APK feeds:"
-
-          find "${SOURCE_DIR}/files/etc/apk/repositories.d" -type f \
-            -exec sh -c 'echo "===== $1 ====="; cat "$1"' _ {} \;          
- 
-
-      - name: Check target architecture
-        #检测当前的硬件架构，X86、arm64、arm64-a53
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          echo "=========================================="
-          echo "Target architecture configuration"
-          echo "=========================================="
-
-          if grep -q '^CONFIG_TARGET_x86_64=y' .config; then
-          
-             ARCH="x86"
-             
-          elif grep -q '^CONFIG_TARGET_x86=y' .config; then   
-          
-             ARCH="x86"
-
-          elif grep -q '^CONFIG_CPU_TYPE_cortex-a53=y' .config; then 
-
-             ARCH="arm64-a53"
-
-          elif grep -q '^CONFIG_TARGET_arm64=y' .config; then 
-
-             ARCH="arm64"
-
-          else
-
-              echo "Unsupported architecture"
-
-             exit 1
-
-          fi
-
-
-          echo "Architecture:"
-          echo "${ARCH}"
-
-
-          echo "ARCH=${ARCH}" >> "${GITHUB_ENV}"
-
-
-      - name: Prepare third-party APK packages
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          export SOURCE_DIR
-
-          bash \
-          "${{ github.workspace }}/shell/apk-prepare-packages.sh"
-
-
-      - name: Make defconfig
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          cd "${{ github.workspace }}/openwrt"
-
-          make defconfig V=s
-
-
-      - name: Prepare third-party APK repository
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          export SOURCE_DIR
-
-          bash \
-          "${{ github.workspace }}/shell/apk-create-feed.sh"
-
-
-      - name: Install third-party APK repository files
-
-        if: ${{ inputs.third_party == 'enabled' }}
-
-        shell: bash
-
-        run: |
-
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          echo "=========================================="
-          echo "Install third-party APK repository files"
-          echo "=========================================="
-
-          
-          mkdir -p \
-          files/usr/share/third-party
-
-          cp \
-          packages/*.apk \
-          files/usr/share/third-party/
-
-          mkdir -p \
-          files/etc
-
-          echo "${CUSTOM_PACKAGES}" \
-          | xargs -n1 \
-          > files/etc/third-party-packages
-
-
-          echo "Third-party APK repository installed"
-
-          ls -lah files/usr/share/third-party
+          find openwrt/files -type f | sort
 
 
       - name: Enable sonic fullcone
@@ -564,57 +238,7 @@ jobs:
 
           echo "Enable sonic fullcone"
 
-          echo "Enable sonic fullcone"
-
-          echo "CONFIG_PACKAGE_kmod-nft-fullcone=y" >> .config 
-
-
-      - name: Apply third-party source packages
-        if: ${{ inputs.third_party == 'enabled' }}
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
-
-          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
-            echo "No third-party.config"
-            exit 0
-          fi
-
-          source "${THIRD_PARTY_CONFIG}"
-
-          if [ -z "${CUSTOM_SOURCE_PACKAGES}" ]; then
-            echo "No custom source packages"
-            exit 0
-          fi
-
-          cd "${SOURCE_DIR}"
-
-          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
-          do
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
-
-            [ -z "${PACKAGE}" ] && continue
-
-            echo "Enable source package: ${PACKAGE}"
-
-            if ! grep -q "^CONFIG_PACKAGE_${PACKAGE}=y$" .config; then
-              echo "CONFIG_PACKAGE_${PACKAGE}=y" >> .config
-            fi
-          done
-
-          echo "=== Third-party source package config ==="
-
-          echo "${CUSTOM_SOURCE_PACKAGES}" | while read -r PACKAGE
-          do
-            PACKAGE=$(echo "${PACKAGE}" | xargs)
-
-            [ -z "${PACKAGE}" ] && continue
-
-            grep "^CONFIG_PACKAGE_${PACKAGE}=y$" .config || true
-          done
+          make defconfig V=s
 
 
       - name: Prepare build download
@@ -663,7 +287,6 @@ jobs:
 
           make V=s 2>&1 | tee build.log
 
-
       - name: Upload build log
 
         if: failure()
@@ -704,45 +327,13 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
-
 
           mkdir -p "${SOURCE_DIR}/output/apk-feed"
 
+          find "${SOURCE_DIR}/bin/packages" -type f -name "*.apk" -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
 
-          # OpenWrt 官方 APK feed
-          find "${SOURCE_DIR}/bin/packages" \
-          -type f \
-          -name "*.apk" \
-          -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
-
-
-          find "${SOURCE_DIR}/bin/packages" \
-          -type f \
-          -name "packages.adb" \
-          -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
-
-
-
-          # 第三方预编译 APK
-          if [ -d "${SOURCE_DIR}/packages" ]; then
-
-              echo "Copy third-party APK packages"
-
-              cp -f \
-              "${SOURCE_DIR}"/packages/*.apk \
-              "${SOURCE_DIR}/output/apk-feed/" \
-              || true
-
-          fi
-
-
-
-          echo "=========================================="
-          echo "Collected APK feed"
-          echo "=========================================="
-
+          find "${SOURCE_DIR}/bin/packages" -type f -name "packages.adb" -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
 
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
 
