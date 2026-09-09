@@ -17,6 +17,15 @@ echo "=========================================="
 
 if [ ! -x "${APK_TOOL}" ]; then
 
+    echo "Build OpenWrt apk host tool"
+
+    make package/system/apk/host/compile V=s
+
+fi
+
+
+if [ ! -x "${APK_TOOL}" ]; then
+
     echo "Missing apk tool:"
     echo "${APK_TOOL}"
     exit 1
