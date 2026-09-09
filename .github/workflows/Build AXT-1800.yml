@@ -76,21 +76,22 @@ permissions:
 jobs:
 
 
-  build:
+  build-standard:
+
+
+    if: ${{ github.event_name == 'schedule' || inputs.third_party == 'disabled' }}
 
 
     strategy:
 
       fail-fast: false
 
-
       matrix:
 
         include:
 
-
           - device: AXT-1800
-
+            
             repo_url: https://github.com/m0eak/libwrt.git
 
             repo_branch: ${{ github.event.inputs.tag || '25.12.4' }}
@@ -113,7 +114,54 @@ jobs:
 
       sonic_fullcone: "true"
 
-      third_party: ${{ inputs.third_party }}
+      third_party: disabled
+
+      docker: ${{ inputs.docker }}
+
+      release: ${{ inputs.release }}
+
+
+
+  build-third-party:
+
+
+    if: ${{ inputs.third_party == 'enabled' }}
+
+
+    strategy:
+
+      fail-fast: false
+
+
+      matrix:
+
+        include:
+
+          - device: AXT-1800
+            
+            repo_url: https://github.com/m0eak/libwrt.git
+
+            repo_branch: ${{ github.event.inputs.tag || '25.12.4' }}
+
+            config_file: config/axt1800.config
+
+
+    uses: ./.github/workflows/_openwrt-build-device_DSF.yml
+
+
+    with:
+
+      device: ${{ matrix.device }}
+
+      repo_url: ${{ matrix.repo_url }}
+
+      repo_branch: ${{ matrix.repo_branch }}
+
+      config_file: ${{ matrix.config_file }}
+
+      sonic_fullcone: "true"
+
+      third_party: enabled'
 
       docker: ${{ inputs.docker }}
 
