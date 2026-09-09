@@ -30,7 +30,7 @@ on:
       third_party:
         required: false
         type: string
-        default: disabled
+        default: enabled
 
       docker:
         required: false
