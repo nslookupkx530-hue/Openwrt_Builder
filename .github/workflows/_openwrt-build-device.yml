@@ -90,28 +90,6 @@ jobs:
           ls -la "${SOURCE_DIR}"
 
 
-      - name: Check APK package mirror
-        #临时检测谁修改了mirrors.vsean.net
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
-
-          cd "${SOURCE_DIR}"
-
-          echo "=== Search current APK mirror ==="
-
-          grep -Rni \
-            "mirrors.vsean.net" \
-            . \
-            --exclude-dir=.git \
-            --exclude-dir=build_dir \
-            --exclude-dir=staging_dir \
-            --exclude-dir=tmp \
-            | head -100
-
-
       - name: Clean build environment
 
         shell: bash
