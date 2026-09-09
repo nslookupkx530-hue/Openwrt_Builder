@@ -120,6 +120,65 @@ jobs:
           git log -1
 
 
+      - name: Modify APK mirror
+        #修改软件包地址
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          APK_MIRROR="https://mirror.nju.edu.cn/openwrt/releases"
+
+
+          FILE="${SOURCE_DIR}/package/emortal/default-settings/files/99-default-settings-chinese"
+
+
+          if [ -f "${FILE}" ]; then
+
+            echo "Found APK mirror config"
+
+            sed -i -E \
+            "s#https?://[^\" ]+/openwrt#${APK_MIRROR%/releases}#g" \
+            "${FILE}"
+
+
+            echo "Current APK mirror:"
+            grep "apk_mirror" "${FILE}"
+
+
+          else
+
+            echo "No emortal default settings file"
+
+          fi
+
+
+      - name: Check APK package mirror
+        #检测是否已修改成功，是否为：https://mirror.nju.edu.cn/openwrt
+        shell: bash
+
+        run: |
+
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          cd "${SOURCE_DIR}"
+
+
+          echo "=== Search APK mirror ==="
+
+
+          grep -Rni \
+          "apk_mirror" \
+          package \
+          --exclude-dir=.git \
+          || true
+
+
       - name: Check APK package mirror
         shell: bash
         run: |
