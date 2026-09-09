@@ -202,8 +202,6 @@ jobs:
 
       - name: Add third-party source feeds
 
-        if: ${{ inputs.third_party == 'enabled' }}
-
         shell: bash
 
         run: |
@@ -324,8 +322,6 @@ jobs:
 
       - name: Load third-party config
 
-        if: ${{ inputs.third_party == 'enabled' }}
-
         shell: bash
 
         run: |
@@ -352,8 +348,6 @@ jobs:
 
 
       - name: Apply third-party APK feeds
-
-        if: ${{ inputs.third_party == 'enabled' }}
 
         shell: bash
 
@@ -408,7 +402,6 @@ jobs:
 
       - name: Check target architecture
         #检测当前的硬件架构，X86、arm64、arm64-a53
-        if: ${{ inputs.third_party == 'enabled' }}
 
         shell: bash
 
@@ -458,8 +451,6 @@ jobs:
 
       - name: Prepare third-party APK packages
 
-        if: ${{ inputs.third_party == 'enabled' }}
-
         shell: bash
 
         run: |
@@ -492,8 +483,6 @@ jobs:
 
       - name: Prepare third-party APK repository
 
-        if: ${{ inputs.third_party == 'enabled' }}
-
         shell: bash
 
         run: |
@@ -512,8 +501,6 @@ jobs:
 
 
       - name: Install third-party APK repository files
-
-        if: ${{ inputs.third_party == 'enabled' }}
 
         shell: bash
 
@@ -570,7 +557,6 @@ jobs:
 
 
       - name: Apply third-party source packages
-        if: ${{ inputs.third_party == 'enabled' }}
         shell: bash
         run: |
           set -euxo pipefail
