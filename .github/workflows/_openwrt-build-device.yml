@@ -221,7 +221,7 @@ jobs:
 
 
       - name: Check custom files
-        #修改软件包地址
+        
         shell: bash
 
         run: |
@@ -230,7 +230,7 @@ jobs:
 
 
       - name: Modify APK mirror
-
+        #修改软件包地址
         shell: bash
 
         run: |
