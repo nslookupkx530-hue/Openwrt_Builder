@@ -15,11 +15,24 @@ echo "Create third-party APK repository"
 echo "=========================================="
 
 
+#
+# Prepare OpenWrt apk host tools
+#
+
+if [ ! -x "${SOURCE_DIR}/staging_dir/host/bin/libdeflate-gzip" ]; then
+
+    echo "Build OpenWrt host tools"
+
+    make tools/install
+
+fi
+
+
 if [ ! -x "${APK_TOOL}" ]; then
 
     echo "Build OpenWrt apk host tool"
 
-    make package/system/apk/host/compile V=s
+    make package/system/apk/host/compile
 
 fi
 
@@ -28,8 +41,11 @@ if [ ! -x "${APK_TOOL}" ]; then
 
     echo "Missing apk tool:"
     echo "${APK_TOOL}"
+
     exit 1
+
 fi
+
 
 
 cd "${PACKAGE_DIR}"
@@ -42,6 +58,7 @@ echo "Generate APK repository"
     --allow-untrusted \
     --output packages.adb \
     *.apk
+
 
 
 echo
