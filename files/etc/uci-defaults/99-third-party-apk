@@ -1,27 +1,31 @@
 #!/bin/sh
 
+
 echo "=========================================="
 echo "Install third-party APK packages"
 echo "=========================================="
 
 
 if [ ! -f /etc/third-party-packages ]; then
+
+    echo "No third-party package list"
+
     exit 0
+
 fi
 
 
 APK_DIR="/usr/share/third-party"
 
 
-mkdir -p /etc/apk/repositories.d
+if [ ! -d "$APK_DIR" ]; then
 
+    echo "Missing APK directory"
 
-cat > /etc/apk/repositories.d/third-party.list <<EOF
-$APK_DIR
-EOF
+    exit 1
 
+fi
 
-apk update
 
 
 while read -r pkg
@@ -29,9 +33,32 @@ do
 
     [ -z "$pkg" ] && continue
 
-    apk add "$pkg"
+
+    echo "Install package: $pkg"
+
+
+    APK_FILE=$(ls "${APK_DIR}/${pkg}"*.apk 2>/dev/null | head -n1)
+
+
+    if [ -f "$APK_FILE" ]; then
+
+        apk add \
+            --allow-untrusted \
+            "$APK_FILE"
+
+    else
+
+        echo "Missing APK:"
+        echo "$pkg"
+
+    fi
+
 
 done < /etc/third-party-packages
+
+
+
+echo "Third-party APK installation completed"
 
 
 exit 0
