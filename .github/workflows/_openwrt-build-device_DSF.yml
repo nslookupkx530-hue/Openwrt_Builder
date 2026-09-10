@@ -579,60 +579,60 @@ jobs:
           files/etc/uci-defaults
 
           cat > files/etc/uci-defaults/99-third-party-apk <<'EOF'
-#!/bin/sh
+          #!/bin/sh
 
-echo "=========================================="
-echo "Install third-party APK packages"
-echo "=========================================="
+          echo "=========================================="
+          echo "Install third-party APK packages"
+          echo "=========================================="
 
-APK_DIR="/usr/share/third-party"
+          APK_DIR="/usr/share/third-party"
 
-if [ ! -d "$APK_DIR" ]; then
-    echo "Missing third-party APK directory"
-    exit 1
-fi
+          if [ ! -d "$APK_DIR" ]; then
+              echo "Missing third-party APK directory"
+              exit 1
+          fi
 
-FOUND=0
+          FOUND=0
 
-for apk_file in "$APK_DIR"/*.apk
-do
-    [ -f "$apk_file" ] || continue
+          for apk_file in "$APK_DIR"/*.apk
+          do
+              [ -f "$apk_file" ] || continue
 
-    FOUND=1
+              FOUND=1
 
-    echo "Installing:"
-    echo "  $apk_file"
+              echo "Installing:"
+              echo "  $apk_file"
 
-    apk add \
-        --allow-untrusted \
-        "$apk_file" || exit 1
-done
+              apk add \
+                  --allow-untrusted \
+                  "$apk_file" || exit 1
+          done
 
-if [ "$FOUND" = "0" ]; then
-    echo "No third-party APK packages found"
-    exit 1
-fi
+          if [ "$FOUND" = "0" ]; then
+              echo "No third-party APK packages found"
+              exit 1
+          fi
 
 
-echo "=========================================="
-echo "Refresh LuCI"
-echo "=========================================="
+          echo "=========================================="
+          echo "Refresh LuCI"
+          echo "=========================================="
 
-rm -f /tmp/luci-indexcache.*
-rm -rf /tmp/luci-modulecache
+          rm -f /tmp/luci-indexcache.*
+          rm -rf /tmp/luci-modulecache
 
-if [ -x /etc/init.d/rpcd ]; then
-    /etc/init.d/rpcd restart
-fi
+          if [ -x /etc/init.d/rpcd ]; then
+              /etc/init.d/rpcd restart
+          fi
 
-if [ -x /etc/init.d/uhttpd ]; then
-    /etc/init.d/uhttpd restart
-fi
+          if [ -x /etc/init.d/uhttpd ]; then
+              /etc/init.d/uhttpd restart
+          fi
 
-echo "Third-party APK installation completed"
+          echo "Third-party APK installation completed"
 
-exit 0
-EOF
+          exit 0
+          EOF
 
 
           echo "=========================================="
