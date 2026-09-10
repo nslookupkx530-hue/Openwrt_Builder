@@ -570,9 +570,86 @@ jobs:
           > files/etc/third-party-packages
 
 
-          echo "Third-party APK repository installed"
+          echo "=========================================="
+          echo "Create first-boot APK installation script"
+          echo "=========================================="
 
-          ls -lah files/usr/share/third-party
+
+          mkdir -p \
+          files/etc/uci-defaults
+
+          cat > files/etc/uci-defaults/99-third-party-apk <<'EOF'
+#!/bin/sh
+
+echo "=========================================="
+echo "Install third-party APK packages"
+echo "=========================================="
+
+APK_DIR="/usr/share/third-party"
+
+if [ ! -d "$APK_DIR" ]; then
+    echo "Missing third-party APK directory"
+    exit 1
+fi
+
+FOUND=0
+
+for apk_file in "$APK_DIR"/*.apk
+do
+    [ -f "$apk_file" ] || continue
+
+    FOUND=1
+
+    echo "Installing:"
+    echo "  $apk_file"
+
+    apk add \
+        --allow-untrusted \
+        "$apk_file" || exit 1
+done
+
+if [ "$FOUND" = "0" ]; then
+    echo "No third-party APK packages found"
+    exit 1
+fi
+
+
+echo "=========================================="
+echo "Refresh LuCI"
+echo "=========================================="
+
+rm -f /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache
+
+if [ -x /etc/init.d/rpcd ]; then
+    /etc/init.d/rpcd restart
+fi
+
+if [ -x /etc/init.d/uhttpd ]; then
+    /etc/init.d/uhttpd restart
+fi
+
+echo "Third-party APK installation completed"
+
+exit 0
+EOF
+
+
+          echo "=========================================="
+          echo "Third-party APK repository installed"
+          echo "=========================================="
+
+          echo "APK packages:"
+          ls -lah \
+          files/usr/share/third-party
+
+          echo "Package list:"
+          cat \
+          files/etc/third-party-packages
+
+          echo "First-boot script:"
+          ls -l \
+          files/etc/uci-defaults/99-third-party-apk
 
 
       - name: Enable sonic fullcone
