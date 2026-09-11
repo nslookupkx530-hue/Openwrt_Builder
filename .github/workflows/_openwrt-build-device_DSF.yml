@@ -592,26 +592,23 @@ jobs:
               exit 1
           fi
 
-          FOUND=0
+          set -- "$APK_DIR"/*.apk
 
-          for apk_file in "$APK_DIR"/*.apk
-          do
-              [ -f "$apk_file" ] || continue
-
-              FOUND=1
-
-              echo "Installing:"
-              echo "  $apk_file"
-
-              apk add \
-                  --allow-untrusted \
-                  "$apk_file" || exit 1
-          done
-
-          if [ "$FOUND" = "0" ]; then
+          if [ ! -f "$1" ]; then
               echo "No third-party APK packages found"
               exit 1
           fi
+
+          echo "Installing third-party APK packages:"
+
+          for apk_file in "$@"
+          do
+              echo "  $apk_file"
+          done
+
+          apk add \
+              --allow-untrusted \
+              "$@" || exit 1
 
 
           echo "=========================================="
@@ -650,7 +647,6 @@ jobs:
           echo "First-boot script:"
           ls -l \
           files/etc/uci-defaults/99-third-party-apk
-          chmod 755 files/etc/uci-defaults/99-third-party-apk
 
 
       - name: Enable sonic fullcone
