@@ -581,6 +581,8 @@ jobs:
           cat > files/etc/uci-defaults/99-third-party-apk <<'EOF'
           #!/bin/sh
 
+          logger -t third-party-apk "99-third-party-apk started"
+
           echo "=========================================="
           echo "Install third-party APK packages"
           echo "=========================================="
@@ -627,6 +629,8 @@ jobs:
           fi
 
           echo "Third-party APK installation completed"
+
+          logger -t third-party-apk "99-third-party-apk completed"
 
           exit 0
           EOF
