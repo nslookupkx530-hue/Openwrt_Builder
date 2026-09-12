@@ -495,12 +495,21 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          THIRD_PARTY_CONFIG="${{ github.workspace }}/config/Third-Party/third-party.config"
+
+          if [ ! -f "${THIRD_PARTY_CONFIG}" ]; then
+            echo "Missing third-party.config"
+            exit 1
+          fi
+
+          source "${THIRD_PARTY_CONFIG}"
 
           cd "${SOURCE_DIR}"
 
           export SOURCE_DIR
+          export CUSTOM_PACKAGES
 
           bash \
           "${{ github.workspace }}/shell/apk-prepare-packages.sh"
