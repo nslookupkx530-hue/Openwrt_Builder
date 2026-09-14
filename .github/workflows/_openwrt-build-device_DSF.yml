@@ -884,30 +884,52 @@ jobs:
           find "${SOURCE_DIR}/output/apk-feed" -type f | sort
 
 
-      - name: Generate LuCI package list
-
+      - name: Generate LuCI and third-party package lists
+        #生成luci-package-list.md、并额外生成 third-party-package-list.md
         shell: bash
-
         run: |
-
-          set -euxo pipefail
+          set -Eeuo pipefail
 
           mkdir -p release
 
-          echo "#### ${{ inputs.device }}" > release/${{ inputs.device }}-luci.md
+          LUCI_LIST="release/${{ inputs.device }}-luci.md"
+          THIRD_PARTY_LIST="release/${{ inputs.device }}-third-party.md"
 
-          echo "" >> release/${{ inputs.device }}-luci.md
+          echo "#### ${{ inputs.device }}" > "${LUCI_LIST}"
+
+          echo "" >> "${LUCI_LIST}"
 
           grep "^CONFIG_PACKAGE_luci" \
-          openwrt/.config \
-          | grep "=y" \
-          | sed 's/CONFIG_PACKAGE_//' \
-          | sed 's/=y//' \
-          | sed 's/_/\\_/g' \
-          | sed 's/^/- /' \
-          >> release/${{ inputs.device }}-luci.md
+            openwrt/.config \
+            | grep "=y" \
+            | sed 's/CONFIG_PACKAGE_//' \
+            | sed 's/=y//' \
+            | sed 's/_/\\_/g' \
+            | sed 's/^/- /' \
+            >> "${LUCI_LIST}"
 
-          cat release/${{ inputs.device }}-luci.md
+          echo "LuCI package list:"
+          cat "${LUCI_LIST}"
+
+          echo "third-party package list" > "${THIRD_PARTY_LIST}"
+
+          echo "" >> "${THIRD_PARTY_LIST}"
+
+          THIRD_PARTY_SOURCE="openwrt/tmp/third-party-packages"
+
+          if [ -f "${THIRD_PARTY_SOURCE}" ]; then
+            awk '
+              NF {
+                print "- " $0
+              }
+            ' "${THIRD_PARTY_SOURCE}" \
+              >> "${THIRD_PARTY_LIST}"
+          else
+            echo "None" >> "${THIRD_PARTY_LIST}"
+          fi
+
+          echo "Third-party package list:"
+          cat "${THIRD_PARTY_LIST}"
 
 
       - name: Prepare artifact
