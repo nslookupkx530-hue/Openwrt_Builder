@@ -933,12 +933,9 @@ jobs:
 
 
       - name: Prepare artifact
-
         shell: bash
-
         run: |
-
-          set -euxo pipefail
+          set -Eeuo pipefail
 
           mkdir -p artifact/${{ inputs.device }}
 
