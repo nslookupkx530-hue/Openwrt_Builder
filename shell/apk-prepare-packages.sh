@@ -1,17 +1,19 @@
 #!/bin/bash
 
-# ==============================================================================
-# 脚本名称: apk-prepare-packages.sh
-# 描述: 
-#   1. 从 wukongdaily/apk 仓库获取第三方 APK 软件包
-#   2. 智能识别架构 (兼容 X86, ARM64, ARM64-A53, 以及各种 ARM 变体)
-#   3. 逻辑 A (动态): 若存在 .run 脚本，则执行脚本并提取生成的 APK
-#   4. 逻辑 B (静态): 若不存在 .run 脚本，则直接提取对应的文件夹内容
-# ==============================================================================
+# ============================================================
+# ImmortalWrt 25.12.x 第三方 APK 插件配置
+# ============================================================
+#
+# 支持架构: x86, arm64, arm64-a53, arm (通用)
+#
+# 工作方式:
+# 1. 优先寻找 .run 脚本进行动态解包
+# 2. 若无脚本，寻找包含核心关键词的静态文件夹并提取 APK
+# ============================================================
 
 set -euxo pipefail
 
-# --- 基础变量初始化 ---
+# --- 基础变量 ---
 SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
 CUSTOM_PACKAGES="${CUSTOM_PACKAGES:-}"
 BASE_DIR="${SOURCE_DIR}/extra-packages"
@@ -27,125 +29,97 @@ if [ -z "${CUSTOM_PACKAGES// }" ]; then
     exit 0
 fi
 
-# 清理并创建必要的目录
+# 清理并创建目录
 rm -rf "${BASE_DIR}"
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${BASE_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
-# --- 步骤 1: 克隆 APK 仓库 ---
+# --- 步骤 1: 克隆仓库 ---
 echo "Clone APK repository"
 APK_REPO_DIR="/tmp/wukongdaily-apk"
 rm -rf "${APK_REPO_DIR}"
+git clone --depth=1 "${REPO}" "${APK_REPO_DIR}"
 
-git clone \
-    --depth=1 \
-    "${REPO}" \
-    "${APK_REPO_DIR}"
-
-# --- 步骤 2: 自动判断目标架构 (全平台兼容版) ---
+# --- 步骤 2: 架构检测 ---
 echo "Detecting Architecture..."
-
-# 获取 .config 中启用的 CONFIG_TARGET_xxx 变量名
-TARGET_LINE=$(grep '^CONFIG_TARGET_' "${SOURCE_DIR}/.config" | grep "=y" | head -n1)
-
-if [ -n "${TARGET_LINE}" ]; then
-    # 提取目标名称 (例如从 CONFIG_TARGET_arm64_a53=y 提取出 arm64_a53)
-    RAW_TARGET=$(echo "${TARGET_LINE}" | cut -d'_' -f2-)
-    
-    if [[ "$RAW_TARGET" == *"x86_64"* ]]; then
-        ARCH="x86"
-    elif [[ "$RAW_TARGET" == *"arm64_a53"* ]]; then
-        ARCH="arm64-a53"
-    elif [[ "$RAW_TARGET" == *"arm64"* ]]; then
-        ARCH="arm64"
-    elif [[ "$RAW_TARGET" == *"arm"* ]]; then
-        # 针对 arm/7193, arm/970 等，通常仓库对应的是 arm 文件夹
-        if [ -d "${APK_REPO_DIR}/run/arm" ]; then
-            ARCH="arm"
-        else
-            ARCH="arm" # 保底
-        fi
-    else
-        # 处理其他可能存在的平台 (如 mips, mvp 等)
-        # 尝试直接匹配，如果没匹配到，默认给一个 arm 保底
-        if [ -d "${APK_REPO_DIR}/run/${RAW_TARGET}" ]; then
-            ARCH="${RAW_TARGET}"
-        elif [ -d "${APK_REPO_DIR}/run/mips" ]; then
-            ARCH="mips"
-        else
-            ARCH="arm"
-            echo "Warning: Target ${RAW_TARGET} not explicitly mapped. Defaulting to 'arm'."
-        fi
-    fi
+if grep -q '^CONFIG_TARGET_x86_64=y' "${SOURCE_DIR}/.config"; then
+    ARCH="x86"
+elif grep -q '^CONFIG_TARGET_arm64_a53=y' "${SOURCE_DIR}/.config"; then
+    ARCH="arm64-a53"
+elif grep -q '^CONFIG_TARGET_arm64=y' "${SOURCE_DIR}/.config"; then
+    ARCH="arm64"
 else
-    # 如果 .config 没写清楚，则扫一遍仓库看看有哪些文件夹，选一个最匹配的
-    echo "Warning: Could not find CONFIG_TARGET in .config. Scanning repository..."
-    FOLDERS=$(ls "${APK_REPO_DIR}/run" 2>/dev/null)
-    if echo "$FOLDERS" | grep -q "arm"; then
-        ARCH="arm"
-    elif echo "$FOLDERS" | grep -q "x86"; then
-        ARCH="x86"
-    else
-        ARCH="arm"
-    fi
+    # 自动识别 arm 系列
+    if [ -d "${APK_REPO_DIR}/run/arm" ]; then ARCH="arm"; 
+    elif [ -d "${APK_REPO_DIR}/run/x86" ]; then ARCH="x86"; 
+    else ARCH="arm"; fi
+    echo "Warning: Target not explicitly matched. Defaulting to ${ARCH}"
 fi
+echo "Final Architecture: ${ARCH}"
 
-echo "Final Architecture detected: ${ARCH}"
+# --- 步骤 3: 处理包 ---
+# 预处理包列表，去掉多余空格
+PACKAGES_LIST=$(echo "${CUSTOM_PACKAGES}" | xargs)
 
-# --- 步骤 3: 循环处理每个指定的 APK 包 ---
-for PACKAGE in $(echo "${CUSTOM_PACKAGES}" | xargs); do
+for PACKAGE in ${PACKAGES_LIST}; do
     echo
     echo "=========================================="
     echo "Prepare ${PACKAGE}"
     echo "=========================================="
 
-    # 定义基础路径
     RUN_PATH_DIR="${APK_REPO_DIR}/run/${ARCH}"
     
-    # 1. 尝试寻找 .run 脚本 (动态模式)
+    # 1. 尝试找 .run 文件 (动态模式)
     RUN_FILE=$(find "${RUN_PATH_DIR}" -name "${PACKAGE}*.run" | head -n1)
-
     if [ -n "${RUN_FILE}" ]; then
         echo "Mode: Dynamic (.run script found)"
         WORK="/tmp/${PACKAGE}-run"
-        rm -rf "${WORK}"
-        mkdir -p "${WORK}"
-
-        sh "${RUN_FILE}" \
-            --target "${WORK}" \
-            --noexec
-
-        echo "Collect dynamic apks..."
+        rm -rf "${WORK}" && mkdir -p "${WORK}"
+        sh "${RUN_FILE}" --target "${WORK}" --noexec
         find "${WORK}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
-        echo "Successfully prepared: ${PACKAGE} (via .run)"
+        echo "Successfully prepared: ${PACKAGE}"
+        continue
+    fi
 
-    else
-        # 2. 尝试寻找对应的文件夹 (静态模式)
-        # 逻辑：在 run/${ARCH}/ 下寻找包含包名的文件夹
-        STATIC_DIR=$(find "${RUN_PATH_DIR}" -maxdepth 1 -type d -name "${PACKAGE}*" | head -n1)
+    # 2. 尝试找匹配的文件夹 (静态模式)
+    # 逻辑：查找包含 PACKAGE 字符串的文件夹
+    STATIC_DIR=$(find "${RUN_PATH_DIR}" -maxdepth 1 -type d -name "*${PACKAGE}*" | head -n1)
+    if [ -n "${STATIC_DIR}" ]; then
+        echo "Mode: Static (folder found)"
+        find "${STATIC_DIR}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
+        echo "Successfully prepared: ${PACKAGE}"
+        continue
+    fi
 
-        if [ -n "${STATIC_DIR}" ]; then
-            echo "Mode: Static (folder found in run/${ARCH}/)"
-            find "${STATIC_DIR}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
-            echo "Successfully prepared: ${PACKAGE} (via directory)"
-        else
-            # 最后的保底：在整个仓库中深度搜索（防止架构映射稍微偏差）
-            echo "Warning: No local folder found for ${PACKAGE} in ${ARCH}. Searching entire repo..."
-            FINAL_SEARCH=$(find "${APK_REPO_DIR}" -maxdepth 3 -type d -name "${PACKAGE}*" | head -n1)
-            if [ -n "${FINAL_SEARCH}" ]; then
-                find "${FINAL_SEARCH}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
-                echo "Successfully prepared: ${PACKAGE} (via deep search)"
-            else
-                echo "Error: Package ${PACKAGE} not found in repository."
-                echo "Skipping..."
-                continue
-            fi
+    # 3. 模糊匹配 (针对 luci-i18n-xxx 匹配 luci-app-xxx)
+    # 提取核心关键词 (如从 luci-i18n-quickstart-zh-cn 提取 quickstart)
+    # 策略：取最后一部分非数字字母的字符串
+    CORE_KEYWORD=$(echo "${PACKAGE}" | grep -oE '[a-zA-Z0-9]+' | tail -n1)
+    
+    # 如果关键词不是单纯的 "i18n" 或 "zh-cn"，尝试匹配
+    if [[ "${CORE_KEYWORD}" != "i18n" && "${CORE_KEYWORD}" != "zh-cn" ]]; then
+        FUZZY_DIR=$(find "${RUN_PATH_DIR}" -maxdepth 1 -type d -name "*${CORE_KEYWORD}*" | head -n1)
+        if [ -n "${FUZZY_DIR}" ]; then
+            echo "Mode: Fuzzy Match (found via keyword: ${CORE_KEYWORD})"
+            find "${FUZZY_DIR}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
+            echo "Successfully prepared: ${PACKAGE}"
+            continue
         fi
-    done
+    fi
+
+    # 4. 最后的兜底搜索 (在整个仓库里找)
+    FINAL_SEARCH=$(find "${APK_REPO_DIR}" -maxdepth 3 -type d -name "*${CORE_KEYWORD}*" | head -n1)
+    if [ -n "${FINAL_SEARCH}" ]; then
+        echo "Mode: Deep Search (found in repo)"
+        find "${FINAL_SEARCH}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
+        echo "Successfully prepared: ${PACKAGE}"
+    else
+        echo "Warning: Package ${PACKAGE} not found in repository."
+    fi
 done
 
-# --- 步骤 4: 任务完成总结 ---
+# --- 步骤 4: 总结 ---
 echo
 echo "APK packages prepared in: ${OUTPUT_DIR}"
 if [ -d "${OUTPUT_DIR}" ] && [ "$(ls -A ${OUTPUT_DIR})" ]; then
