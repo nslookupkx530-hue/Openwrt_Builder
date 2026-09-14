@@ -230,15 +230,10 @@ jobs:
             echo "No LuCI package list found." >> release/README.md
           fi
 
-          echo "" >> release/README.md
-          echo "" >> release/README.md
-
           if [ -f "${THIRD_PARTY_LIST}" ]; then
-            cat "${THIRD_PARTY_LIST}" >> release/README.md
-          else
-            echo "third-party package list" >> release/README.md
             echo "" >> release/README.md
-            echo "None" >> release/README.md
+            echo "" >> release/README.md
+            cat "${THIRD_PARTY_LIST}" >> release/README.md
           fi
 
           echo "" >> release/README.md
