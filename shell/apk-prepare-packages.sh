@@ -4,9 +4,10 @@
 # 脚本名称: apk-prepare-packages.sh
 # 描述: 
 #   1. 从 wukongdaily/apk 仓库获取第三方 APK 软件包
-#   2. 逻辑 A (动态): 若存在 .run 脚本，则执行脚本生成 APK
-#   3. 逻辑 B (静态): 若不存在 .run 脚本，则自动搜索仓库中匹配的目录并直接提取 APK
-#   4. 自动识别架构: x86, arm64, arm64-a53
+#   2. 智能识别模式：
+#      - 模式 A (动态): 发现 .run 脚本 -> 执行脚本并提取生成的 APK
+#      - 模式 B (静态): 发现对应文件夹 -> 直接提取文件夹内的 APK 文件
+#   3. 自动识别架构: x86, arm64, arm64-a53
 # ==============================================================================
 
 set -euxo pipefail
@@ -22,7 +23,6 @@ echo "=========================================="
 echo " Prepare third-party APK packages"
 echo "=========================================="
 
-# 检查输入参数
 if [ -z "${CUSTOM_PACKAGES// }" ]; then
     echo "No third-party APK packages specified. Skipping..."
     exit 0
@@ -60,22 +60,26 @@ fi
 echo "Architecture detected: ${ARCH}"
 
 # --- 步骤 3: 循环处理每个指定的 APK 包 ---
+# 使用 xargs 去除可能存在的首尾空格
 for PACKAGE in $(echo "${CUSTOM_PACKAGES}" | xargs); do
     echo
     echo "=========================================="
     echo "Prepare ${PACKAGE}"
     echo "=========================================="
 
-    # 查找是否存在 .run 脚本
-    RUN_FILE=$(find "${APK_REPO_DIR}/run/${ARCH}" -name "${PACKAGE}*.run" | head -n1)
+    # 路径定义
+    RUN_PATH_DIR="${APK_REPO_DIR}/run/${ARCH}"
+    
+    # 1. 尝试寻找 .run 脚本 (动态模式)
+    RUN_FILE=$(find "${RUN_PATH_DIR}" -name "${PACKAGE}*.run" | head -n1)
 
     if [ -n "${RUN_FILE}" ]; then
-        # --- 逻辑 A: 动态生成 ---
         echo "Mode: Dynamic (.run script found)"
         WORK="/tmp/${PACKAGE}-run"
         rm -rf "${WORK}"
         mkdir -p "${WORK}"
 
+        # 执行脚本
         sh "${RUN_FILE}" \
             --target "${WORK}" \
             --noexec
@@ -85,21 +89,28 @@ for PACKAGE in $(echo "${CUSTOM_PACKAGES}" | xargs); do
         echo "Successfully prepared: ${PACKAGE} (via .run)"
 
     else
-        # --- 逻辑 B: 静态提取 ---
-        echo "Mode: Static (searching for directory...)"
-        
-        # 在仓库根目录或 packages 目录下搜索匹配的目录
-        # 使用 -maxdepth 2 是为了防止搜到太深的子目录，同时涵盖根目录和一级子目录
-        DIR_PATH=$(find "${APK_REPO_DIR}" -maxdepth 2 -type d -name "${PACKAGE}*" | head -n1)
+        # 2. 尝试寻找对应文件夹 (静态模式)
+        # 这里专门在 run/${ARCH}/ 下寻找匹配的目录，对应您截图中的结构
+        STATIC_DIR=$(find "${RUN_PATH_DIR}" -maxdepth 1 -type d -name "${PACKAGE}*" | head -n1)
 
-        if [ -n "${DIR_PATH}" ]; then
-            echo "Found directory: ${DIR_PATH}"
-            find "${DIR_PATH}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
+        if [ -n "${STATIC_DIR}" ]; then
+            echo "Mode: Static (folder found in run/${ARCH}/)"
+            echo "Source directory: ${STATIC_DIR}"
+            find "${STATIC_DIR}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
             echo "Successfully prepared: ${PACKAGE} (via directory)"
         else
-            echo "Warning: Neither .run script nor matching directory found for: ${PACKAGE}"
-            echo "Skipping..."
-            continue
+            # 如果两者都没找到，才输出警告并跳过
+            echo "Warning: No .run script or matching directory found for: ${PACKAGE}"
+            echo "Checking repository for any other matches..."
+            # 最后的保底搜索：在整个仓库里找
+            FINAL_SEARCH=$(find "${APK_REPO_DIR}" -maxdepth 3 -type d -name "${PACKAGE}*" | head -n1)
+            if [ -n "${FINAL_SEARCH}" ]; then
+                echo "Found alternative directory: ${FINAL_SEARCH}"
+                find "${FINAL_SEARCH}" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/" \;
+                echo "Successfully prepared: ${PACKAGE} (via deep search)"
+            else
+                echo "Skipping ${PACKAGE} - Not found in repository."
+            fi
         fi
     fi
 done
