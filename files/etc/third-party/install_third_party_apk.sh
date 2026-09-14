@@ -4,6 +4,7 @@ APK_DIR="/usr/share/third-party"
 LOG_FILE="/tmp/third-party-apk-install.log"
 LOCK_DIR="/tmp/third-party-apk-install.lock"
 DONE_FILE="/etc/third-party-apk-installed"
+
 MAX_RETRIES=30
 RETRY_INTERVAL=10
 
@@ -15,15 +16,15 @@ log "=========================================="
 log "Starting third-party APK installation"
 log "=========================================="
 
-# 已经成功安装过，不再重复执行
+# 成功安装后不再重复执行
 if [ -f "$DONE_FILE" ]; then
     log "Third-party APK packages are already installed."
     exit 0
 fi
 
-# 防止服务重复启动导致多个 apk 进程同时运行
+# 防止多个安装进程同时运行
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    log "Another third-party APK installation process is running."
+    log "Another installation process is already running."
     exit 0
 fi
 
@@ -35,11 +36,11 @@ trap cleanup EXIT INT TERM
 
 # 检查 APK 目录
 if [ ! -d "$APK_DIR" ]; then
-    log "ERROR: Missing APK directory: $APK_DIR"
+    log "ERROR: APK directory does not exist: $APK_DIR"
     exit 1
 fi
 
-# 收集 APK 文件
+# 获取 APK 文件
 set -- "$APK_DIR"/*.apk
 
 if [ ! -f "$1" ]; then
@@ -47,7 +48,7 @@ if [ ! -f "$1" ]; then
     exit 0
 fi
 
-log "Prepared APK packages:"
+log "APK packages to install:"
 
 for apk_file in "$@"; do
     log "  $apk_file"
@@ -55,11 +56,11 @@ done
 
 # 检查 apk 命令
 if [ ! -x /usr/bin/apk ]; then
-    log "ERROR: /usr/bin/apk does not exist or is not executable."
+    log "ERROR: /usr/bin/apk is not available."
     exit 1
 fi
 
-# 等待网络和 DNS/HTTPS 基础能力
+# 等待网络可用
 log "Waiting for network connectivity..."
 
 COUNT=0
@@ -67,8 +68,7 @@ COUNT=0
 while :; do
     NETWORK_READY=0
 
-    # 优先测试实际 HTTPS 访问能力。
-    # 这里使用 OpenWrt 官方仓库地址作为网络测试目标。
+    # 优先测试 HTTPS，避免仅通过 ping 判断网络状态
     if command -v uclient-fetch >/dev/null 2>&1; then
         if uclient-fetch \
             -q \
@@ -79,6 +79,7 @@ while :; do
         fi
 
         rm -f /tmp/third-party-network-test
+
     elif command -v wget >/dev/null 2>&1; then
         if wget \
             -q \
@@ -89,12 +90,13 @@ while :; do
         fi
 
         rm -f /tmp/third-party-network-test
+
     elif command -v ping >/dev/null 2>&1; then
         if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
             NETWORK_READY=1
         fi
     else
-        log "WARNING: No network test command is available."
+        log "WARNING: No network test command found."
         NETWORK_READY=1
     fi
 
@@ -115,20 +117,12 @@ while :; do
     sleep "$RETRY_INTERVAL"
 done
 
-# 确保 APK 数据库目录存在
-mkdir -p /etc/apk
-
 log "Installing third-party APK packages..."
 
-# 不使用 --force-reinstall。
-# 这里允许本地 APK 未签名，但依赖仍然由系统 APK 仓库解析。
+# 不使用 --force-reinstall，避免不必要的重复安装
 if ! apk add --allow-untrusted "$@"; then
     log "ERROR: APK installation failed."
-    log "Please check the following:"
-    log "  1. APK architecture matches the firmware architecture."
-    log "  2. OpenWrt APK repositories are reachable."
-    log "  3. Required dependencies are available."
-    log "  4. The installed OpenWrt release matches the APK packages."
+    log "Please check APK dependencies and repository connectivity."
     exit 1
 fi
 
@@ -140,7 +134,7 @@ log "Refreshing LuCI caches..."
 rm -f /tmp/luci-indexcache.*
 rm -rf /tmp/luci-modulecache
 
-# 重启相关服务
+# 重启 LuCI 相关服务
 if [ -x /etc/init.d/rpcd ]; then
     /etc/init.d/rpcd restart
 fi
@@ -149,7 +143,7 @@ if [ -x /etc/init.d/uhttpd ]; then
     /etc/init.d/uhttpd restart
 fi
 
-# 只有全部安装和刷新操作成功后才写入完成标志
+# 只有安装成功后才写入完成标志
 touch "$DONE_FILE"
 
 log "=========================================="
