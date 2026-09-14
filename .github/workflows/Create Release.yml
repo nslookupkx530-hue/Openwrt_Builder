@@ -175,23 +175,24 @@ jobs:
 
 
       - name: Collect release files
-
         shell: bash
-
         run: |
-
-          set -euxo pipefail
-
+          set -Eeuo pipefail
 
           mkdir -p release
 
+          find artifacts \
+            -type f \
+            \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) \
+            -exec cp -f {} release/ \;
 
-          find artifacts -type f \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) -exec cp -f {} release/ \;
+          find artifacts \
+            -name "luci-package-list.md" \
+            -exec cp -f {} "release/${DEVICE}-luci.md" \;
 
-
-          find artifacts -name "luci-package-list.md" \
-          -exec cp -f {} release/${DEVICE}-luci.md \;
-
+          find artifacts \
+            -name "third-party-package-list.md" \
+            -exec cp -f {} "release/${DEVICE}-third-party.md" \;
 
           echo "Release files:"
 
@@ -199,20 +200,14 @@ jobs:
 
 
       - name: Generate release README
-
         shell: bash
-
         run: |
-
-          set -euxo pipefail
+          set -Eeuo pipefail
 
           mkdir -p release
 
-
           cat > release/README.md <<EOF
-
           OpenWrt automated build release
-
 
           Device:
 
@@ -226,11 +221,29 @@ jobs:
 
           EOF
 
+          LUCI_LIST="release/${DEVICE}-luci.md"
+          THIRD_PARTY_LIST="release/${DEVICE}-third-party.md"
 
-          cat artifacts/*release-info*/*.md >> release/README.md
+          if [ -f "${LUCI_LIST}" ]; then
+            cat "${LUCI_LIST}" >> release/README.md
+          else
+            echo "No LuCI package list found." >> release/README.md
+          fi
+
+          echo "" >> release/README.md
+          echo "" >> release/README.md
+
+          if [ -f "${THIRD_PARTY_LIST}" ]; then
+            cat "${THIRD_PARTY_LIST}" >> release/README.md
+          else
+            echo "third-party package list" >> release/README.md
+            echo "" >> release/README.md
+            echo "None" >> release/README.md
+          fi
 
           echo "" >> release/README.md
 
+          echo "Generated release README:"
           cat release/README.md
 
 
