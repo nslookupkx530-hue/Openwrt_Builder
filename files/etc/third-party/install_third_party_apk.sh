@@ -2,114 +2,145 @@
 
 APK_DIR="/usr/share/third-party"
 LOG_FILE="/tmp/third-party-apk-install.log"
-DONE_FILE="/etc/third-party-apk-installed"
 LOCK_DIR="/tmp/third-party-apk-install.lock"
+DONE_FILE="/etc/third-party-apk-installed"
+MAX_RETRIES=30
+RETRY_INTERVAL=10
 
-exec >> "$LOG_FILE" 2>&1
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+}
 
-echo
-echo "=========================================="
-echo "Third-party APK installation started"
-date
-echo "=========================================="
+log "=========================================="
+log "Starting third-party APK installation"
+log "=========================================="
 
-# 已经安装过则直接退出
+# 已经成功安装过，不再重复执行
 if [ -f "$DONE_FILE" ]; then
-    echo "Third-party APK packages are already installed."
+    log "Third-party APK packages are already installed."
     exit 0
 fi
 
-# 使用 mkdir 实现简单锁，避免并发执行
+# 防止服务重复启动导致多个 apk 进程同时运行
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    echo "Another third-party APK installation process is running."
+    log "Another third-party APK installation process is running."
     exit 0
 fi
 
-# 无论脚本如何退出，都尝试清理锁目录
-trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+cleanup() {
+    rmdir "$LOCK_DIR" 2>/dev/null
+}
 
+trap cleanup EXIT INT TERM
+
+# 检查 APK 目录
 if [ ! -d "$APK_DIR" ]; then
-    echo "ERROR: Missing APK directory: $APK_DIR"
+    log "ERROR: Missing APK directory: $APK_DIR"
     exit 1
 fi
 
+# 收集 APK 文件
 set -- "$APK_DIR"/*.apk
 
 if [ ! -f "$1" ]; then
-    echo "ERROR: No APK packages found in $APK_DIR"
+    log "No third-party APK packages found."
+    exit 0
+fi
+
+log "Prepared APK packages:"
+
+for apk_file in "$@"; do
+    log "  $apk_file"
+done
+
+# 检查 apk 命令
+if [ ! -x /usr/bin/apk ]; then
+    log "ERROR: /usr/bin/apk does not exist or is not executable."
     exit 1
 fi
 
-echo "APK packages to install:"
-for apk_file in "$@"; do
-    echo "  $apk_file"
-done
+# 等待网络和 DNS/HTTPS 基础能力
+log "Waiting for network connectivity..."
 
-echo
-echo "Waiting for network and DNS..."
-
-MAX_RETRIES=30
 COUNT=0
 
 while :; do
-    # 优先测试实际 OpenWrt 软件源的 HTTPS 连接。
-    # 如果系统没有 wget，则退回到 ping 测试。
-    if command -v wget >/dev/null 2>&1; then
-        if wget -q -T 8 -O /dev/null \
-            "https://downloads.openwrt.org/" 2>/dev/null; then
-            break
+    NETWORK_READY=0
+
+    # 优先测试实际 HTTPS 访问能力。
+    # 这里使用 OpenWrt 官方仓库地址作为网络测试目标。
+    if command -v uclient-fetch >/dev/null 2>&1; then
+        if uclient-fetch \
+            -q \
+            -O /tmp/third-party-network-test \
+            "https://downloads.openwrt.org/" \
+            >/dev/null 2>&1; then
+            NETWORK_READY=1
         fi
-    elif command -v uclient-fetch >/dev/null 2>&1; then
-        if uclient-fetch -q -T 8 -O /dev/null \
-            "https://downloads.openwrt.org/" 2>/dev/null; then
-            break
+
+        rm -f /tmp/third-party-network-test
+    elif command -v wget >/dev/null 2>&1; then
+        if wget \
+            -q \
+            -O /tmp/third-party-network-test \
+            "https://downloads.openwrt.org/" \
+            >/dev/null 2>&1; then
+            NETWORK_READY=1
         fi
-    elif ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+
+        rm -f /tmp/third-party-network-test
+    elif command -v ping >/dev/null 2>&1; then
+        if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
+            NETWORK_READY=1
+        fi
+    else
+        log "WARNING: No network test command is available."
+        NETWORK_READY=1
+    fi
+
+    if [ "$NETWORK_READY" -eq 1 ]; then
+        log "Network connectivity is available."
         break
     fi
 
     if [ "$COUNT" -ge "$MAX_RETRIES" ]; then
-        echo "ERROR: Network is not ready after 5 minutes."
-        echo "Please inspect: $LOG_FILE"
+        log "ERROR: Network is not ready after 5 minutes."
         exit 1
     fi
 
     COUNT=$((COUNT + 1))
-    echo "Network not ready, retrying in 10 seconds..."
-    echo "Attempt: $COUNT/$MAX_RETRIES"
-    sleep 10
+
+    log "Network is not ready. Retrying in ${RETRY_INTERVAL}s (${COUNT}/${MAX_RETRIES})..."
+
+    sleep "$RETRY_INTERVAL"
 done
 
-echo
-echo "Network is ready."
-echo "Checking APK repositories..."
+# 确保 APK 数据库目录存在
+mkdir -p /etc/apk
 
-# 更新本地索引，但不执行 apk upgrade
-if ! apk update; then
-    echo "ERROR: apk update failed."
-    exit 1
-fi
+log "Installing third-party APK packages..."
 
-echo
-echo "Installing third-party APK packages..."
-
-# 不默认使用 --force-reinstall，避免重复覆盖已安装包
+# 不使用 --force-reinstall。
+# 这里允许本地 APK 未签名，但依赖仍然由系统 APK 仓库解析。
 if ! apk add --allow-untrusted "$@"; then
-    echo "ERROR: APK installation failed."
-    echo "Possible causes:"
-    echo "  - Missing dependencies"
-    echo "  - Repository unavailable"
-    echo "  - Architecture mismatch"
-    echo "  - Package version conflict"
+    log "ERROR: APK installation failed."
+    log "Please check the following:"
+    log "  1. APK architecture matches the firmware architecture."
+    log "  2. OpenWrt APK repositories are reachable."
+    log "  3. Required dependencies are available."
+    log "  4. The installed OpenWrt release matches the APK packages."
     exit 1
 fi
 
-echo
-echo "Refreshing LuCI cache..."
+log "APK installation completed."
+
+# 清理 LuCI 缓存
+log "Refreshing LuCI caches..."
 
 rm -f /tmp/luci-indexcache.*
 rm -rf /tmp/luci-modulecache
 
+# 重启相关服务
 if [ -x /etc/init.d/rpcd ]; then
     /etc/init.d/rpcd restart
 fi
@@ -119,12 +150,10 @@ if [ -x /etc/init.d/uhttpd ]; then
 fi
 
 # 只有全部安装和刷新操作成功后才写入完成标志
-date > "$DONE_FILE"
+touch "$DONE_FILE"
 
-echo
-echo "=========================================="
-echo "Third-party APK installation completed"
-date
-echo "=========================================="
+log "=========================================="
+log "Third-party APK installation completed"
+log "=========================================="
 
 exit 0
