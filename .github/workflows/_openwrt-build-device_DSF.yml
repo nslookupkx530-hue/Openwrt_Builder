@@ -528,14 +528,10 @@ jobs:
           make defconfig V=s
 
 
-      - name: Prepare third-party APK repository
-
+      - name: Verify third-party APK packages
         shell: bash
-
         run: |
-
-          set -euxo pipefail
-
+          set -Eeuo pipefail
 
           SOURCE_DIR="${{ github.workspace }}/openwrt"
 
@@ -544,7 +540,7 @@ jobs:
           export SOURCE_DIR
 
           bash \
-          "${{ github.workspace }}/shell/apk-create-feed.sh"
+            "${{ github.workspace }}/shell/apk-create-feed.sh"
 
 
       - name: Install third-party APK files and startup service
