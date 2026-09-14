@@ -9,8 +9,7 @@ start_service() {
     procd_open_instance
 
     procd_set_param command \
-        /usr/bin/env \
-        sh \
+        /bin/sh \
         /etc/third-party/install_third_party_apk.sh
 
     procd_set_param stdout 1
