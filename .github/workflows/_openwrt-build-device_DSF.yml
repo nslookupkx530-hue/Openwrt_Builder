@@ -571,6 +571,12 @@ jobs:
           echo ">>> APK_SOURCE_DIR: ${APK_SOURCE_DIR}"
           echo ">>> FIRMWARE_FILES_DIR: ${FIRMWARE_FILES_DIR}"
 
+          # 创建固件文件目录
+          mkdir -p \
+            "${FIRMWARE_FILES_DIR}/usr/share/third-party" \
+            "${FIRMWARE_FILES_DIR}/etc/third-party" \
+            "${FIRMWARE_FILES_DIR}/etc/init.d"        
+
           # 检查 APK 输出目录
           if [ ! -d "${APK_SOURCE_DIR}" ]; then
             echo "ERROR: APK source directory does not exist:"
@@ -594,12 +600,6 @@ jobs:
           fi
 
           echo ">>> Found ${APK_COUNT} third-party APK package(s)"
-
-          # 创建固件文件目录
-          mkdir -p \
-            "${FIRMWARE_FILES_DIR}/usr/share/third-party" \
-            "${FIRMWARE_FILES_DIR}/etc/third-party" \
-            "${FIRMWARE_FILES_DIR}/etc/init.d"
 
           # 复制 APK 到固件
           find "${APK_SOURCE_DIR}" \
@@ -633,20 +633,63 @@ jobs:
             "${REPO_FILES_DIR}/etc/init.d/apk-install" \
             "${FIRMWARE_FILES_DIR}/etc/init.d/apk-install"
 
-          echo ">>> APK files copied into firmware:"
-          find "${FIRMWARE_FILES_DIR}/usr/share/third-party" \
+          test -x \
+            "${FIRMWARE_FILES_DIR}/etc/third-party/install_third_party_apk.sh"
+
+          test -x \
+            "${FIRMWARE_FILES_DIR}/etc/init.d/apk-install"
+
+          if [ -e "${FIRMWARE_FILES_DIR}/etc/uci-defaults/99-third-party-apk" ]; then
+            echo "ERROR: Old uci-defaults installer still exists."
+            exit 1
+          fi
+
+          echo "Third-party APK integration completed successfully."
+
+
+      - name: Verify third-party APK integration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          OPENWRT_DIR="${GITHUB_WORKSPACE}/openwrt"
+
+          echo ">>> Checking third-party APK files"
+
+          test -d "${OPENWRT_DIR}/files/usr/share/third-party"
+
+          APK_COUNT="$(find \
+            "${OPENWRT_DIR}/files/usr/share/third-party" \
             -maxdepth 1 \
             -type f \
             -name '*.apk' \
-            -print \
-            | sort
+            | wc -l)"
 
-          echo ">>> Startup scripts installed:"
-          ls -l \
-            "${FIRMWARE_FILES_DIR}/etc/third-party/install_third_party_apk.sh" \
-            "${FIRMWARE_FILES_DIR}/etc/init.d/apk-install"
+          if [ "${APK_COUNT}" -eq 0 ]; then
+            echo "ERROR: No APK files are present in firmware files directory."
+            exit 1
+          fi
 
-          echo ">>> Third-party APK integration completed"
+          echo "APK count: ${APK_COUNT}"
+
+          echo ">>> Checking installer script"
+
+          test -f "${OPENWRT_DIR}/files/etc/third-party/install_third_party_apk.sh"
+          test -x "${OPENWRT_DIR}/files/etc/third-party/install_third_party_apk.sh"
+
+          echo ">>> Checking init.d service"
+
+          test -f "${OPENWRT_DIR}/files/etc/init.d/apk-install"
+          test -x "${OPENWRT_DIR}/files/etc/init.d/apk-install"
+
+          echo ">>> Checking obsolete uci-defaults script"
+
+          if [ -e "${OPENWRT_DIR}/files/etc/uci-defaults/99-third-party-apk" ]; then
+            echo "ERROR: Obsolete uci-defaults installer still exists."
+            exit 1
+          fi
+
+          echo ">>> Third-party APK integration verification passed."
 
 
       - name: Enable sonic fullcone
