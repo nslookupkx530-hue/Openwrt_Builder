@@ -540,7 +540,7 @@ jobs:
           export SOURCE_DIR
 
           bash \
-            "${{ github.workspace }}/shell/apk-create-feed.sh"
+            "${{ github.workspace }}/shell/apk-verify-packages.sh"
 
 
       - name: Install third-party APK files and startup service
