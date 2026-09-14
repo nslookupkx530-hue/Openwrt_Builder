@@ -24,4 +24,4 @@ ls -lah "${PACKAGE_DIR}"
 
 echo
 
-echo "Repository preparation completed"
+echo "APK package verification completed successfully."
