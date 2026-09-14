@@ -547,115 +547,106 @@ jobs:
           "${{ github.workspace }}/shell/apk-create-feed.sh"
 
 
-      - name: Install third-party APK repository files
-
+      - name: Install third-party APK files and startup service
         shell: bash
-
         run: |
+          set -Eeuo pipefail
 
-          set -euxo pipefail
+          echo ">>> Preparing third-party APK files and startup service"
 
-          SOURCE_DIR="${{ github.workspace }}/openwrt"
+          # 当前工作目录应当是 OpenWrt 源码目录
+          OPENWRT_DIR="${GITHUB_WORKSPACE}/openwrt"
 
-          cd "${SOURCE_DIR}"
+          # 仓库根目录中的 files 目录
+          REPO_FILES_DIR="${GITHUB_WORKSPACE}/files"
 
-          echo "=========================================="
-          echo "Install third-party APK repository files"
-          echo "=========================================="
+          # apk-prepare-packages.sh 生成的 APK 目录
+          APK_SOURCE_DIR="${OPENWRT_DIR}/packages"
 
-          
+          # 固件最终使用的 files 目录
+          FIRMWARE_FILES_DIR="${OPENWRT_DIR}/files"
+
+          echo ">>> OPENWRT_DIR: ${OPENWRT_DIR}"
+          echo ">>> REPO_FILES_DIR: ${REPO_FILES_DIR}"
+          echo ">>> APK_SOURCE_DIR: ${APK_SOURCE_DIR}"
+          echo ">>> FIRMWARE_FILES_DIR: ${FIRMWARE_FILES_DIR}"
+
+          # 检查 APK 输出目录
+          if [ ! -d "${APK_SOURCE_DIR}" ]; then
+            echo "ERROR: APK source directory does not exist:"
+            echo "       ${APK_SOURCE_DIR}"
+            exit 1
+          fi
+
+          # 检查是否成功生成 APK
+          APK_COUNT="$(
+            find "${APK_SOURCE_DIR}" \
+              -maxdepth 1 \
+              -type f \
+              -name '*.apk' \
+              | wc -l
+          )"
+
+          if [ "${APK_COUNT}" -eq 0 ]; then
+            echo "ERROR: No third-party APK files found in:"
+            echo "       ${APK_SOURCE_DIR}"
+            exit 1
+          fi
+
+          echo ">>> Found ${APK_COUNT} third-party APK package(s)"
+
+          # 创建固件文件目录
           mkdir -p \
-          files/usr/share/third-party
+            "${FIRMWARE_FILES_DIR}/usr/share/third-party" \
+            "${FIRMWARE_FILES_DIR}/etc/third-party" \
+            "${FIRMWARE_FILES_DIR}/etc/init.d"
 
-          cp \
-          packages/*.apk \
-          files/usr/share/third-party/
+          # 复制 APK 到固件
+          find "${APK_SOURCE_DIR}" \
+            -maxdepth 1 \
+            -type f \
+            -name '*.apk' \
+            -exec cp -f {} \
+              "${FIRMWARE_FILES_DIR}/usr/share/third-party/" \;
 
-          mkdir -p \
-          files/etc
-
-          echo "${CUSTOM_PACKAGES}" \
-          | xargs -n1 \
-          > files/etc/third-party-packages
-
-
-          echo "=========================================="
-          echo "Create first-boot APK installation script"
-          echo "=========================================="
-
-
-          mkdir -p \
-          files/etc/uci-defaults
-
-          cat > files/etc/uci-defaults/99-third-party-apk <<'EOF'
-          #!/bin/sh
-          
-          echo "=========================================="
-          echo "Install third-party APK packages"
-          echo "=========================================="
-
-          APK_DIR="/usr/share/third-party"
-
-          if [ ! -d "$APK_DIR" ]; then
-              echo "Missing third-party APK directory"
-              exit 1
+          # 检查仓库中的安装脚本
+          if [ ! -f "${REPO_FILES_DIR}/etc/third-party/install_third_party_apk.sh" ]; then
+            echo "ERROR: Installer script not found:"
+            echo "       ${REPO_FILES_DIR}/etc/third-party/install_third_party_apk.sh"
+            exit 1
           fi
 
-          set -- "$APK_DIR"/*.apk
-
-          if [ ! -f "$1" ]; then
-              echo "No third-party APK packages found"
-              exit 1
+          # 检查仓库中的 init.d 服务
+          if [ ! -f "${REPO_FILES_DIR}/etc/init.d/apk-install" ]; then
+            echo "ERROR: Init script not found:"
+            echo "       ${REPO_FILES_DIR}/etc/init.d/apk-install"
+            exit 1
           fi
 
-          echo "Installing third-party APK packages:"
+          # 复制首次启动安装脚本
+          install -m 0755 \
+            "${REPO_FILES_DIR}/etc/third-party/install_third_party_apk.sh" \
+            "${FIRMWARE_FILES_DIR}/etc/third-party/install_third_party_apk.sh"
 
-          for apk_file in "$@"
-          do
-              echo "  $apk_file"
-          done
+          # 复制 init.d 服务
+          install -m 0755 \
+            "${REPO_FILES_DIR}/etc/init.d/apk-install" \
+            "${FIRMWARE_FILES_DIR}/etc/init.d/apk-install"
 
-          apk add \
-              --allow-untrusted \
-              "$@" || exit 1
+          echo ">>> APK files copied into firmware:"
+          find "${FIRMWARE_FILES_DIR}/usr/share/third-party" \
+            -maxdepth 1 \
+            -type f \
+            -name '*.apk' \
+            -print \
+            | sort
 
-
-          echo "=========================================="
-          echo "Refresh LuCI"
-          echo "=========================================="
-
-          rm -f /tmp/luci-indexcache.*
-          rm -rf /tmp/luci-modulecache
-
-          if [ -x /etc/init.d/rpcd ]; then
-              /etc/init.d/rpcd restart
-          fi
-
-          if [ -x /etc/init.d/uhttpd ]; then
-              /etc/init.d/uhttpd restart
-          fi
-
-          echo "Third-party APK installation completed"
-
-          exit 0
-          EOF
-
-
-          echo "=========================================="
-          echo "Third-party APK repository installed"
-          echo "=========================================="
-
-          echo "APK packages:"
-          ls -lah \
-          files/usr/share/third-party
-
-          echo "Package list:"
-          cat \
-          files/etc/third-party-packages
-
-          echo "First-boot script:"
+          echo ">>> Startup scripts installed:"
           ls -l \
-          files/etc/uci-defaults/99-third-party-apk
+            "${FIRMWARE_FILES_DIR}/etc/third-party/install_third_party_apk.sh" \
+            "${FIRMWARE_FILES_DIR}/etc/init.d/apk-install"
+
+          echo ">>> Third-party APK integration completed"
 
 
       - name: Enable sonic fullcone
