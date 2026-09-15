@@ -906,47 +906,59 @@ jobs:
 
           set -euxo pipefail
 
-
           SOURCE_DIR="${{ github.workspace }}/openwrt"
+          FEED_DIR="${SOURCE_DIR}/output/apk-feed"
 
+          rm -rf "${FEED_DIR}"
+          mkdir -p "${FEED_DIR}"
 
-          mkdir -p "${SOURCE_DIR}/output/apk-feed"
+          echo "=========================================="
+          echo "Collect official APK feeds"
+          echo "=========================================="
 
+          # 普通架构软件包：
+          # openwrt/bin/packages/<arch>/<feed>/
+          if [ -d "${SOURCE_DIR}/bin/packages" ]; then
+            mkdir -p "${FEED_DIR}/packages"
 
-          # OpenWrt 官方 APK feed
-          find "${SOURCE_DIR}/bin/packages" \
-          -type f \
-          -name "*.apk" \
-          -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
-
-
-          find "${SOURCE_DIR}/bin/packages" \
-          -type f \
-          -name "packages.adb" \
-          -exec cp -f {} "${SOURCE_DIR}/output/apk-feed/" \; || true
-
-
-
-          # 第三方预编译 APK
-          if [ -d "${SOURCE_DIR}/packages" ]; then
-
-              echo "Copy third-party APK packages"
-
-              cp -f \
-              "${SOURCE_DIR}"/packages/*.apk \
-              "${SOURCE_DIR}/output/apk-feed/" \
+            cp -rf \
+              "${SOURCE_DIR}/bin/packages/." \
+              "${FEED_DIR}/packages/" \
               || true
-
           fi
 
+          echo "=========================================="
+          echo "Collect target APK feed and kmods"
+          echo "=========================================="
 
+          # target packages：
+          # openwrt/bin/targets/x86/64/packages/
+          if [ -d "${SOURCE_DIR}/bin/targets" ]; then
+            mkdir -p "${FEED_DIR}/targets"
+
+            cp -rf \
+              "${SOURCE_DIR}/bin/targets/." \
+              "${FEED_DIR}/targets/" \
+              || true
+          fi
+
+          echo "=========================================="
+          echo "Collect third-party APK packages"
+          echo "=========================================="
+
+          if compgen -G "${SOURCE_DIR}/packages/*.apk" > /dev/null; then
+            mkdir -p "${FEED_DIR}/third-party"
+
+            cp -f \
+              "${SOURCE_DIR}"/packages/*.apk \
+              "${FEED_DIR}/third-party/"
+          fi
 
           echo "=========================================="
           echo "Collected APK feed"
           echo "=========================================="
 
-
-          find "${SOURCE_DIR}/output/apk-feed" -type f | sort
+          find "${FEED_DIR}" -type f | sort
 
 
       - name: Generate LuCI and third-party package lists
