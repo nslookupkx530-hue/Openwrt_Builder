@@ -529,7 +529,10 @@ jobs:
 
 
       - name: Check APK and kmods config
-        #临时增加：看是否有类似CONFIG_USE_APK=y、CONFIG_BUILDBOT=y、CONFIG_PER_FEED_REPO=y
+        #临时增加：看是否有下面类似的出现
+        #CONFIG_USE_APK=y
+        #CONFIG_BUILDBOT=y
+        #CONFIG_PER_FEED_REPO=y
         shell: bash
         run: |
           set -euxo pipefail
