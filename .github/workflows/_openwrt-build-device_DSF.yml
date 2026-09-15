@@ -528,6 +528,30 @@ jobs:
           make defconfig V=s
 
 
+      - name: Check APK and kmods config
+        #临时增加：看是否有下面类似的出现
+        #CONFIG_USE_APK=y
+        #CONFIG_BUILDBOT=y
+        #CONFIG_PER_FEED_REPO=y
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "APK / Buildbot configuration"
+          echo "=========================================="
+
+          grep -E '^(CONFIG_USE_APK|CONFIG_BUILDBOT|CONFIG_PER_FEED_REPO)=' .config || true
+
+          echo "=========================================="
+          echo "Kernel configuration"
+          echo "=========================================="
+
+          grep -E '^(CONFIG_TARGET_KERNEL|CONFIG_LINUX|CONFIG_PACKAGE_kmod-md|CONFIG_PACKAGE_mdadm)' .config || true
+
+
       - name: Verify third-party APK packages
         shell: bash
         run: |
