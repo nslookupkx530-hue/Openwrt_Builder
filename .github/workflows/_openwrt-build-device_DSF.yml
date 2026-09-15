@@ -933,9 +933,12 @@ jobs:
 
 
       - name: Prepare artifact
+
         shell: bash
+
         run: |
-          set -Eeuo pipefail
+
+          set -euxo pipefail
 
           mkdir -p artifact/${{ inputs.device }}
 
@@ -951,7 +954,6 @@ jobs:
           cp -f release/${{ inputs.device }}-third-party.md \
             artifact/${{ inputs.device }}/ || true
 
-          echo "Prepared artifact files:"
           find artifact -type f | sort
 
 
@@ -963,12 +965,9 @@ jobs:
 
           name: ${{ inputs.device }}-firmware-${{ github.run_id }}
 
-          path: |
-          
-            artifact/${{ inputs.device }}/*-luci.md
-            artifact/${{ inputs.device }}/*-third-party.md
-          
-          if-no-files-found: warn
+          path: artifact/${{ inputs.device }}/firmware
+
+          if-no-files-found: error
 
 
       - name: Upload APK feed artifact
