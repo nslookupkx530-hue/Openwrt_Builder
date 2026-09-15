@@ -827,7 +827,6 @@ jobs:
 
       - name: Check kmods output
         #临时增加：检测是否有kmod-md-XXX等文件
-      - name: Check kmods output
         shell: bash
         run: |
           set -euxo pipefail
