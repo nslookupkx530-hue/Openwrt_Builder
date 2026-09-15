@@ -19,7 +19,7 @@ set -euxo pipefail
 CUSTOM_PACKAGES="${CUSTOM_PACKAGES:-}"
 BASE_DIR="${SOURCE_DIR:-$(pwd)}/extra-packages"
 OUTPUT_DIR="${SOURCE_DIR:-$(pwd)}/packages"
-REPO="https://github.com/wukongdaily/apk.git"
+REPO="https://github.com/nslookupkx530-hue/apk.git"
 
 echo "=========================================="
 echo " Prepare third-party APK packages"
@@ -40,7 +40,15 @@ mkdir -p "${OUTPUT_DIR}"
 echo "Clone APK repository"
 APK_REPO_DIR="/tmp/wukongdaily-apk"
 rm -rf "${APK_REPO_DIR}"
-git clone --depth=1 "${REPO}" "${APK_REPO_DIR}"
+
+# 定义分支，优先使用 My
+BRANCH="My"
+
+git clone \
+    --depth=1 \
+    -b "${BRANCH}" \
+    "${REPO}" \
+    "${APK_REPO_DIR}" || (git clone --depth=1 "${REPO}" "${APK_REPO_DIR}" && git checkout "${BRANCH}")
 
 # --- 步骤 2: 架构检测 ---
 echo "Detecting Architecture..."
