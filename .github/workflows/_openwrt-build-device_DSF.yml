@@ -825,6 +825,47 @@ jobs:
           make V=s 2>&1 | tee build.log
 
 
+      - name: Check kmods output
+        #临时增加：检测是否有kmod-md-XXX等文件
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SOURCE_DIR="${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "KMOD directories"
+          echo "=========================================="
+
+          find "${SOURCE_DIR}/bin/targets" \
+            -type d \
+            -path '*/kmods/*' \
+            -print | sort || true
+
+          echo "=========================================="
+          echo "KMOD APK files"
+          echo "=========================================="
+
+          find "${SOURCE_DIR}/bin/targets" \
+            -type f \
+            -name 'kmod-*.apk' \
+            -print | sort || true
+
+          echo "=========================================="
+          echo "MD KMOD files"
+          echo "=========================================="
+
+          find "${SOURCE_DIR}/bin/targets" \
+            -type f \
+            \( \
+              -name 'kmod-md-mod*.apk' \
+              -o -name 'kmod-md-raid0*.apk' \
+              -o -name 'kmod-md-raid1*.apk' \
+              -o -name 'kmod-md-raid10*.apk' \
+            \) \
+            -print | sort || true
+
+
       - name: Upload build log
 
         if: failure()
