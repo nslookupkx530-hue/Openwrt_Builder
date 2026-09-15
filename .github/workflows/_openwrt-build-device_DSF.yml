@@ -801,6 +801,24 @@ jobs:
           make V=s 2>&1 | tee build.log
 
 
+      - name: Debug kmods output
+        run: |
+          echo "===== kmods directories ====="
+          find openwrt/bin/targets -type d -path '*/kmods/*' -print | sort || true
+
+          echo "===== kmod apk files ====="
+          find openwrt/bin/targets -type f -name 'kmod-*.apk' | sort | head -100 || true
+
+          echo "===== all APK files under target ====="
+          find openwrt/bin/targets -type f -name '*.apk' | sort | head -100 || true
+
+          echo "===== kernel info ====="
+          grep -E '^(CONFIG_BUILDBOT|CONFIG_PER_FEED_REPO|CONFIG_PACKAGE_kmod)' openwrt/.config || true
+
+          echo "===== kernel release ====="
+          grep '^CONFIG_LINUX_' openwrt/.config | head -30 || true
+
+
       - name: Upload build log
 
         if: failure()
