@@ -186,12 +186,17 @@ jobs:
             \( -name "*.bin" -o -name "*.img" -o -name "*.gz" \) \
             -exec cp -f {} release/ \;
 
+          # 收集 LuCI package list
           find artifacts \
-            -name "luci-package-list.md" \
+            -type f \
+            -name "${DEVICE}-luci.md" \
             -exec cp -f {} "release/${DEVICE}-luci.md" \;
 
+          # 收集 third-party package list
+          # 普通版没有该文件时，find 不会报错，也不会复制任何文件
           find artifacts \
-            -name "third-party-package-list.md" \
+            -type f \
+            -name "${DEVICE}-third-party.md" \
             -exec cp -f {} "release/${DEVICE}-third-party.md" \;
 
           echo "Release files:"
@@ -230,6 +235,7 @@ jobs:
             echo "No LuCI package list found." >> release/README.md
           fi
 
+          # 只有第三方 APK 版存在该文件时，才追加第三方列表
           if [ -f "${THIRD_PARTY_LIST}" ]; then
             echo "" >> release/README.md
             echo "" >> release/README.md
