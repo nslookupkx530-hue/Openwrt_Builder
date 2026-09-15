@@ -528,9 +528,6 @@ jobs:
           make defconfig V=s
 
 
-
-
-
       - name: Verify third-party APK packages
         shell: bash
         run: |
@@ -802,9 +799,6 @@ jobs:
           export HOSTLDFLAGS=""
 
           make V=s 2>&1 | tee build.log
-
-
-
 
 
       - name: Upload build log
