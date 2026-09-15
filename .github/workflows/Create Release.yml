@@ -54,6 +54,24 @@ jobs:
           path: artifacts
 
 
+      - name: Debug downloaded artifacts
+        #输出固件下载日志
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          echo "=========================================="
+          echo "All downloaded files"
+          echo "=========================================="
+
+          find artifacts -type f -ls | sort
+
+          echo "=========================================="
+          echo "All downloaded directories"
+          echo "=========================================="
+
+          find artifacts -type d -print | sort
+
 
       - name: Detect device
 
