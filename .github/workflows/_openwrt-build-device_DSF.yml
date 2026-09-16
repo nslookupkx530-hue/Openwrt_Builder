@@ -74,7 +74,8 @@ jobs:
 
 
       - name: Clone OpenWrt source
-
+        # 获取 OpenWrt 源码
+      
         shell: bash
 
         run: |
@@ -91,6 +92,7 @@ jobs:
 
 
       - name: Clean build environment
+        # 清理编译环境
 
         shell: bash
 
@@ -106,6 +108,7 @@ jobs:
 
 
       - name: Check source version
+        # 检查源版本
 
         shell: bash
 
@@ -121,7 +124,7 @@ jobs:
 
 
       - name: Modify APK mirror
-        #修改软件包地址
+        # 修改软件包地址
         shell: bash
 
         run: |
@@ -529,7 +532,7 @@ jobs:
 
 
       - name: Check OpenWrt Git state
-        #诊断步骤
+        # 诊断 OpenWrt 源码 Git 状态
         shell: bash
         run: |
           set -x
@@ -540,12 +543,30 @@ jobs:
           git rev-parse --show-toplevel
           git rev-parse --verify HEAD
 
-          echo "===== toolchain revision ====="
-          git rev-parse --verify toolchain
+          echo "===== Git branches ====="
+          git branch -a
 
-          echo "===== git log toolchain ====="
-          git log --no-show-signature --format=%h -1 toolchain
-          echo "git log rc=$?"
+          echo "===== Git remotes ====="
+          git remote -v
+
+          echo "===== HEAD ====="
+          git log --oneline -5
+
+          echo "===== toolchain directory ====="
+          ls -ld toolchain
+          ls -la toolchain | head -30
+
+          echo "===== verify toolchain ====="
+          git rev-parse --verify toolchain || true
+
+          echo "===== verify HEAD:toolchain ====="
+          git rev-parse --verify HEAD:toolchain || true
+
+          echo "===== git log -- toolchain ====="
+          git log --oneline --all -- toolchain | head -20
+
+          echo "===== git log -1 toolchain ====="
+          git log --no-show-signature --format=%h -1 toolchain || true
 
           echo "===== tmp directory ====="
           ls -la tmp || true
