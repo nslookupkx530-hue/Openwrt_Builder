@@ -810,7 +810,7 @@ jobs:
 
         run: |
 
-          set -euxo pipefail
+          set -uo pipefail
 
           cd "${{ github.workspace }}/openwrt"
 
@@ -831,47 +831,26 @@ jobs:
 
           echo ""
           echo "========================================"
-          echo ">>> 编译返回码: ${BUILD_RC}"
+          echo ">>> OpenWrt 构建结果"
           echo "========================================"
+          echo "make exit code: ${BUILD_RC}"
 
           if [ "${BUILD_RC}" -ne 0 ]; then
             echo ""
-            echo "========================================"
-            echo ">>> !!! OpenWrt 编译失败 !!!"
-            echo "========================================"
+            echo "========== FAILED PACKAGE =========="
+            grep -E "ERROR: package/|failed to build" build.log | tail -30 || true
 
             echo ""
-            echo "===== 最后的 100 行日志 ====="
-            tail -n 100 build.log || true
+            echo "========== MAKE ERRORS =========="
+            grep -E "make\[[0-9]+\]: \*\*\*" build.log | tail -50 || true
 
             echo ""
-            echo "===== 检测到的 ERROR / error ====="
-            grep -inE \
-             '(^|[^a-z])error([^a-z]|$)|failed to build|recipe for target.*failed|No rule to make target|fatal error|undefined reference' \
-             build.log \
-             | tail -n 100 \
-             || true
+            echo "========== COMPILER FATAL ERRORS =========="
+            grep -E "fatal error:|error:" build.log | tail -50 || true
 
             echo ""
-            echo "===== 最后失败的 package ====="
-            grep -E \
-             'ERROR: .* failed to build|package/.*/compile.*Error [0-9]+|package/feeds/.*/compile.*Error [0-9]+' \
-             build.log \
-             | tail -n 30 \
-             || true
-
-            echo ""
-            echo "===== Make Error 链 ====="
-            grep -E \
-             '^make\[[0-9]+\]: \*\*\*|^make: \*\*\*' \
-             build.log \
-             | tail -n 50 \
-             || true
-
-            echo ""
-            echo "========================================"
-            echo ">>> 编译失败，停止后续步骤"
-            echo "========================================"
+            echo "========== LAST 200 LINES =========="
+            tail -200 build.log
 
             exit "${BUILD_RC}"
           fi
