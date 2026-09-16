@@ -528,6 +528,49 @@ jobs:
           make defconfig V=s
 
 
+      - name: Check OpenWrt Git state
+        #诊断步骤
+        shell: bash
+        run: |
+          set -x
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "===== Git status ====="
+          git rev-parse --is-inside-work-tree
+          git rev-parse --show-toplevel
+          git rev-parse --verify HEAD
+
+          echo "===== toolchain revision ====="
+          git rev-parse --verify toolchain
+
+          echo "===== git log toolchain ====="
+          git log --no-show-signature --format=%h -1 toolchain
+          echo "git log rc=$?"
+
+          echo "===== tmp directory ====="
+          ls -la tmp || true
+
+          echo "===== .git ====="
+          git status --short
+
+
+      - name: Test OpenWrt ver_check
+        #模拟 OpenWrt 自己的命令
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          mkdir -p tmp
+          
+          git log --no-show-signature --format=%h -1 toolchain > tmp/.ver_check
+          
+          echo "===== tmp/.ver_check ====="
+          cat tmp/.ver_check
+
+          test -s tmp/.ver_check
+
+
       - name: Check APK and kmods config
         #临时增加：看是否有下面类似的出现
         #CONFIG_USE_APK=y
