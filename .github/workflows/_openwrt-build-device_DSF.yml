@@ -553,25 +553,25 @@ jobs:
           git log --oneline -5
 
           echo "===== toolchain directory ====="
-          ls -ld toolchain
-          ls -la toolchain | head -30
+          ls -ld toolchain || true
+          ls -la toolchain | head -30 || true
 
-          echo "===== verify toolchain ====="
-          git rev-parse --verify toolchain || true
-
-          echo "===== verify HEAD:toolchain ====="
+          echo "===== HEAD:toolchain ====="
           git rev-parse --verify HEAD:toolchain || true
 
-          echo "===== git log -- toolchain ====="
-          git log --oneline --all -- toolchain | head -20
+          echo "===== ls-tree HEAD toolchain ====="
+          git ls-tree HEAD toolchain || true
 
-          echo "===== git log -1 toolchain ====="
+          echo "===== git log -- toolchain ====="
+          git log --oneline --all -- toolchain | head -20 || true
+
+          echo "===== original OpenWrt command ====="
           git log --no-show-signature --format=%h -1 toolchain || true
 
           echo "===== tmp directory ====="
           ls -la tmp || true
 
-          echo "===== .git ====="
+          echo "===== git status ====="
           git status --short
 
 
