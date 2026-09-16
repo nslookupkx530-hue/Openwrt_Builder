@@ -815,14 +815,120 @@ jobs:
           cd "${{ github.workspace }}/openwrt"
 
           export MAKEFLAGS="-j$(nproc)"
-
           export HOSTCFLAGS="-Wno-error"
-
           export HOSTCXXFLAGS="-Wno-error"
-
           export HOSTLDFLAGS=""
 
+          echo "========================================"
+          echo ">>> 开始 OpenWrt 编译"
+          echo ">>> CPU: $(nproc)"
+          echo "========================================"
+
+          set +e
           make V=s 2>&1 | tee build.log
+          BUILD_RC=${PIPESTATUS[0]}
+          set -e
+
+          echo ""
+          echo "========================================"
+          echo ">>> 编译返回码: ${BUILD_RC}"
+          echo "========================================"
+
+          if [ "${BUILD_RC}" -ne 0 ]; then
+            echo ""
+            echo "========================================"
+            echo ">>> !!! OpenWrt 编译失败 !!!"
+            echo "========================================"
+
+            echo ""
+            echo "===== 最后的 100 行日志 ====="
+            tail -n 100 build.log || true
+
+            echo ""
+            echo "===== 检测到的 ERROR / error ====="
+            grep -inE \
+             '(^|[^a-z])error([^a-z]|$)|failed to build|recipe for target.*failed|No rule to make target|fatal error|undefined reference' \
+             build.log \
+             | tail -n 100 \
+             || true
+
+            echo ""
+            echo "===== 最后失败的 package ====="
+            grep -E \
+             'ERROR: .* failed to build|package/.*/compile.*Error [0-9]+|package/feeds/.*/compile.*Error [0-9]+' \
+             build.log \
+             | tail -n 30 \
+             || true
+
+            echo ""
+            echo "===== Make Error 链 ====="
+            grep -E \
+             '^make\[[0-9]+\]: \*\*\*|^make: \*\*\*' \
+             build.log \
+             | tail -n 50 \
+             || true
+
+            echo ""
+            echo "========================================"
+            echo ">>> 编译失败，停止后续步骤"
+            echo "========================================"
+
+            exit "${BUILD_RC}"
+          fi
+
+          echo ""
+          echo "========================================"
+          echo ">>> OpenWrt 编译成功"
+          echo "========================================"
+
+
+      - name: Diagnose build failure
+        #增加增加“失败包定位”
+        if: failure()
+        shell: bash
+        run: |
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "========================================"
+          echo ">>> BUILD FAILURE DIAGNOSTICS"
+          echo "========================================"
+
+          if [ ! -f build.log ]; then
+            echo "build.log 不存在"
+            exit 0
+          fi
+
+          echo ""
+          echo "===== ERROR ====="
+          grep -inE \
+           '(^|[^a-z])error([^a-z]|$)|fatal error|failed to build' \
+           build.log \
+           | tail -n 100 \
+           || true
+
+          echo ""
+          echo "===== FAILED TARGET ====="
+          grep -inE \
+           'recipe for target.*failed|No rule to make target|undefined reference' \
+           build.log \
+           | tail -n 100 \
+           || true
+
+          echo ""
+          echo "===== FAILED PACKAGE ====="
+          grep -inE \
+           'ERROR: .*failed to build' \
+           build.log \
+           | tail -n 100 \
+           || true
+
+          echo ""
+          echo "===== MAKE ERROR CHAIN ====="
+          grep -inE \
+           '^make(\[[0-9]+\])?: \*\*\*' \
+           build.log \
+           | tail -n 100 \
+           || true
 
 
       - name: Check kmods output
