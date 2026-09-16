@@ -878,7 +878,7 @@ jobs:
 
           cd "${{ github.workspace }}/openwrt"
 
-          export MAKEFLAGS="-j$(nproc)"
+          export MAKEFLAGS="-j1"
           export HOSTCFLAGS="-Wno-error"
           export HOSTCXXFLAGS="-Wno-error"
           export HOSTLDFLAGS=""
