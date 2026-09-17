@@ -564,6 +564,39 @@ jobs:
             target package toolchain feeds 2>/dev/null || true
 
 
+      - name: Diagnose unetd BPF dependency
+        #临时增加：专门把 unetd 的 Kconfig 片段完整打印出来
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "unetd Makefile"
+          echo "=========================================="
+
+          nl -ba package/network/services/unetd/Makefile | sed -n '1,80p'
+
+          echo "=========================================="
+          echo "SDK Config.in"
+          echo "=========================================="
+
+          nl -ba target/sdk/Config.in | sed -n '1,60p'
+
+          echo "=========================================="
+          echo "ALL_KMODS Config.in"
+          echo "=========================================="
+
+          nl -ba target/sdk/files/Config.in | sed -n '1,40p'
+
+          echo "=========================================="
+          echo "Generated unetd / SDK config"
+          echo "=========================================="
+
+          grep -E '^(CONFIG_PACKAGE_unetd|CONFIG_SDK|CONFIG_ALL_KMODS)=' .config || true
+          
+
       - name: Diagnose generated BPF config
         #临时增加：检查 diffconfig
         shell: bash
