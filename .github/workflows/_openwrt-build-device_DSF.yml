@@ -531,67 +531,6 @@ jobs:
           make defconfig V=s
 
 
-      - name: Check OpenWrt Git state
-        # 诊断 OpenWrt 源码 Git 状态
-        shell: bash
-        run: |
-          set -x
-          cd "${{ github.workspace }}/openwrt"
-
-          echo "===== Git status ====="
-          git rev-parse --is-inside-work-tree
-          git rev-parse --show-toplevel
-          git rev-parse --verify HEAD
-
-          echo "===== Git branches ====="
-          git branch -a
-
-          echo "===== Git remotes ====="
-          git remote -v
-
-          echo "===== HEAD ====="
-          git log --oneline -5
-
-          echo "===== toolchain directory ====="
-          ls -ld toolchain || true
-          ls -la toolchain | head -30 || true
-
-          echo "===== HEAD:toolchain ====="
-          git rev-parse --verify HEAD:toolchain || true
-
-          echo "===== ls-tree HEAD toolchain ====="
-          git ls-tree HEAD toolchain || true
-
-          echo "===== git log -- toolchain ====="
-          git log --oneline --all -- toolchain | head -20 || true
-
-          echo "===== original OpenWrt command ====="
-          git log --no-show-signature --format=%h -1 toolchain || true
-
-          echo "===== tmp directory ====="
-          ls -la tmp || true
-
-          echo "===== git status ====="
-          git status --short
-
-
-      - name: Test OpenWrt ver_check
-        #模拟 OpenWrt 自己的命令
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cd "${{ github.workspace }}/openwrt"
-
-          mkdir -p tmp
-          
-          git log --no-show-signature --format=%h -1 toolchain > tmp/.ver_check
-          
-          echo "===== tmp/.ver_check ====="
-          cat tmp/.ver_check
-
-          test -s tmp/.ver_check
-
-
       - name: Check APK and kmods config
         #临时增加：看是否有下面类似的出现
         #CONFIG_USE_APK=y
@@ -614,6 +553,32 @@ jobs:
           echo "=========================================="
 
           grep -E '^(CONFIG_TARGET_KERNEL|CONFIG_LINUX|CONFIG_PACKAGE_kmod-md|CONFIG_PACKAGE_mdadm)' .config || true
+
+
+      - name: Diagnose LLVM and BPF configuration
+        #临时增加：谁要求 LLVM
+        shell: bash
+        run: |
+          set -x
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "LLVM / Clang / BPF configuration"
+          echo "=========================================="
+          
+          grep -Ei '^(CONFIG_.*(LLVM|CLANG|BPF|KSELFTEST|LIBBPF))=' .config || true
+
+          echo "=========================================="
+          echo "Selected LLVM / BPF packages"
+          echo "=========================================="
+          
+          grep -Ei '^CONFIG_PACKAGE_.*(llvm|clang|bpf|kselftest|libbpf)' .config || true
+
+          echo "=========================================="
+          echo "LLVM / BPF dependency references"
+          echo "=========================================="
+          grep -RniE 'llvm-project|llvm-bpf|kselftests-bpf|libbpf' \
+            package feeds target toolchain 2>/dev/null | head -200 || true
 
 
       - name: Verify third-party APK packages
@@ -868,31 +833,19 @@ jobs:
           find openwrt/files/etc/uci-defaults -type f -exec ls -l {} \; || true
 
 
-      - name: Inspect toolchain ver_check rule
-        #检查 OpenWrt Makefile 中 .ver_check 的实际规则
+      - name: Check LLVM build requirement
+        #检查 确认 LLVM 是某个明确的 package 拉进来的
         shell: bash
         run: |
           set -x
           cd "${{ github.workspace }}/openwrt"
 
-          echo "===== toolchain Makefile ====="
-          grep -n -A25 -B10 "ver_check" toolchain/Makefile || true
+          echo "===== Config ====="
+          grep -Ei 'LLVM|CLANG|BPF|KSELFTEST|LIBBPF' .config || true
 
-          echo "===== relevant config ====="
-          grep -E '^CONFIG_(BUILDBOT|PER_FEED_REPO|USE_APK)=' .config || true
-
-          echo "===== tmp ====="
-          ls -la tmp || true
-
-          echo "===== toolchain stamp ====="
-          ls -la staging_dir/toolchain-* 2>/dev/null || true
-
-          echo "===== Make version ====="
-          make --version | head -3
-
-          echo "===== Git ====="
-          git rev-parse --verify HEAD
-          git log --no-show-signature --format=%h -1 toolchain
+          echo "===== LLVM references ====="
+          grep -RniE 'llvm-project-21|llvm-bpf-21|kselftests-bpf|libbpf' \
+            package feeds target toolchain 2>/dev/null | head -200 || true
 
 
       - name: Build firmware
