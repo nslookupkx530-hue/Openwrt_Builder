@@ -549,7 +549,7 @@ jobs:
           grep -E '^(CONFIG_USE_APK|CONFIG_BUILDBOT|CONFIG_PER_FEED_REPO)=' .config || true
 
           echo "=========================================="
-          echo "Kernel configuration"
+          echo "Kernel / RAID configuration"
           echo "=========================================="
 
           grep -E '^(CONFIG_TARGET_KERNEL|CONFIG_LINUX|CONFIG_PACKAGE_kmod-md|CONFIG_PACKAGE_mdadm)' .config || true
