@@ -531,6 +531,27 @@ jobs:
           make defconfig V=s
 
 
+      - name: Diagnose generated build system config
+        #临时增加：再确认
+        #CONFIG_BUILDBOT=y
+        #CONFIG_SDK=y
+        #CONFIG_SDK_LLVM_BPF=y
+        #CONFIG_ALL=y
+        #CONFIG_ALL_KMODS=y
+        #CONFIG_NEED_BPF_TOOLCHAIN=y
+        #CONFIG_USE_LLVM_BUILD=y
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "Generated BUILD SYSTEM configuration"
+          echo "=========================================="
+
+          grep -E '^(CONFIG_BUILDBOT|CONFIG_SDK|CONFIG_SDK_LLVM_BPF|CONFIG_ALL|CONFIG_ALL_KMODS|CONFIG_NEED_BPF_TOOLCHAIN|CONFIG_USE_LLVM_BUILD|CONFIG_BPF_TOOLCHAIN)' .config || true
+
+
       - name: Diagnose ALL_KMODS source
         #临时增加：谁把 CONFIG_ALL_KMODS=y 打开的
         shell: bash
