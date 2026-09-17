@@ -555,30 +555,25 @@ jobs:
           grep -E '^(CONFIG_TARGET_KERNEL|CONFIG_LINUX|CONFIG_PACKAGE_kmod-md|CONFIG_PACKAGE_mdadm)' .config || true
 
 
-      - name: Diagnose LLVM and BPF configuration
-        #临时增加：谁要求 LLVM
+      - name: Check prebuilt LLVM BPF toolchain
+        #临时增加：一个非常小的检查
         shell: bash
         run: |
           set -x
           cd "${{ github.workspace }}/openwrt"
 
           echo "=========================================="
-          echo "LLVM / Clang / BPF configuration"
+          echo "Prebuilt LLVM BPF toolchain"
           echo "=========================================="
-          
-          grep -Ei '^(CONFIG_.*(LLVM|CLANG|BPF|KSELFTEST|LIBBPF))=' .config || true
 
-          echo "=========================================="
-          echo "Selected LLVM / BPF packages"
-          echo "=========================================="
+          echo "--- llvm-bpf directory ---"
+          ls -la llvm-bpf 2>/dev/null || true
           
-          grep -Ei '^CONFIG_PACKAGE_.*(llvm|clang|bpf|kselftest|libbpf)' .config || true
+          echo "--- .llvm-version ---"
+          cat llvm-bpf/.llvm-version 2>/dev/null || true
 
-          echo "=========================================="
-          echo "LLVM / BPF dependency references"
-          echo "=========================================="
-          grep -RniE 'llvm-project|llvm-bpf|kselftests-bpf|libbpf' \
-            package feeds target toolchain 2>/dev/null | head -200 || true
+          echo "--- LLVM related config ---"
+          grep -E '^(CONFIG_HAS_BPF_TOOLCHAIN|CONFIG_NEED_BPF_TOOLCHAIN|CONFIG_HAS_PREBUILT_LLVM_TOOLCHAIN|CONFIG_USE_LLVM_BUILD|CONFIG_USE_LLVM_PREBUILT|CONFIG_BUILDBOT)=' .config || true
 
 
       - name: Verify third-party APK packages
