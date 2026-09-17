@@ -531,6 +531,37 @@ jobs:
           make defconfig V=s
 
 
+      - name: Diagnose BPF toolchain selectors
+        #临时增加：最后一个非常精准的诊断
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "BPF TOOLCHAIN SELECTOR CONFIG"
+          echo "=========================================="
+
+          grep -E '^(CONFIG_BUILDBOT|CONFIG_SDK|CONFIG_SDK_LLVM_BPF|CONFIG_BPF_TOOLCHAIN_BUILD_LLVM|CONFIG_PACKAGE_unetd|CONFIG_UNETD_VXLAN_SUPPORT|CONFIG_NEED_BPF_TOOLCHAIN|CONFIG_USE_LLVM_BUILD)=' .config || true
+
+          echo "=========================================="
+          echo "SDK Config.in"
+          echo "=========================================="
+
+          nl -ba target/sdk/Config.in | sed -n '1,25p'
+
+          echo "=========================================="
+          echo "Toolchain BPF configuration"
+          echo "=========================================="
+
+          nl -ba toolchain/Config.in | sed -n '300,350p'
+
+          echo "=========================================="
+          echo "unetd configuration"
+          echo "=========================================="
+
+          nl -ba package/network/services/unetd/Makefile | sed -n '35,48p'
+
       - name: Diagnose generated build system config
         #临时增加：再确认
         #CONFIG_BUILDBOT=y
