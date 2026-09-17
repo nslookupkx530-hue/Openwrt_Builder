@@ -531,6 +531,29 @@ jobs:
           make defconfig V=s
 
 
+      - name: Diagnose generated BPF config
+        #临时增加：检查 diffconfig
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "Generated BPF / LLVM configuration"
+          echo "=========================================="
+
+          grep -E '^(CONFIG_NEED_BPF_TOOLCHAIN|CONFIG_HAS_BPF_TOOLCHAIN|CONFIG_HAS_PREBUILT_LLVM_TOOLCHAIN|CONFIG_USE_LLVM_BUILD|CONFIG_USE_LLVM_PREBUILT)=' .config || true
+
+          grep -E '^CONFIG_PACKAGE_(kselftests-bpf|kmod-bpf-test|kmod-sched-bpf|libbpf)=' .config || true
+
+          echo "=========================================="
+          echo "Compare source config vs generated config"
+          echo "=========================================="
+
+          ./scripts/diffconfig.sh "${{ github.workspace }}/config/immortalwrt.config" .config || true
+
+
       - name: Check APK and kmods config
         #临时增加：看是否有下面类似的出现
         #CONFIG_USE_APK=y
