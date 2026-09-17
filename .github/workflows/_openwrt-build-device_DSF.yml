@@ -868,6 +868,33 @@ jobs:
           find openwrt/files/etc/uci-defaults -type f -exec ls -l {} \; || true
 
 
+      - name: Inspect toolchain ver_check rule
+        #检查 OpenWrt Makefile 中 .ver_check 的实际规则
+        shell: bash
+        run: |
+          set -x
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "===== toolchain Makefile ====="
+          grep -n -A25 -B10 "ver_check" toolchain/Makefile || true
+
+          echo "===== relevant config ====="
+          grep -E '^CONFIG_(BUILDBOT|PER_FEED_REPO|USE_APK)=' .config || true
+
+          echo "===== tmp ====="
+          ls -la tmp || true
+
+          echo "===== toolchain stamp ====="
+          ls -la staging_dir/toolchain-* 2>/dev/null || true
+
+          echo "===== Make version ====="
+          make --version | head -3
+
+          echo "===== Git ====="
+          git rev-parse --verify HEAD
+          git log --no-show-signature --format=%h -1 toolchain
+
+
       - name: Build firmware
 
         shell: bash
@@ -878,7 +905,7 @@ jobs:
 
           cd "${{ github.workspace }}/openwrt"
 
-          export MAKEFLAGS="-j1"
+          export MAKEFLAGS="-j$(nproc)"
           export HOSTCFLAGS="-Wno-error"
           export HOSTCXXFLAGS="-Wno-error"
           export HOSTLDFLAGS=""
