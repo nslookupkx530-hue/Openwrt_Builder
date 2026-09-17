@@ -531,6 +531,39 @@ jobs:
           make defconfig V=s
 
 
+      - name: Diagnose ALL_KMODS source
+        #临时增加：谁把 CONFIG_ALL_KMODS=y 打开的
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "Search ALL_KMODS definition / selection"
+          echo "=========================================="
+
+          grep -RniE \
+            'config[[:space:]]+ALL_KMODS|select[[:space:]]+ALL_KMODS|default[[:space:]].*ALL_KMODS' \
+            target package toolchain feeds 2>/dev/null || true
+
+          echo "=========================================="
+          echo "Search BPF toolchain selectors"
+          echo "=========================================="
+
+          grep -RniE \
+            'config[[:space:]]+NEED_BPF_TOOLCHAIN|select[[:space:]]+NEED_BPF_TOOLCHAIN|default[[:space:]].*NEED_BPF_TOOLCHAIN' \
+            target package toolchain feeds 2>/dev/null || true
+
+          echo "=========================================="
+          echo "Search kselftests-bpf definitions"
+          echo "=========================================="
+
+          grep -RniE \
+            'kselftests-bpf|PACKAGE_kselftests-bpf' \
+            target package toolchain feeds 2>/dev/null || true
+
+
       - name: Diagnose generated BPF config
         #临时增加：检查 diffconfig
         shell: bash
