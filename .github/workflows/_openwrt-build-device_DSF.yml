@@ -531,6 +531,45 @@ jobs:
           make defconfig V=s
 
 
+      - name: Find all NEED_BPF_TOOLCHAIN selectors
+        #临时增加：全仓库搜索
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "ALL NEED_BPF_TOOLCHAIN references"
+          echo "=========================================="
+
+          grep -RniE \
+            'select[[:space:]]+NEED_BPF_TOOLCHAIN|NEED_BPF_TOOLCHAIN' \
+            . \
+            --exclude-dir=.git \
+            --exclude='*.o' \
+            --exclude='*.a' \
+            --exclude='*.so' \
+            --exclude='*.so.*' \
+            2>/dev/null || true
+
+
+      - name: Diagnose all generated BPF packages
+        #临时增加：.config 到底有哪些 BPF 相关包
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "ALL GENERATED BPF CONFIG"
+          echo "=========================================="
+
+          grep -RniE \
+            '^(CONFIG_|# CONFIG_).*(BPF|EBPF|LIBBPF|LLVM|CLANG)' \
+            .config \
+            || true
+
+
       - name: Diagnose BPF toolchain selectors
         #临时增加：最后一个非常精准的诊断
         shell: bash
