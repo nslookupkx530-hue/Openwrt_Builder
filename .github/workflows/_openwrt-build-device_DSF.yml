@@ -530,6 +530,35 @@ jobs:
 
           make defconfig V=s
 
+      - name: Verify BPF packages
+        #临时增加：做一次最终确认
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "BPF LLVM toolchain"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD)=' .config \
+            || echo "BPF LLVM toolchain: NOT ENABLED"
+
+          echo "=========================================="
+          echo "BPF test packages"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_(kselftests-bpf|kmod-bpf-test)=' .config \
+            || echo "BPF test packages: NOT ENABLED"
+
+          echo "=========================================="
+          echo "Required BPF-related packages"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_(libbpf|kmod-sched-bpf|kmod-sched-cake|kmod-sched-core)=' .config \
+            || true
+
+
 
       - name: Verify BPF LLVM toolchain elimination
         #临时增加：做一次最终确认
