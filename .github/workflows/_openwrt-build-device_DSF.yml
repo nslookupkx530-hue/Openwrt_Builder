@@ -530,6 +530,33 @@ jobs:
 
           make defconfig V=s
 
+      - name: Verify BPF toolchain elimination
+        #临时增加：
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "qosify"
+          echo "=========================================="
+          grep -E '^CONFIG_PACKAGE_qosify=' .config || echo "qosify: not enabled"
+
+          echo
+          echo "=========================================="
+          echo "BPF toolchain"
+          echo "=========================================="
+          grep -E '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD)=' .config \
+            || echo "BPF LLVM toolchain: NOT ENABLED"
+
+          echo
+          echo "=========================================="
+          echo "Other BPF packages"
+          echo "=========================================="
+          grep -E '^CONFIG_PACKAGE_.*=(y|m)$' .config \
+            | grep -Ei 'bpf|bridger|qosify|xdp|dae|daed|uspot|tcp-in-udp|sched' \
+            || echo "No matching BPF packages"
+
 
       - name: Verify qosify override
         #临时增加：CONFIG_PACKAGE_qosify=n
