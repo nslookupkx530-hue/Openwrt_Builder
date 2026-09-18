@@ -539,17 +539,44 @@ jobs:
           cd "${{ github.workspace }}/openwrt"
 
           echo "=========================================="
-          echo "BPF selectors in generated package config"
+          echo "ALL NEED_BPF_TOOLCHAIN references"
           echo "=========================================="
 
-          for line in 122 1005 66562 105858 124822 124873 132980 133560; do
-            echo
-            echo "========== Around line ${line} =========="
-            start=$((line - 12))
-            end=$((line + 12))
-            sed -n "${start},${end}p" tmp/.config-package.in
-          done
+          awk '
+          /^config PACKAGE_/ {
+              pkg=$2
+          }
+          /^config [A-Z0-9_]+$/ {
+              if ($2 != "PACKAGE_" && $2 != "") {
+                  cfg=$2
+              }
+          }
+          /select NEED_BPF_TOOLCHAIN/ {
+              print "------------------------------------------"
+              print "config: " cfg
+              print "package: " pkg
+              print "selector: " $0
+          }
+          ' tmp/.config-package.in
 
+          echo
+          echo "=========================================="
+          echo "Relevant package defaults"
+          echo "=========================================="
+
+          grep -n -B5 -A8 \
+            -E 'default (y|m) if (ALL|ALL_NONSHARED)|select NEED_BPF_TOOLCHAIN' \
+            tmp/.config-package.in \
+            | head -400
+
+          echo
+          echo "=========================================="
+          echo "Selected BPF-related packages"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_.*=(y|m)$' .config \
+            | grep -Ei 'bpf|bridger|qosify|dae|daed|xdp|uspot|tcp-in-udp|sched'
+            
 
       - name: Find all NEED_BPF_TOOLCHAIN selectors
         #临时增加：全仓库搜索
