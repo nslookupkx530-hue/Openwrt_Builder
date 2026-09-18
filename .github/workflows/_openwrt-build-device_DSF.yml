@@ -542,32 +542,9 @@ jobs:
           echo "ALL NEED_BPF_TOOLCHAIN references"
           echo "=========================================="
 
-          awk '
-          /^config PACKAGE_/ {
-              pkg=$2
-          }
-          /^config [A-Z0-9_]+$/ {
-              if ($2 != "PACKAGE_" && $2 != "") {
-                  cfg=$2
-              }
-          }
-          /select NEED_BPF_TOOLCHAIN/ {
-              print "------------------------------------------"
-              print "config: " cfg
-              print "package: " pkg
-              print "selector: " $0
-          }
-          ' tmp/.config-package.in
-
-          echo
-          echo "=========================================="
-          echo "Relevant package defaults"
-          echo "=========================================="
-
-          grep -n -B5 -A8 \
-            -E 'default (y|m) if (ALL|ALL_NONSHARED)|select NEED_BPF_TOOLCHAIN' \
-            tmp/.config-package.in \
-            | head -400
+          grep -n -B15 -A15 \
+            'select NEED_BPF_TOOLCHAIN' \
+            tmp/.config-package.in || true
 
           echo
           echo "=========================================="
@@ -575,7 +552,23 @@ jobs:
           echo "=========================================="
 
           grep -E '^CONFIG_PACKAGE_.*=(y|m)$' .config \
-            | grep -Ei 'bpf|bridger|qosify|dae|daed|xdp|uspot|tcp-in-udp|sched'
+            | grep -Ei 'bpf|bridger|qosify|dae|daed|xdp|uspot|tcp-in-udp|sched' \
+            || true
+
+          echo
+          echo "=========================================="
+          echo "ALL / ALL_KMODS"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(ALL|ALL_KMODS|ALL_NONSHARED|BUILDBOT)=' .config || true
+
+          echo
+          echo "=========================================="
+          echo "BPF toolchain state"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(HAS_BPF_TOOLCHAIN|NEED_BPF_TOOLCHAIN|HAS_PREBUILT_LLVM_TOOLCHAIN|USE_LLVM_BUILD|BPF_TOOLCHAIN_)=' .config \
+            || true
             
 
       - name: Find all NEED_BPF_TOOLCHAIN selectors
