@@ -531,6 +531,26 @@ jobs:
           make defconfig V=s
 
 
+      - name: Identify BPF package selectors
+        #临时增加：诊断步骤
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "BPF selectors in generated package config"
+          echo "=========================================="
+
+          for line in 122 1005 66562 105858 124822 124873 132980 133560; do
+            echo
+            echo "========== Around line ${line} =========="
+            start=$((line - 12))
+            end=$((line + 12))
+            sed -n "${start},${end}p" tmp/.config-package.in
+          done
+
+
       - name: Find all NEED_BPF_TOOLCHAIN selectors
         #临时增加：全仓库搜索
         shell: bash
