@@ -530,6 +530,7 @@ jobs:
 
           make defconfig V=s
 
+
       - name: Verify BPF packages
         #长期保留：BPF 验证
         shell: bash
