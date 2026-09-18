@@ -531,6 +531,27 @@ jobs:
           make defconfig V=s
 
 
+      - name: Verify qosify override
+        #临时增加：CONFIG_PACKAGE_qosify=n
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "qosify final state"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_qosify=' .config || true
+
+          echo
+          echo "=========================================="
+          echo "BPF toolchain final state"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD)=' .config || true
+
+
       - name: Verify BPF trigger packages
         #临时增加：一个非常简单的诊断
         shell: bash
