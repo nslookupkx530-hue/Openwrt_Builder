@@ -530,6 +530,37 @@ jobs:
 
           make defconfig V=s
 
+
+      - name: Verify BPF LLVM toolchain elimination
+        #临时增加：做一次最终确认
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "BPF LLVM toolchain state"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD|BPF_TOOLCHAIN_BUILD_LLVM)=' .config \
+            || echo "BPF LLVM toolchain: NOT ENABLED"
+
+          echo "=========================================="
+          echo "Potential BPF trigger packages"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_(qosify|bridger|xdp-filter|xdp-loader|xdpdump|bpftool-full|bpftool-minimal|unetd)=' .config \
+            || echo "No known BPF trigger packages enabled"
+
+          echo "=========================================="
+          echo "BPF-related packages"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_.*=(y|m)$' .config \
+            | grep -Ei 'bpf|xdp|sched' \
+            || echo "No BPF-related packages enabled"
+
+
       - name: Verify BPF toolchain elimination
         #临时增加：
         shell: bash
