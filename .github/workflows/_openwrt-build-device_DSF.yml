@@ -531,6 +531,34 @@ jobs:
           make defconfig V=s
 
 
+      - name: Verify BPF trigger packages
+        #临时增加：一个非常简单的诊断
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "${{ github.workspace }}/openwrt"
+
+          echo "=========================================="
+          echo "BPF trigger package state"
+          echo "=========================================="
+
+          grep -E '^CONFIG_PACKAGE_(bridger|qosify)=' .config || true
+
+          echo
+          echo "=========================================="
+          echo "ALL configuration"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(ALL|ALL_KMODS|ALL_NONSHARED|BUILDBOT)=' .config || true
+
+          echo
+          echo "=========================================="
+          echo "BPF toolchain configuration"
+          echo "=========================================="
+
+          grep -E '^CONFIG_(HAS_BPF_TOOLCHAIN|NEED_BPF_TOOLCHAIN|HAS_PREBUILT_LLVM_TOOLCHAIN|USE_LLVM_BUILD)=' .config || true
+
+
       - name: Identify BPF package selectors
         #临时增加：诊断步骤
         shell: bash
