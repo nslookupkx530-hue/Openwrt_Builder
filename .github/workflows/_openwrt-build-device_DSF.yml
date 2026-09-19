@@ -542,21 +542,31 @@ jobs:
           echo "BPF LLVM toolchain"
           echo "=========================================="
 
-          grep -E '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD)=' .config \
-            || echo "BPF LLVM toolchain: NOT ENABLED"
+          if grep -qE '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD|SDK_LLVM_BPF|BPF_TOOLCHAIN_BUILD_LLVM)=y' .config; then
+            grep -E '^CONFIG_(NEED_BPF_TOOLCHAIN|USE_LLVM_BUILD|SDK_LLVM_BPF|BPF_TOOLCHAIN_BUILD_LLVM)=y' .config
+            echo "ERROR: BPF LLVM toolchain is enabled"
+            exit 1
+          else
+            echo "BPF LLVM toolchain: NOT ENABLED"
+          fi
 
           echo "=========================================="
           echo "BPF test packages"
           echo "=========================================="
 
-          grep -E '^CONFIG_PACKAGE_(kselftests-bpf|kmod-bpf-test)=' .config \
-            || echo "BPF test packages: NOT ENABLED"
+          if grep -qE '^CONFIG_PACKAGE_(kselftests-bpf|kmod-bpf-test)=([ym])' .config; then
+            grep -E '^CONFIG_PACKAGE_(kselftests-bpf|kmod-bpf-test)=' .config
+            echo "ERROR: BPF test package is enabled"
+            exit 1
+          else
+            echo "BPF test packages: NOT ENABLED"
+          fi
 
           echo "=========================================="
           echo "Required BPF-related packages"
           echo "=========================================="
 
-          grep -E '^CONFIG_PACKAGE_(libbpf|kmod-sched-bpf|kmod-sched-cake|kmod-sched-core)=' .config \
+          grep -E '^CONFIG_PACKAGE_(kmod-sched-bpf|kmod-sched-cake|kmod-sched-core|libbpf)=' .config \
             || true
 
           
