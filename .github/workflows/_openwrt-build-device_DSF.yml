@@ -72,6 +72,10 @@ jobs:
 
           sudo apt-get install -y build-essential clang flex bison gawk gcc g++ gettext git libncurses-dev libssl-dev python3 rsync unzip wget zstd curl dos2unix qemu-utils
 
+          echo "===== Verify qemu-img ====="
+          command -v qemu-img
+          qemu-img --version 
+
 
       - name: Clone OpenWrt source
         # 获取 OpenWrt 源码
