@@ -70,7 +70,7 @@ jobs:
 
           sudo apt-get update
 
-          sudo apt-get install -y build-essential clang flex bison gawk gcc g++ gettext git libncurses-dev libssl-dev python3 rsync unzip wget zstd curl dos2unix
+          sudo apt-get install -y build-essential clang flex bison gawk gcc g++ gettext git libncurses-dev libssl-dev python3 rsync unzip wget zstd curl dos2unix qemu-utils
 
 
       - name: Clone OpenWrt source
@@ -841,14 +841,6 @@ jobs:
           set -euxo pipefail
 
           find openwrt/files/etc/uci-defaults -type f -exec ls -l {} \; || true
-
-
-      - name: Install image build dependencies
-        # 安装 qemu-utils
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-utils
 
 
       - name: Build firmware
